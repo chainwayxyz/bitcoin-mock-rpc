@@ -14,7 +14,4 @@ uses Bitcoin network.
 
 ## License
 
-**(C) 2024 Chainway Limited** `bitcoin-mock-rpc` was developed by Chainway
-Limited. While we plan to adopt an open source license, we have not yet selected
-one. As such, all rights are reserved for the time being. Please reach out to us
-if you have thoughts on licensing.
+This project is licensed with [MIT license](LICENSE).
