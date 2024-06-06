@@ -1,8 +1,9 @@
 # Bitcoin Mock Remote Procedure Call
 
 This library mocks [bitcoincore-rpc](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
-library. This mock takes the advantage of `bitcoincore-rpc` trait interface
-called `RpcApi`.
+library. This mock takes the advantage of `bitcoincore-rpc` trait interface,
+called `RpcApi`. With this mock, every test can have an isolated Bitcoin
+environment without changing your existing code too much.
 
 ## License
 
