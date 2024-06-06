@@ -6,3 +6,7 @@
 //!
 //! Applications can implement another trait that will switch between this mock
 //! and the real RPC interface, for tests and production respectively.
+
+pub mod client;
+pub mod common;
+pub mod config;
