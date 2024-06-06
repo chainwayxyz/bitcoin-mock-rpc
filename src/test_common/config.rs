@@ -1,5 +1,5 @@
 //! # Config
-//! 
+//!
 //! This crate mocks a configuration interface. This interface can be used for
 //! testing.
 
@@ -22,21 +22,21 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn new() -> Self {
-		Self {
-			..Default::default()
-		}
-	}
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for Config {
-	fn default() -> Self {
-		Self {
+    fn default() -> Self {
+        Self {
             num_verifiers: 4,
             min_relay_fee: 289,
             user_takes_after: 200,
             confirmation_treshold: 1,
             network: Network::Regtest,
-		}
-	}
+        }
+    }
 }

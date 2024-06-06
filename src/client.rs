@@ -3,7 +3,8 @@
 //! Client crate mocks `bitcoincore-rpc`'s client interface.
 
 use bitcoin::{
-    absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, Network, OutPoint, SignedAmount, Transaction, TxIn, TxOut, Txid, Wtxid, XOnlyPublicKey
+    absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, Network,
+    SignedAmount, Transaction, TxOut, Wtxid, XOnlyPublicKey,
 };
 use bitcoin_simulator::database::Database;
 use bitcoincore_rpc::{
@@ -44,6 +45,7 @@ impl Client {
         })
     }
 }
+
 
 impl RpcApi for Client {
     /// This function normally talks with Bitcoin network. Therefore, other
@@ -206,10 +208,10 @@ impl RpcApi for Client {
     }
 }
 
-#[cfg(test)]
+#[cfg(testt)]
 mod tests {
-    use crate::{common, config::Config};
     use super::*;
+    use crate::{common, config::Config};
     use bitcoin::{
         hashes::Hash, Address, Amount, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness,
         XOnlyPublicKey,

@@ -8,5 +8,7 @@
 //! and the real RPC interface, for tests and production respectively.
 
 pub mod client;
-pub mod common;
-pub mod config;
+
+// Testing only imports. These won't be compiled in to target binary.
+#[cfg(test)]
+pub mod test_common;
