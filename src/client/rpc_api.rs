@@ -1,12 +1,13 @@
-//! # Client
+//! # RPC API
 //!
-//! `Client` crate mocks `bitcoincore-rpc`'s `Client` interface.
+//! This crate implements `RpcApi` trait in `bitcoincore-rpc` for the mock
+//! `Client`.
 
+use super::Client;
 use bitcoin::{
     absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, Network,
     SignedAmount, Transaction, TxOut, Wtxid, XOnlyPublicKey,
 };
-use bitcoin_simulator::database::Database;
 use bitcoincore_rpc::{
     json::{
         self, GetRawTransactionResult, GetTransactionResult, GetTransactionResultDetail,
@@ -15,36 +16,6 @@ use bitcoincore_rpc::{
     RpcApi,
 };
 use secp256k1::Secp256k1;
-use std::sync::{Arc, Mutex};
-
-/// Mock Bitcoin RPC client.
-pub struct Client {
-    /// Private database interface. Data will be written to this temporary
-    /// database. Note: It is wrapped around an `Arc<Mutex<>>`. This will help
-    /// to use this mock in an asynchronous environment, like `async` or threads.
-    database: Arc<Mutex<Database>>,
-}
-
-impl Client {
-    /// Creates a new mock Client interface.
-    ///
-    /// # Parameters
-    ///
-    /// Parameters are just here to match `bitcoincore_rpc::Client::new()`. They
-    /// are not used and can be dummy values.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if connection to the SQLite database cannot be
-    /// established.
-    pub fn new(_url: &str, _auth: bitcoincore_rpc::Auth) -> bitcoincore_rpc::Result<Self> {
-        let database = Database::connect_temporary_database().unwrap();
-
-        Ok(Self {
-            database: Arc::new(Mutex::new(database)),
-        })
-    }
-}
 
 impl RpcApi for Client {
     /// This function normally talks with Bitcoin network. Therefore, other
@@ -212,12 +183,6 @@ mod tests {
     use super::*;
     use crate::test_common::*;
     use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness};
-
-    /// Creating a new `Client` with dummy parameters should not panic.
-    #[test]
-    fn new() {
-        let _should_not_panic = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-    }
 
     /// Tests `send_raw_transaction` and `get_raw_transaction`.
     #[test]
