@@ -31,7 +31,11 @@ impl RpcApi for Client {
         cmd: &str,
         args: &[serde_json::Value],
     ) -> bitcoincore_rpc::Result<T> {
-        unimplemented!("Unimplemented mock RPC cmd: {}, with args: {:?}", cmd, args);
+        unimplemented!(
+            "Unimplemented mock RPC cmd: {}, with args: {:?}. Please consider implementing it.",
+            cmd,
+            args
+        );
     }
 
     fn get_raw_transaction(

@@ -9,6 +9,9 @@
 
 pub mod client;
 
+// Re-imports.
+pub use client::*;
+
 // Testing only imports. These won't be compiled in to target binary.
 #[cfg(test)]
 pub mod test_common;
