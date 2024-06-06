@@ -20,8 +20,8 @@ use std::sync::{Arc, Mutex};
 /// Mock Bitcoin RPC client.
 pub struct Client {
     /// Private database interface. Data will be written to this temporary
-    /// database. Note: It is wrapped around a `Arc<Mutex<>>` interface. This
-    /// will help to use this mock in a multi-threaded environment, like `async`.
+    /// database. Note: It is wrapped around an `Arc<Mutex<>>`. This will help
+    /// to use this mock in an asynchronous environment, like `async` or threads.
     database: Arc<Mutex<Database>>,
 }
 
