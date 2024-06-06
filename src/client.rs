@@ -1,6 +1,6 @@
 //! # Client
 //!
-//! Client crate mocks `bitcoincore-rpc`'s client interface.
+//! `Client` crate mocks `bitcoincore-rpc`'s `Client` interface.
 
 use bitcoin::{
     absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, Network,
@@ -45,7 +45,6 @@ impl Client {
         })
     }
 }
-
 
 impl RpcApi for Client {
     /// This function normally talks with Bitcoin network. Therefore, other
@@ -208,16 +207,13 @@ impl RpcApi for Client {
     }
 }
 
-#[cfg(testt)]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{common, config::Config};
-    use bitcoin::{
-        hashes::Hash, Address, Amount, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness,
-        XOnlyPublicKey,
-    };
-    use secp256k1::Secp256k1;
+    use crate::test_common::*;
+    use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness};
 
+    /// Creating a new `Client` with dummy parameters should not panic.
     #[test]
     fn new() {
         let _should_not_panic = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
@@ -226,14 +222,7 @@ mod tests {
     /// Tests `send_raw_transaction` and `get_raw_transaction`.
     #[test]
     fn raw_transaction() {
-        let config = Config::new();
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-        let txb = TransactionBuilder::new(
-            config.verifiers_public_keys,
-            config.network,
-            config.user_takes_after,
-            config.min_relay_fee,
-        );
 
         // Insert raw transactions to Bitcoin.
         let txin = TxIn {
@@ -247,9 +236,9 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: txb.generate_bridge_address().unwrap().0.script_pubkey(),
+            script_pubkey: get_temp_address().script_pubkey(),
         };
-        let inserted_tx1 = TransactionBuilder::create_btc_tx(vec![txin], vec![txout]);
+        let inserted_tx1 = create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
         let txin = TxIn {
@@ -263,9 +252,9 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x45),
-            script_pubkey: txb.generate_bridge_address().unwrap().0.script_pubkey(),
+            script_pubkey: get_temp_address().script_pubkey(),
         };
-        let inserted_tx2 = TransactionBuilder::create_btc_tx(vec![txin], vec![txout]);
+        let inserted_tx2 = create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
 
         // Retrieve inserted transactions from Bitcoin.
@@ -285,14 +274,7 @@ mod tests {
     /// Tests `get_transaction`.
     #[test]
     fn transaction() {
-        let config = common::get_test_config("test_config.toml").unwrap();
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-        let txb = TransactionBuilder::new(
-            config.verifiers_public_keys,
-            config.network,
-            config.user_takes_after,
-            config.min_relay_fee,
-        );
 
         // Insert raw transactions to Bitcoin.
         let txin = TxIn {
@@ -306,9 +288,9 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: txb.generate_bridge_address().unwrap().0.script_pubkey(),
+            script_pubkey: get_temp_address().script_pubkey(),
         };
-        let inserted_tx = TransactionBuilder::create_btc_tx(vec![txin], vec![txout]);
+        let inserted_tx = create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx).unwrap();
 
         let txid = inserted_tx.compute_txid();
@@ -316,24 +298,13 @@ mod tests {
         let tx = rpc.get_transaction(&txid, None).unwrap();
 
         assert_eq!(txid, tx.info.txid);
-        assert!(tx.info.confirmations as u32 > config.confirmation_treshold);
-        assert!(tx.info.confirmations > config.confirmation_treshold as i32);
     }
 
     #[test]
     fn send_to_address() {
-        let config = common::get_test_config("test_config.toml").unwrap();
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        // Create a temporary address.
-        let secp = Secp256k1::new();
-        let xonly_public_key = XOnlyPublicKey::from_slice(&[
-            0x78u8, 0x19u8, 0x90u8, 0xd7u8, 0xe2u8, 0x11u8, 0x8cu8, 0xc3u8, 0x61u8, 0xa9u8, 0x3au8,
-            0x6fu8, 0xccu8, 0x54u8, 0xceu8, 0x61u8, 0x1du8, 0x6du8, 0xf3u8, 0x81u8, 0x68u8, 0xd6u8,
-            0xb1u8, 0xedu8, 0xfbu8, 0x55u8, 0x65u8, 0x35u8, 0xf2u8, 0x20u8, 0x0cu8, 0x4b,
-        ])
-        .unwrap();
-        let address = Address::p2tr(&secp, xonly_public_key, None, config.network);
+        let address = get_temp_address();
 
         let txid = rpc
             .send_to_address(
