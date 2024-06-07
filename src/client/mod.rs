@@ -2,6 +2,7 @@
 //!
 //! Client crate mocks the `Client` struct in `bitcoincore-rpc`.
 
+use crate::ledger::Ledger;
 use bitcoin_simulator::database::Database;
 use std::sync::{Arc, Mutex};
 
@@ -13,6 +14,8 @@ pub struct Client {
     /// database. Note: It is wrapped around an `Arc<Mutex<>>`. This will help
     /// to use this mock in an asynchronous environment, like `async` or threads.
     database: Arc<Mutex<Database>>,
+    /// Bitcoin ledger.
+    ledger: Ledger,
 }
 
 impl Client {
@@ -32,6 +35,7 @@ impl Client {
 
         Ok(Self {
             database: Arc::new(Mutex::new(database)),
+            ledger: Ledger::new(),
         })
     }
 }

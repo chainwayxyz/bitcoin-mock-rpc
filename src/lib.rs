@@ -8,6 +8,7 @@
 //! and the real RPC interface, for tests and production respectively.
 
 pub mod client;
+mod ledger;
 
 // Re-imports.
 pub use client::*;
