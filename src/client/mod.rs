@@ -4,7 +4,10 @@
 
 use crate::ledger::Ledger;
 use bitcoin_simulator::database::Database;
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::Cell,
+    sync::{Arc, Mutex},
+};
 
 mod rpc_api;
 
@@ -15,7 +18,7 @@ pub struct Client {
     /// to use this mock in an asynchronous environment, like `async` or threads.
     database: Arc<Mutex<Database>>,
     /// Bitcoin ledger.
-    ledger: Ledger,
+    ledger: Cell<Ledger>,
 }
 
 impl Client {
@@ -35,7 +38,7 @@ impl Client {
 
         Ok(Self {
             database: Arc::new(Mutex::new(database)),
-            ledger: Ledger::new(),
+            ledger: Cell::new(Ledger::new()),
         })
     }
 }
