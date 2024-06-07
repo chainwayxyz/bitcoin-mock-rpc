@@ -22,8 +22,12 @@ impl Ledger {
     }
 
     /// Adds a new UTXO to user's UTXO's.
-    pub fn add_utxo(&mut self, utxo: TxOut) {
-        self.utxos.push(utxo);
+    pub fn add_utxo(&self, utxo: TxOut) -> Self {
+        let mut ledger = self.clone().to_owned();
+
+        ledger.utxos.push(utxo);
+
+        ledger
     }
 
     /// Adds a new address for user.
@@ -80,7 +84,7 @@ mod tests {
             value: Amount::from_sat(0x45),
             script_pubkey: ledger.addresses[0].script_pubkey(),
         };
-        ledger.add_utxo(utxo);
+        ledger = ledger.add_utxo(utxo);
 
         assert_eq!(ledger.utxos.len(), 1);
         assert_eq!(ledger.utxos[0].value, Amount::from_sat(0x45));
