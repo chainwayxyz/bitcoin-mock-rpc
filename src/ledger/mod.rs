@@ -24,6 +24,11 @@ impl Ledger {
     pub fn add_utxo(&mut self, utxo: TxOut) {
         self.utxos.push(utxo);
     }
+
+    /// Adds a new address for user.
+    pub fn add_address(&mut self, address: Address) {
+        self.addresses.push(address);
+    }
 }
 
 impl Default for Ledger {
@@ -61,7 +66,7 @@ mod tests {
         ])
         .unwrap();
         let address = Address::p2tr(&secp, xonly_public_key, None, Network::Regtest);
-        ledger.addresses.push(address);
+        ledger.add_address(address);
 
         // Insert a dummy UTXO.
         let utxo = TxOut {
