@@ -145,6 +145,12 @@ impl RpcApi for Client {
             .as_unchecked()
             .to_owned();
 
+        self.ledger.set(
+            self.ledger
+                .take()
+                .add_address(address.clone().assume_checked()),
+        );
+
         Ok(address)
     }
 
@@ -283,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn generate_new_address() {
+    fn get_new_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
         let address = rpc.get_new_address(None, None).unwrap();
@@ -292,10 +298,11 @@ mod tests {
         assert!(!address.is_valid_for_network(Network::Testnet));
         assert!(!address.is_valid_for_network(Network::Signet));
         assert!(!address.is_valid_for_network(Network::Bitcoin));
+        unsafe { assert_eq!(*(*rpc.ledger.as_ptr()).addresses[0].as_unchecked(), address) };
 
         const ADDRESS_COUNT: usize = 100;
         let mut prev = address;
-        for _ in 0..ADDRESS_COUNT {
+        for i in 0..ADDRESS_COUNT {
             let curr = rpc.get_new_address(None, None).unwrap();
 
             assert_ne!(prev, curr);
@@ -303,6 +310,12 @@ mod tests {
             assert!(!curr.is_valid_for_network(Network::Testnet));
             assert!(!curr.is_valid_for_network(Network::Signet));
             assert!(!curr.is_valid_for_network(Network::Bitcoin));
+            unsafe {
+                assert_eq!(
+                    *(*rpc.ledger.as_ptr()).addresses[i + 1].as_unchecked(),
+                    curr
+                )
+            };
 
             prev = curr;
         }

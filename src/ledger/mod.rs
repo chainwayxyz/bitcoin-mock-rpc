@@ -5,11 +5,12 @@
 use bitcoin::{Address, TxOut};
 
 /// Mock Bitcoin ledger structure.
+#[derive(Clone)]
 pub struct Ledger {
     /// User's addresses.
-    addresses: Vec<Address>,
+    pub addresses: Vec<Address>,
     /// User's unspent transaction outputs.
-    utxos: Vec<TxOut>,
+    pub utxos: Vec<TxOut>,
 }
 
 impl Ledger {
@@ -26,8 +27,12 @@ impl Ledger {
     }
 
     /// Adds a new address for user.
-    pub fn add_address(&mut self, address: Address) {
-        self.addresses.push(address);
+    pub fn add_address(&self, address: Address) -> Self {
+        let mut ledger = self.clone().to_owned();
+
+        ledger.addresses.push(address);
+
+        ledger
     }
 }
 
@@ -56,6 +61,7 @@ mod tests {
         let mut ledger = Ledger::new();
 
         assert_eq!(ledger.utxos.len(), 0);
+        assert_eq!(ledger.addresses.len(), 0);
 
         // Generate a random address.
         let secp = Secp256k1::new();
@@ -66,7 +72,8 @@ mod tests {
         ])
         .unwrap();
         let address = Address::p2tr(&secp, xonly_public_key, None, Network::Regtest);
-        ledger.add_address(address);
+        ledger = ledger.add_address(address);
+        assert_eq!(ledger.addresses.len(), 1);
 
         // Insert a dummy UTXO.
         let utxo = TxOut {
