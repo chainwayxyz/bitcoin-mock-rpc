@@ -6,7 +6,7 @@
 use super::Client;
 use bitcoin::{
     absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, Network,
-    SignedAmount, Transaction, TxOut, Wtxid, XOnlyPublicKey,
+    SignedAmount, Transaction, TxIn, TxOut, Wtxid, XOnlyPublicKey,
 };
 use bitcoincore_rpc::{
     json::{
@@ -15,7 +15,7 @@ use bitcoincore_rpc::{
     },
     RpcApi,
 };
-use secp256k1::Secp256k1;
+use secp256k1::{rand, Keypair, Secp256k1};
 
 impl RpcApi for Client {
     /// This function normally talks with Bitcoin network. Therefore, other
@@ -77,6 +77,7 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
+        let txin = TxIn::default();
         let txout = TxOut {
             value: amount,
             script_pubkey: address.script_pubkey(),
@@ -84,7 +85,7 @@ impl RpcApi for Client {
         let tx = bitcoin::Transaction {
             version: bitcoin::transaction::Version(2),
             lock_time: absolute::LockTime::from_consensus(0),
-            input: Vec::new(),
+            input: vec![txin],
             output: vec![txout],
         };
 
@@ -136,26 +137,15 @@ impl RpcApi for Client {
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
         let secp = Secp256k1::new();
-        let xonly_public_key = XOnlyPublicKey::from_slice(&[
-            0x78u8, 0x19u8, 0x90u8, 0xd7u8, 0xe2u8, 0x11u8, 0x8cu8, 0xc3u8, 0x61u8, 0xa9u8, 0x3au8,
-            0x6fu8, 0xccu8, 0x54u8, 0xceu8, 0x61u8, 0x1du8, 0x6du8, 0xf3u8, 0x81u8, 0x68u8, 0xd6u8,
-            0xb1u8, 0xedu8, 0xfbu8, 0x55u8, 0x65u8, 0x35u8, 0xf2u8, 0x20u8, 0x0cu8, 0x4b,
-        ])
-        .unwrap();
+        let (sk, _pk) = secp.generate_keypair(&mut rand::thread_rng());
+        let (xonly_public_key, _parity) =
+            XOnlyPublicKey::from_keypair(&Keypair::from_secret_key(&secp, &sk));
 
         let address = Address::p2tr(&secp, xonly_public_key, None, Network::Regtest)
             .as_unchecked()
             .to_owned();
 
         Ok(address)
-    }
-
-    fn generate_to_address(
-        &self,
-        _block_num: u64,
-        _address: &Address<NetworkChecked>,
-    ) -> bitcoincore_rpc::Result<Vec<bitcoin::BlockHash>> {
-        Ok(vec![])
     }
 
     fn get_raw_transaction_info(
@@ -290,5 +280,31 @@ mod tests {
 
         let tx = rpc.get_raw_transaction(&txid, None).unwrap();
         assert_eq!(tx.output[0].value.to_sat(), 0x45);
+    }
+
+    #[test]
+    fn generate_new_address() {
+        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+
+        let address = rpc.get_new_address(None, None).unwrap();
+
+        assert!(address.is_valid_for_network(Network::Regtest));
+        assert!(!address.is_valid_for_network(Network::Testnet));
+        assert!(!address.is_valid_for_network(Network::Signet));
+        assert!(!address.is_valid_for_network(Network::Bitcoin));
+
+        const ADDRESS_COUNT: usize = 100;
+        let mut prev = address;
+        for _ in 0..ADDRESS_COUNT {
+            let curr = rpc.get_new_address(None, None).unwrap();
+
+            assert_ne!(prev, curr);
+            assert!(curr.is_valid_for_network(Network::Regtest));
+            assert!(!curr.is_valid_for_network(Network::Testnet));
+            assert!(!curr.is_valid_for_network(Network::Signet));
+            assert!(!curr.is_valid_for_network(Network::Bitcoin));
+
+            prev = curr;
+        }
     }
 }
