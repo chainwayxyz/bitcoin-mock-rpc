@@ -342,7 +342,7 @@ mod tests {
             value: Amount::from_sat(1),
             script_pubkey: address.script_pubkey(),
         };
-        let tx = Transaction {
+        let _tx = Transaction {
             version: bitcoin::transaction::Version(2),
             lock_time: absolute::LockTime::from_consensus(0),
             input: vec![],
@@ -367,7 +367,7 @@ mod tests {
             value: Amount::from_sat(1),
             script_pubkey: address.script_pubkey(),
         };
-        let tx = Transaction {
+        let _tx = Transaction {
             version: bitcoin::transaction::Version(2),
             lock_time: absolute::LockTime::from_consensus(0),
             input: vec![],

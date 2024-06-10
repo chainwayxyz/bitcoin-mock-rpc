@@ -3,7 +3,6 @@
 //! Client crate mocks the `Client` struct in `bitcoincore-rpc`.
 
 use crate::ledger::Ledger;
-use bitcoin_simulator::database::Database;
 
 mod rpc_api;
 
@@ -23,11 +22,8 @@ impl Client {
     ///
     /// # Panics
     ///
-    /// This function will panic if connection to the SQLite database cannot be
-    /// established.
+    /// This function can panic if `Ledger` can't be created.
     pub fn new(_url: &str, _auth: bitcoincore_rpc::Auth) -> bitcoincore_rpc::Result<Self> {
-        let database = Database::connect_temporary_database().unwrap();
-
         Ok(Self {
             ledger: Ledger::new(),
         })
