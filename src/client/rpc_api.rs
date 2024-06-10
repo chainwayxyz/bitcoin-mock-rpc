@@ -199,7 +199,7 @@ impl RpcApi for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_common::*;
+    use crate::test_common;
     use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness};
 
     /// Tests `send_raw_transaction` and `get_raw_transaction`.
@@ -219,9 +219,9 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: get_temp_address().script_pubkey(),
+            script_pubkey: test_common::get_temp_address().script_pubkey(),
         };
-        let inserted_tx1 = create_transaction(vec![txin], vec![txout]);
+        let inserted_tx1 = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
         let txin = TxIn {
@@ -235,9 +235,9 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x45),
-            script_pubkey: get_temp_address().script_pubkey(),
+            script_pubkey: test_common::get_temp_address().script_pubkey(),
         };
-        let inserted_tx2 = create_transaction(vec![txin], vec![txout]);
+        let inserted_tx2 = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
 
         // Retrieve inserted transactions from Bitcoin.
@@ -271,9 +271,9 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: get_temp_address().script_pubkey(),
+            script_pubkey: test_common::get_temp_address().script_pubkey(),
         };
-        let inserted_tx = create_transaction(vec![txin], vec![txout]);
+        let inserted_tx = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx).unwrap();
 
         let txid = inserted_tx.compute_txid();
@@ -287,7 +287,7 @@ mod tests {
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = get_temp_address();
+        let address = test_common::get_temp_address();
 
         let txid = rpc
             .send_to_address(
