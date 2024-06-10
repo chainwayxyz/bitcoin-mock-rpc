@@ -75,6 +75,12 @@ impl RpcApi for Client {
 
         self.ledger.add_transaction_unconditionally(tx.clone());
 
+        if !self.ledger.check_transaction(tx.clone()) {
+            return Err(bitcoincore_rpc::Error::Io(std::io::Error::other(
+                "Transaction not valid.",
+            )));
+        }
+
         Ok(tx.compute_txid())
     }
 
@@ -139,8 +145,6 @@ impl RpcApi for Client {
         };
 
         let txid = self.send_raw_transaction(&tx)?;
-
-        self.ledger.add_transaction_unconditionally(tx);
 
         Ok(txid)
     }

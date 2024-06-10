@@ -36,6 +36,22 @@ impl Ledger {
     pub fn get_transactions(&self) -> Vec<Transaction> {
         get_item!(self.transactions);
     }
+    /// Checks if a transaction is OK or not.
+    pub fn check_transaction(&self, transaction: Transaction) -> bool {
+        println!("check tr");
+        if let Ok(()) = self
+            .database
+            .lock()
+            .unwrap()
+            .verify_transaction(&transaction)
+        {
+            println!("check tr1");
+            return true;
+        };
+
+        println!("check tr2");
+        false
+    }
 }
 
 #[cfg(test)]
