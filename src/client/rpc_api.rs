@@ -43,12 +43,7 @@ impl RpcApi for Client {
         txid: &bitcoin::Txid,
         _block_hash: Option<&bitcoin::BlockHash>,
     ) -> bitcoincore_rpc::Result<bitcoin::Transaction> {
-        Ok(self
-            .database
-            .lock()
-            .unwrap()
-            .get_transaction(&txid.to_string())
-            .unwrap())
+        Ok(self.ledger.get_transaction(*txid))
     }
 
     fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
@@ -57,11 +52,7 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
         let tx: Transaction = encode::deserialize_hex(&tx.raw_hex()).unwrap();
 
-        self.database
-            .lock()
-            .unwrap()
-            .insert_transaction_unconditionally(&tx)
-            .unwrap();
+        self.ledger.add_transaction_unconditionally(tx.clone());
 
         Ok(tx.compute_txid())
     }
@@ -191,11 +182,7 @@ impl RpcApi for Client {
             output: vec![txout],
         };
 
-        self.database
-            .lock()
-            .unwrap()
-            .insert_transaction_unconditionally(&tx)
-            .unwrap();
+        self.ledger.add_transaction_unconditionally(tx.clone());
 
         for output in tx.output {
             self.ledger.add_utxo(output);

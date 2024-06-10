@@ -2,7 +2,7 @@
 
 use super::Ledger;
 use crate::{add_item, get_item};
-use bitcoin::{Transaction, TxOut};
+use bitcoin::{Transaction, TxOut, Txid};
 
 impl Ledger {
     /// Adds a new UTXO to user's UTXO's.
@@ -23,6 +23,14 @@ impl Ledger {
             .unwrap();
 
         add_item!(self.transactions, transaction);
+    }
+    /// Returns user's list of transactions.
+    pub fn get_transaction(&self, txid: Txid) -> Transaction {
+        self.database
+            .lock()
+            .unwrap()
+            .get_transaction(&txid.to_string())
+            .unwrap()
     }
     /// Returns user's list of transactions.
     pub fn get_transactions(&self) -> Vec<Transaction> {
