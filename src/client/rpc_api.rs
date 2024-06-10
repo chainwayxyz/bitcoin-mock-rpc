@@ -5,8 +5,8 @@
 
 use super::Client;
 use bitcoin::{
-    absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, Network,
-    SignedAmount, Transaction, TxIn, TxOut, Wtxid, XOnlyPublicKey,
+    absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, BlockHash,
+    Network, SignedAmount, Transaction, TxIn, TxOut, Wtxid, XOnlyPublicKey,
 };
 use bitcoincore_rpc::{
     json::{
@@ -176,6 +176,41 @@ impl RpcApi for Client {
             blocktime: None,
         })
     }
+
+    /// Generates `block_num` amount of block rewards to user.
+    fn generate_to_address(
+        &self,
+        block_num: u64,
+        address: &Address<NetworkChecked>,
+    ) -> bitcoincore_rpc::Result<Vec<bitcoin::BlockHash>> {
+        // Block reward is 1 BTC regardless of how many block is mined.
+        let txout = TxOut {
+            value: Amount::from_sat(100_000_000 * block_num),
+            script_pubkey: address.script_pubkey(),
+        };
+        let tx = Transaction {
+            version: bitcoin::transaction::Version(2),
+            lock_time: absolute::LockTime::from_consensus(0),
+            input: vec![],
+            output: vec![txout],
+        };
+
+        self.database
+            .lock()
+            .unwrap()
+            .insert_transaction_unconditionally(&tx)
+            .unwrap();
+
+        for output in tx.output {
+            self.ledger.set(
+                self.ledger
+                    .take()
+                    .add_utxo(output),
+            );
+        }
+
+        Ok(vec![BlockHash::all_zeros(); block_num as usize])
+    }
 }
 
 #[cfg(test)]
@@ -319,5 +354,33 @@ mod tests {
 
             prev = curr;
         }
+    }
+
+    #[test]
+    fn generate_to_address() {
+        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+
+        let address = rpc.get_new_address(None, None).unwrap().assume_checked();
+
+        // Empty wallet should reject transaction.
+        let txout = TxOut {
+            value: Amount::from_sat(1),
+            script_pubkey: address.script_pubkey(),
+        };
+        let tx = Transaction {
+            version: bitcoin::transaction::Version(2),
+            lock_time: absolute::LockTime::from_consensus(0),
+            input: vec![],
+            output: vec![txout],
+        };
+        if let Ok(()) = rpc.database.lock().unwrap().verify_transaction(&tx) {
+            assert!(false);
+        };
+
+        rpc.generate_to_address(101, &address).unwrap();
+
+        if let Err(_) = rpc.database.lock().unwrap().verify_transaction(&tx) {
+            assert!(false);
+        };
     }
 }
