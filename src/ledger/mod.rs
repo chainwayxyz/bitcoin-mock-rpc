@@ -6,16 +6,17 @@
 //! immutable nature.
 
 use bitcoin::{Address, TxOut};
+use std::cell::Cell;
 
 mod transactions;
 
 /// Mock Bitcoin ledger.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Ledger {
     /// User's addresses.
-    pub addresses: Vec<Address>,
+    addresses: Cell<Vec<Address>>,
     /// User's unspent transaction outputs.
-    pub utxos: Vec<TxOut>,
+    utxos: Cell<Vec<TxOut>>,
 }
 
 impl Ledger {
@@ -27,21 +28,33 @@ impl Ledger {
     }
 
     /// Adds a new address for user.
-    pub fn add_address(&self, address: Address) -> Self {
-        let mut ledger = self.clone().to_owned();
+    pub fn add_address(&self, address: Address) {
+        let mut addresses = self.addresses.take();
+        addresses.push(address);
 
-        ledger.addresses.push(address);
-
-        ledger
+        self.addresses.set(addresses);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::test_common;
+
     use super::*;
 
     #[test]
     fn new() {
         let _should_not_panic = Ledger::new();
+    }
+
+    #[test]
+    fn add_address() {
+        let ledger = Ledger::new();
+
+        assert_eq!(ledger.addresses.take().len(), 0);
+
+        let address = test_common::get_temp_address();
+        ledger.add_address(address);
+        assert_eq!(ledger.addresses.take().len(), 1);
     }
 }
