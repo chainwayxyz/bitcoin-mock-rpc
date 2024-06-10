@@ -34,6 +34,13 @@ impl Ledger {
 
         self.addresses.set(addresses);
     }
+    /// Returns address of the user.
+    pub fn get_addresses(&self) -> Vec<Address> {
+        let addresses = self.addresses.take();
+        self.addresses.set(addresses.clone());
+
+        addresses
+    }
 }
 
 #[cfg(test)]
