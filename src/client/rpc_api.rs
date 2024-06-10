@@ -45,7 +45,28 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<bitcoin::Transaction> {
         Ok(self.ledger.get_transaction(*txid))
     }
-
+    fn get_raw_transaction_info(
+        &self,
+        txid: &bitcoin::Txid,
+        _block_hash: Option<&bitcoin::BlockHash>,
+    ) -> bitcoincore_rpc::Result<json::GetRawTransactionResult> {
+        Ok(GetRawTransactionResult {
+            in_active_chain: None,
+            hex: vec![],
+            txid: *txid,
+            hash: Wtxid::hash(&[0]),
+            size: 0,
+            vsize: 0,
+            version: 0,
+            locktime: 0,
+            vin: vec![],
+            vout: vec![],
+            blockhash: None,
+            confirmations: Some(10),
+            time: None,
+            blocktime: None,
+        })
+    }
     fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
@@ -55,34 +76,6 @@ impl RpcApi for Client {
         self.ledger.add_transaction_unconditionally(tx.clone());
 
         Ok(tx.compute_txid())
-    }
-
-    fn send_to_address(
-        &self,
-        address: &Address<NetworkChecked>,
-        amount: Amount,
-        _comment: Option<&str>,
-        _comment_to: Option<&str>,
-        _subtract_fee: Option<bool>,
-        _replaceable: Option<bool>,
-        _confirmation_target: Option<u32>,
-        _estimate_mode: Option<json::EstimateMode>,
-    ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let txin = TxIn::default();
-        let txout = TxOut {
-            value: amount,
-            script_pubkey: address.script_pubkey(),
-        };
-        let tx = bitcoin::Transaction {
-            version: bitcoin::transaction::Version(2),
-            lock_time: absolute::LockTime::from_consensus(0),
-            input: vec![txin],
-            output: vec![txout],
-        };
-
-        let txid = self.send_raw_transaction(&tx)?;
-
-        Ok(txid)
     }
 
     fn get_transaction(
@@ -122,6 +115,36 @@ impl RpcApi for Client {
         Ok(res)
     }
 
+    fn send_to_address(
+        &self,
+        address: &Address<NetworkChecked>,
+        amount: Amount,
+        _comment: Option<&str>,
+        _comment_to: Option<&str>,
+        _subtract_fee: Option<bool>,
+        _replaceable: Option<bool>,
+        _confirmation_target: Option<u32>,
+        _estimate_mode: Option<json::EstimateMode>,
+    ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
+        let txin = TxIn::default();
+        let txout = TxOut {
+            value: amount,
+            script_pubkey: address.script_pubkey(),
+        };
+        let tx = bitcoin::Transaction {
+            version: bitcoin::transaction::Version(2),
+            lock_time: absolute::LockTime::from_consensus(0),
+            input: vec![txin],
+            output: vec![txout],
+        };
+
+        let txid = self.send_raw_transaction(&tx)?;
+
+        self.ledger.add_transaction_unconditionally(tx);
+
+        Ok(txid)
+    }
+
     fn get_new_address(
         &self,
         _label: Option<&str>,
@@ -139,29 +162,6 @@ impl RpcApi for Client {
         self.ledger.add_address(address.clone().assume_checked());
 
         Ok(address)
-    }
-
-    fn get_raw_transaction_info(
-        &self,
-        txid: &bitcoin::Txid,
-        _block_hash: Option<&bitcoin::BlockHash>,
-    ) -> bitcoincore_rpc::Result<json::GetRawTransactionResult> {
-        Ok(GetRawTransactionResult {
-            in_active_chain: None,
-            hex: vec![],
-            txid: *txid,
-            hash: Wtxid::hash(&[0]),
-            size: 0,
-            vsize: 0,
-            version: 0,
-            locktime: 0,
-            vin: vec![],
-            vout: vec![],
-            blockhash: None,
-            confirmations: Some(10),
-            time: None,
-            blocktime: None,
-        })
     }
 
     /// Generates `block_num` amount of block rewards to user.
