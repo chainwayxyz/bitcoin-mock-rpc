@@ -1,22 +1,32 @@
 //! # Transaction Related Ledger Operations
 
 use super::Ledger;
-use bitcoin::TxOut;
+use crate::{add_item, get_item};
+use bitcoin::{Transaction, TxOut};
 
 impl Ledger {
     /// Adds a new UTXO to user's UTXO's.
     pub fn add_utxo(&self, utxo: TxOut) {
-        let mut utxos = self.utxos.take();
-        utxos.push(utxo);
-
-        self.utxos.set(utxos);
+        add_item!(self.utxos, utxo);
     }
     /// Returns UTXO's of the user.
     pub fn get_utxos(&self) -> Vec<TxOut> {
-        let utxos = self.utxos.take();
-        self.utxos.set(utxos.clone());
+        get_item!(self.utxos);
+    }
 
-        utxos
+    /// Adds transaction to current block, without checking anything.
+    pub fn add_transaction_unconditionally(&self, transaction: Transaction) {
+        self.database
+            .lock()
+            .unwrap()
+            .insert_transaction_unconditionally(&transaction)
+            .unwrap();
+
+        add_item!(self.transactions, transaction);
+    }
+    /// Returns user's list of transactions.
+    pub fn get_transactions(&self) -> Vec<Transaction> {
+        get_item!(self.transactions);
     }
 }
 

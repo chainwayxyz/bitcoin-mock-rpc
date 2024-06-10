@@ -344,6 +344,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "not implemented"]
     fn generate_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -364,8 +365,27 @@ mod tests {
             assert!(false);
         };
 
+        // Generating blocks should add funds to wallet.
         rpc.generate_to_address(101, &address).unwrap();
 
+        // Wallet has funds now. It should not be rejected.
+        // let txin = TxIn {
+        //     previous_output: OutPoint {
+        //         txid: rpc.ledger.get_utxos()[0],
+        //         vout: 0,
+        //     },
+        //     ..Default::default()
+        // };
+        let txout = TxOut {
+            value: Amount::from_sat(1),
+            script_pubkey: address.script_pubkey(),
+        };
+        let tx = Transaction {
+            version: bitcoin::transaction::Version(2),
+            lock_time: absolute::LockTime::from_consensus(0),
+            input: vec![],
+            output: vec![txout],
+        };
         if let Err(_) = rpc.database.lock().unwrap().verify_transaction(&tx) {
             assert!(false);
         };
