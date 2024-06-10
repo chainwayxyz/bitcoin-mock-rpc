@@ -5,7 +5,7 @@
 use bitcoin::{Address, TxOut};
 
 /// Mock Bitcoin ledger structure.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Ledger {
     /// User's addresses.
     pub addresses: Vec<Address>,
@@ -29,6 +29,10 @@ impl Ledger {
 
         ledger
     }
+    /// Returns UTXO's of the user.
+    pub fn get_utxos(&self) -> Vec<TxOut> {
+        self.utxos.clone()
+    }
 
     /// Adds a new address for user.
     pub fn add_address(&self, address: Address) -> Self {
@@ -37,15 +41,6 @@ impl Ledger {
         ledger.addresses.push(address);
 
         ledger
-    }
-}
-
-impl Default for Ledger {
-    fn default() -> Self {
-        Self {
-            addresses: Vec::new(),
-            utxos: Vec::new(),
-        }
     }
 }
 
