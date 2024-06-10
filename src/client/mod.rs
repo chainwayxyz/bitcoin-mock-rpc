@@ -4,16 +4,11 @@
 
 use crate::ledger::Ledger;
 use bitcoin_simulator::database::Database;
-use std::sync::{Arc, Mutex};
 
 mod rpc_api;
 
 /// Mock Bitcoin RPC client.
 pub struct Client {
-    /// Private database interface. Data will be written to this temporary
-    /// database. Note: It is wrapped around an `Arc<Mutex<>>`. This will help
-    /// to use this mock in an asynchronous environment, like `async` or threads.
-    database: Arc<Mutex<Database>>,
     /// Bitcoin ledger.
     ledger: Ledger,
 }
@@ -34,7 +29,6 @@ impl Client {
         let database = Database::connect_temporary_database().unwrap();
 
         Ok(Self {
-            database: Arc::new(Mutex::new(database)),
             ledger: Ledger::new(),
         })
     }
