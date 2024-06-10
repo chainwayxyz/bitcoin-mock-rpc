@@ -67,7 +67,7 @@ impl Ledger {
         add_item!(self.addresses, address);
     }
     /// Returns addresses of the user.
-    pub fn get_addresses(&self) -> Vec<Address> {
+    pub fn _get_addresses(&self) -> Vec<Address> {
         get_item!(self.addresses);
     }
 }

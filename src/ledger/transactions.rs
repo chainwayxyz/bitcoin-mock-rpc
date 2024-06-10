@@ -10,7 +10,7 @@ impl Ledger {
         add_item!(self.utxos, utxo);
     }
     /// Returns UTXO's of the user.
-    pub fn get_utxos(&self) -> Vec<TxOut> {
+    pub fn _get_utxos(&self) -> Vec<TxOut> {
         get_item!(self.utxos);
     }
 
@@ -33,7 +33,7 @@ impl Ledger {
             .unwrap()
     }
     /// Returns user's list of transactions.
-    pub fn get_transactions(&self) -> Vec<Transaction> {
+    pub fn _get_transactions(&self) -> Vec<Transaction> {
         get_item!(self.transactions);
     }
     /// Checks if a transaction is OK or not.
@@ -61,8 +61,8 @@ mod tests {
     fn add_utxo() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger.get_utxos().len(), 0);
-        assert_eq!(ledger.get_addresses().len(), 0);
+        assert_eq!(ledger._get_utxos().len(), 0);
+        assert_eq!(ledger._get_addresses().len(), 0);
 
         // Generate a random address.
         let secp = Secp256k1::new();
@@ -74,16 +74,16 @@ mod tests {
         .unwrap();
         let address = Address::p2tr(&secp, xonly_public_key, None, Network::Regtest);
         ledger.add_address(address);
-        assert_eq!(ledger.get_addresses().len(), 1);
+        assert_eq!(ledger._get_addresses().len(), 1);
 
         // Insert a dummy UTXO.
         let utxo = TxOut {
             value: Amount::from_sat(0x45),
-            script_pubkey: ledger.get_addresses()[0].script_pubkey(),
+            script_pubkey: ledger._get_addresses()[0].script_pubkey(),
         };
         ledger.add_utxo(utxo);
 
-        assert_eq!(ledger.get_utxos().len(), 1);
-        assert_eq!(ledger.get_utxos()[0].value, Amount::from_sat(0x45));
+        assert_eq!(ledger._get_utxos().len(), 1);
+        assert_eq!(ledger._get_utxos()[0].value, Amount::from_sat(0x45));
     }
 }

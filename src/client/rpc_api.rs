@@ -316,7 +316,7 @@ mod tests {
         assert!(!address.is_valid_for_network(Network::Testnet));
         assert!(!address.is_valid_for_network(Network::Signet));
         assert!(!address.is_valid_for_network(Network::Bitcoin));
-        assert_eq!(*rpc.ledger.get_addresses()[0].as_unchecked(), address);
+        assert_eq!(*rpc.ledger._get_addresses()[0].as_unchecked(), address);
 
         const ADDRESS_COUNT: usize = 100;
         let mut prev = address;
@@ -328,7 +328,7 @@ mod tests {
             assert!(!curr.is_valid_for_network(Network::Testnet));
             assert!(!curr.is_valid_for_network(Network::Signet));
             assert!(!curr.is_valid_for_network(Network::Bitcoin));
-            assert_eq!(*rpc.ledger.get_addresses()[i + 1].as_unchecked(), curr);
+            assert_eq!(*rpc.ledger._get_addresses()[i + 1].as_unchecked(), curr);
 
             prev = curr;
         }
