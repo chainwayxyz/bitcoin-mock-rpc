@@ -5,6 +5,7 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
+use crate::{add_item, get_item};
 use bitcoin::{Address, Transaction, TxOut};
 use bitcoin_simulator::database::Database;
 use std::{
@@ -13,30 +14,8 @@ use std::{
 };
 
 mod errors;
+mod macros;
 mod transactions;
-
-/// Adds a new item to a `Vec` member, guarded by a `Cell`.
-#[macro_export]
-macro_rules! add_item {
-    ($member:expr, $item:expr) => {
-        // Update item list.
-        let mut items = $member.take();
-        items.push($item);
-
-        // Commit new change.
-        $member.set(items);
-    };
-}
-/// Returns item `Vec` of a member, guarded by a `Cell`.
-#[macro_export]
-macro_rules! get_item {
-    ($member:expr) => {
-        let items = $member.take();
-        $member.set(items.clone());
-
-        return items;
-    };
-}
 
 /// Mock Bitcoin ledger.
 pub struct Ledger {
