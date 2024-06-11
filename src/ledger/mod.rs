@@ -5,14 +5,15 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
-use crate::{add_item, get_item};
-use bitcoin::{Address, Transaction, TxOut};
+use address::UserAddress;
+use bitcoin::{Transaction, TxOut};
 use bitcoin_simulator::database::Database;
 use std::{
     cell::Cell,
     sync::{Arc, Mutex},
 };
 
+mod address;
 mod errors;
 mod macros;
 mod transactions;
@@ -23,8 +24,8 @@ pub struct Ledger {
     /// database. Note: It is wrapped around an `Arc<Mutex<>>`. This will help
     /// to use this mock in an asynchronous environment, like `async` or threads.
     database: Arc<Mutex<Database>>,
-    /// User's addresses.
-    addresses: Cell<Vec<Address>>,
+    /// User's keys and address.
+    addresses: Cell<Vec<UserAddress>>,
     /// User's unspent transaction outputs.
     utxos: Cell<Vec<TxOut>>,
     /// User's transactions.
@@ -46,35 +47,14 @@ impl Ledger {
             transactions: Cell::new(Vec::new()),
         }
     }
-
-    /// Adds a new address for the user.
-    pub fn add_address(&self, address: Address) {
-        add_item!(self.addresses, address);
-    }
-    /// Returns addresses of the user.
-    pub fn _get_addresses(&self) -> Vec<Address> {
-        get_item!(self.addresses);
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_common;
 
     #[test]
     fn new() {
         let _should_not_panic = Ledger::new();
-    }
-
-    #[test]
-    fn add_address() {
-        let ledger = Ledger::new();
-
-        assert_eq!(ledger.addresses.take().len(), 0);
-
-        let address = test_common::get_temp_address();
-        ledger.add_address(address);
-        assert_eq!(ledger.addresses.take().len(), 1);
     }
 }

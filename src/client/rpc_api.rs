@@ -6,7 +6,7 @@
 use super::Client;
 use bitcoin::{
     absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, BlockHash,
-    Network, SignedAmount, Transaction, TxIn, TxOut, Wtxid, XOnlyPublicKey,
+    SignedAmount, Transaction, TxIn, TxOut, Wtxid,
 };
 use bitcoincore_rpc::{
     json::{
@@ -15,7 +15,6 @@ use bitcoincore_rpc::{
     },
     RpcApi,
 };
-use secp256k1::{rand, Keypair, Secp256k1};
 
 impl RpcApi for Client {
     /// This function normally talks with Bitcoin network. Therefore, other
@@ -150,18 +149,12 @@ impl RpcApi for Client {
         _label: Option<&str>,
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
-        let secp = Secp256k1::new();
-        let (sk, _pk) = secp.generate_keypair(&mut rand::thread_rng());
-        let (xonly_public_key, _parity) =
-            XOnlyPublicKey::from_keypair(&Keypair::from_secret_key(&secp, &sk));
-
-        let address = Address::p2tr(&secp, xonly_public_key, None, Network::Regtest)
+        Ok(self
+            .ledger
+            .generate_address()
+            .address
             .as_unchecked()
-            .to_owned();
-
-        self.ledger.add_address(address.clone().assume_checked());
-
-        Ok(address)
+            .to_owned())
     }
 
     /// Generates `block_num` amount of block rewards to user.
@@ -196,7 +189,7 @@ impl RpcApi for Client {
 mod tests {
     use super::*;
     use crate::test_common;
-    use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness};
+    use bitcoin::{hashes::Hash, Amount, Network, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness};
 
     /// Tests `send_raw_transaction` and `get_raw_transaction`.
     #[test]
@@ -318,7 +311,10 @@ mod tests {
         assert!(!address.is_valid_for_network(Network::Testnet));
         assert!(!address.is_valid_for_network(Network::Signet));
         assert!(!address.is_valid_for_network(Network::Bitcoin));
-        assert_eq!(*rpc.ledger._get_addresses()[0].as_unchecked(), address);
+        assert_eq!(
+            *rpc.ledger._get_address()[0].address.as_unchecked(),
+            address
+        );
 
         const ADDRESS_COUNT: usize = 100;
         let mut prev = address;
@@ -330,7 +326,10 @@ mod tests {
             assert!(!curr.is_valid_for_network(Network::Testnet));
             assert!(!curr.is_valid_for_network(Network::Signet));
             assert!(!curr.is_valid_for_network(Network::Bitcoin));
-            assert_eq!(*rpc.ledger._get_addresses()[i + 1].as_unchecked(), curr);
+            assert_eq!(
+                *rpc.ledger._get_address()[i + 1].address.as_unchecked(),
+                curr
+            );
 
             prev = curr;
         }
