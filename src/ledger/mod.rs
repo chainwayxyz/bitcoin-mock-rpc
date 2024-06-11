@@ -33,6 +33,11 @@ pub struct Ledger {
 
 impl Ledger {
     /// Creates a new empty ledger.
+    ///
+    /// # Panics
+    ///
+    /// If database connection cannot be established in bitcoin-simulator, it
+    /// will panic.
     pub fn new() -> Self {
         Self {
             database: Arc::new(Mutex::new(Database::connect_temporary_database().unwrap())),

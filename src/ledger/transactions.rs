@@ -15,14 +15,22 @@ impl Ledger {
     }
 
     /// Adds transaction to current block, without checking anything.
-    pub fn add_transaction_unconditionally(&self, transaction: Transaction) {
-        self.database
+    pub fn add_transaction_unconditionally(
+        &self,
+        transaction: Transaction,
+    ) -> Result<(), LedgerError> {
+        if let Err(e) = self
+            .database
             .lock()
             .unwrap()
             .insert_transaction_unconditionally(&transaction)
-            .unwrap();
+        {
+            return Err(LedgerError::Database(e));
+        };
 
         add_item!(self.transactions, transaction);
+
+        Ok(())
     }
     /// Returns user's list of transactions.
     pub fn get_transaction(&self, txid: Txid) -> Transaction {

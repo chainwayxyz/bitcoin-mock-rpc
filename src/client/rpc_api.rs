@@ -44,13 +44,9 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
         let tx: Transaction = encode::deserialize_hex(&tx.raw_hex()).unwrap();
 
-        if let Err(e) = self.ledger.check_transaction(tx.clone()) {
-            return Err(bitcoincore_rpc::Error::Io(std::io::Error::other(format!(
-                "{e}"
-            ))));
-        }
+        self.ledger.check_transaction(tx.clone())?;
 
-        self.ledger.add_transaction_unconditionally(tx.clone());
+        self.ledger.add_transaction_unconditionally(tx.clone())?;
 
         Ok(tx.compute_txid())
     }
@@ -186,7 +182,7 @@ impl RpcApi for Client {
             output: vec![txout],
         };
 
-        self.ledger.add_transaction_unconditionally(tx.clone());
+        self.ledger.add_transaction_unconditionally(tx.clone())?;
 
         for output in tx.output {
             self.ledger.add_utxo(output);
