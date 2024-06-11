@@ -38,6 +38,22 @@ impl RpcApi for Client {
         );
     }
 
+    fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
+        &self,
+        tx: R,
+    ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
+        let tx: Transaction = encode::deserialize_hex(&tx.raw_hex()).unwrap();
+
+        if let Err(e) = self.ledger.check_transaction(tx.clone()) {
+            return Err(bitcoincore_rpc::Error::Io(std::io::Error::other(format!(
+                "{e}"
+            ))));
+        }
+
+        self.ledger.add_transaction_unconditionally(tx.clone());
+
+        Ok(tx.compute_txid())
+    }
     fn get_raw_transaction(
         &self,
         txid: &bitcoin::Txid,
@@ -66,22 +82,6 @@ impl RpcApi for Client {
             time: None,
             blocktime: None,
         })
-    }
-    fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
-        &self,
-        tx: R,
-    ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let tx: Transaction = encode::deserialize_hex(&tx.raw_hex()).unwrap();
-
-        self.ledger.add_transaction_unconditionally(tx.clone());
-
-        if !self.ledger.check_transaction(tx.clone()) {
-            return Err(bitcoincore_rpc::Error::Io(std::io::Error::other(
-                "Transaction not valid.",
-            )));
-        }
-
-        Ok(tx.compute_txid())
     }
 
     fn get_transaction(
@@ -207,19 +207,24 @@ mod tests {
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
+        // Get some BTC.
+        let address = rpc.get_new_address(None, None).unwrap();
+        rpc.generate_to_address(101, address.assume_checked_ref())
+            .unwrap();
+        let prev_tx = rpc.ledger._get_transactions().get(0).unwrap().to_owned();
+
         // Insert raw transactions to Bitcoin.
         let txin = TxIn {
             previous_output: OutPoint {
-                txid: Txid::from_byte_array([0x45; 32]),
+                txid: prev_tx.compute_txid(),
                 vout: 0,
             },
-            sequence: bitcoin::transaction::Sequence::ENABLE_RBF_NO_LOCKTIME,
-            script_sig: ScriptBuf::default(),
-            witness: Witness::new(),
+            ..Default::default()
         };
+        println!("----- {:?}", txin.clone());
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: test_common::get_temp_address().script_pubkey(),
+            script_pubkey: address.assume_checked().script_pubkey(),
         };
         let inserted_tx1 = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();

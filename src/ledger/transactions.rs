@@ -1,6 +1,6 @@
 //! # Transaction Related Ledger Operations
 
-use super::Ledger;
+use super::{errors::LedgerError, Ledger};
 use crate::{add_item, get_item};
 use bitcoin::{Transaction, TxOut, Txid};
 
@@ -37,17 +37,16 @@ impl Ledger {
         get_item!(self.transactions);
     }
     /// Checks if a transaction is OK or not.
-    pub fn check_transaction(&self, transaction: Transaction) -> bool {
-        if let Ok(()) = self
+    pub fn check_transaction(&self, transaction: Transaction) -> Result<(), LedgerError> {
+        match self
             .database
             .lock()
             .unwrap()
             .verify_transaction(&transaction)
         {
-            return true;
-        };
-
-        false
+            Ok(()) => Ok(()),
+            Err(e) => Err(LedgerError::Database(e)),
+        }
     }
 }
 

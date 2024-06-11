@@ -12,6 +12,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+mod errors;
 mod transactions;
 
 /// Adds a new item to a `Vec` member, guarded by a `Cell`.
