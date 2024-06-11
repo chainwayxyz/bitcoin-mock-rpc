@@ -19,42 +19,38 @@ impl Ledger {
         &self,
         transaction: Transaction,
     ) -> Result<(), LedgerError> {
-        if let Err(e) = self
-            .database
+        self.database
             .lock()
             .unwrap()
-            .insert_transaction_unconditionally(&transaction)
-        {
-            return Err(LedgerError::Database(e));
-        };
+            .insert_transaction_unconditionally(&transaction)?;
 
         add_item!(self.transactions, transaction);
 
         Ok(())
     }
     /// Returns user's list of transactions.
-    pub fn get_transaction(&self, txid: Txid) -> Transaction {
-        self.database
+    pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
+        Ok(self
+            .database
             .lock()
             .unwrap()
-            .get_transaction(&txid.to_string())
-            .unwrap()
+            .get_transaction(&txid.to_string())?)
     }
     /// Returns user's list of transactions.
     pub fn _get_transactions(&self) -> Vec<Transaction> {
         get_item!(self.transactions);
     }
     /// Checks if a transaction is OK or not.
+    ///
+    /// # Panics
+    ///
+    /// If mutex can't be locked, it will panic.
     pub fn check_transaction(&self, transaction: Transaction) -> Result<(), LedgerError> {
-        match self
+        Ok(self
             .database
             .lock()
             .unwrap()
-            .verify_transaction(&transaction)
-        {
-            Ok(()) => Ok(()),
-            Err(e) => Err(LedgerError::Database(e)),
-        }
+            .verify_transaction(&transaction)?)
     }
 }
 

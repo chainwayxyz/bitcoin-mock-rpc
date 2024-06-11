@@ -55,7 +55,7 @@ impl RpcApi for Client {
         txid: &bitcoin::Txid,
         _block_hash: Option<&bitcoin::BlockHash>,
     ) -> bitcoincore_rpc::Result<bitcoin::Transaction> {
-        Ok(self.ledger.get_transaction(*txid))
+        Ok(self.ledger.get_transaction(*txid)?)
     }
     fn get_raw_transaction_info(
         &self,
