@@ -191,42 +191,34 @@ mod tests {
     use crate::test_common;
     use bitcoin::{hashes::Hash, Amount, Network, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness};
 
-    /// Tests `send_raw_transaction` and `get_raw_transaction`.
+    /// Tests raw transaction operations, using `send_raw_transaction` and
+    /// `get_raw_transaction`.
     #[test]
     #[ignore = "raw_transaction not working"]
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        // Get some BTC.
-        let address = rpc.get_new_address(None, None).unwrap();
-        rpc.generate_to_address(101, address.assume_checked_ref())
-            .unwrap();
-        let prev_tx = rpc.ledger._get_transactions().get(0).unwrap().to_owned();
+        // Create and address for the user.
+        let address = rpc.ledger.generate_address().address;
 
-        // Insert raw transactions to Bitcoin.
-        let txin = TxIn {
-            previous_output: OutPoint {
-                txid: prev_tx.compute_txid(),
-                vout: 0,
-            },
-            ..Default::default()
+        // Get some funds.
+        let txout = TxOut {
+            value: Amount::from_sat(100_000_000),
+            script_pubkey: address.script_pubkey(),
         };
+        let tx = test_common::create_transaction(vec![], vec![txout]);
+        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+
+        // Create a new raw transactions that is valid.
+        let txin = test_common::create_txin(txid);
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: address.assume_checked().script_pubkey(),
+            script_pubkey: address.script_pubkey(),
         };
         let inserted_tx1 = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        let txin = TxIn {
-            previous_output: OutPoint {
-                txid: inserted_tx1.compute_txid(),
-                vout: 0,
-            },
-            sequence: bitcoin::transaction::Sequence::ENABLE_RBF_NO_LOCKTIME,
-            script_sig: ScriptBuf::default(),
-            witness: Witness::new(),
-        };
+        let txin = test_common::create_txin(inserted_tx1.compute_txid());
         let txout = TxOut {
             value: Amount::from_sat(0x45),
             script_pubkey: test_common::get_temp_address().script_pubkey(),
