@@ -43,9 +43,7 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
         let tx: Transaction = encode::deserialize_hex(&tx.raw_hex()).unwrap();
 
-        self.ledger.check_transaction(tx.clone())?;
-
-        self.ledger.add_transaction_unconditionally(tx.clone())?;
+        self.ledger.add_transaction(tx.clone())?;
 
         Ok(tx.compute_txid())
     }

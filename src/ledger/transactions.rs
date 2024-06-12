@@ -14,6 +14,12 @@ impl Ledger {
         get_item!(self.utxos);
     }
 
+    /// Adds transaction to current block, after verifying.
+    pub fn add_transaction(&self, transaction: Transaction) -> Result<Txid, LedgerError> {
+        self.check_transaction(&transaction)?;
+
+        self.add_transaction_unconditionally(transaction)
+    }
     /// Adds transaction to current block, without checking anything.
     pub fn add_transaction_unconditionally(
         &self,
@@ -45,12 +51,12 @@ impl Ledger {
     /// # Panics
     ///
     /// If mutex can't be locked, it will panic.
-    pub fn check_transaction(&self, transaction: Transaction) -> Result<(), LedgerError> {
+    pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
         Ok(self
             .database
             .lock()
             .unwrap()
-            .verify_transaction(&transaction)?)
+            .verify_transaction(transaction)?)
     }
 }
 
