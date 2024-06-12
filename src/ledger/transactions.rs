@@ -18,15 +18,15 @@ impl Ledger {
     pub fn add_transaction_unconditionally(
         &self,
         transaction: Transaction,
-    ) -> Result<(), LedgerError> {
+    ) -> Result<Txid, LedgerError> {
         self.database
             .lock()
             .unwrap()
             .insert_transaction_unconditionally(&transaction)?;
 
-        add_item!(self.transactions, transaction);
+        add_item!(self.transactions, transaction.clone());
 
-        Ok(())
+        Ok(transaction.compute_txid())
     }
     /// Returns user's list of transactions.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
