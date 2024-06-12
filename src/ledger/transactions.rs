@@ -62,8 +62,8 @@ impl Ledger {
 
 #[cfg(test)]
 mod tests {
-    use crate::ledger::Ledger;
-    use bitcoin::{Amount, TxOut};
+    use crate::{ledger::Ledger, test_common};
+    use bitcoin::{Amount, ScriptBuf, TxOut};
 
     /// Tests UTXO operations over ledger.
     #[test]
@@ -84,5 +84,34 @@ mod tests {
 
         assert_eq!(ledger._get_utxos().len(), 1);
         assert_eq!(ledger._get_utxos()[0].value, Amount::from_sat(0x45));
+    }
+
+    /// Tests transaction operations over ledger, without any rule checks.
+    #[test]
+    fn transactions_without_checking() {
+        let ledger = Ledger::new();
+
+        assert_eq!(ledger._get_transactions().len(), 0);
+
+        let txout = TxOut {
+            value: Amount::from_sat(0x45),
+            script_pubkey: ScriptBuf::new(),
+        };
+        let tx = test_common::create_transaction(vec![], vec![txout]);
+        let txid = tx.compute_txid();
+
+        assert_eq!(
+            txid,
+            ledger.add_transaction_unconditionally(tx.clone()).unwrap()
+        );
+
+        let txs = ledger._get_transactions();
+        assert_eq!(txs.len(), 1);
+
+        let tx2 = txs.get(0).unwrap().to_owned();
+        assert_eq!(tx, tx2);
+
+        let tx2 = ledger.get_transaction(txid).unwrap();
+        assert_eq!(tx, tx2);
     }
 }
