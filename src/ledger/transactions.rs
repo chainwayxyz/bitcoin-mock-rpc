@@ -46,7 +46,7 @@ impl Ledger {
     pub fn _get_transactions(&self) -> Vec<Transaction> {
         get_item!(self.transactions);
     }
-    /// Checks if a transaction is OK or not.
+    /// Checks if a transaction is valid or not.
     ///
     /// # Panics
     ///
@@ -65,8 +65,9 @@ mod tests {
     use crate::ledger::Ledger;
     use bitcoin::{Amount, TxOut};
 
+    /// Tests UTXO operations over ledger.
     #[test]
-    fn add_utxo() {
+    fn utxo() {
         let ledger = Ledger::new();
 
         assert_eq!(ledger._get_utxos().len(), 0);
