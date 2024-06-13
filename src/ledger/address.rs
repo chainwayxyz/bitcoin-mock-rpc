@@ -9,7 +9,7 @@ use secp256k1::{rand, Keypair, PublicKey, Secp256k1, SecretKey};
 
 /// User's keys and generated address.
 #[derive(Clone, Debug)]
-pub struct UserAddress {
+pub struct UserCredential {
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
     pub x_only_public_key: XOnlyPublicKey,
@@ -24,34 +24,41 @@ impl Ledger {
         public_key: PublicKey,
         x_only_public_key: XOnlyPublicKey,
         address: Address,
-    ) -> UserAddress {
-        let addresses = UserAddress {
+    ) -> UserCredential {
+        let credentials = UserCredential {
             secret_key,
             public_key,
             x_only_public_key,
             address,
         };
 
-        add_item!(self.addresses, addresses.clone());
+        add_item!(self.credentials, credentials.clone());
 
-        addresses
+        credentials
     }
     /// Returns secret/public key + address list of the user.
-    pub fn _get_address(&self) -> Vec<UserAddress> {
-        get_item!(self.addresses);
+    pub fn _get_address(&self) -> Vec<UserCredential> {
+        get_item!(self.credentials);
     }
 
     /// Generates a random secret/public key pair and creates a new address from
     /// them.
-    pub fn generate_address(&self) -> UserAddress {
+    pub fn generate_address(&self) -> UserCredential {
         let secp = Secp256k1::new();
-        let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
-        let (x_only_public_key, _parity) =
-            XOnlyPublicKey::from_keypair(&Keypair::from_secret_key(&secp, &secret_key));
+        // let secret_key = PrivateKey::generate(Network::Regtest);
+        // let public_key = PublicKey::from_private_key(&secp, &secret_key);
+        let (secret_key, _public_key) = secp.generate_keypair(&mut rand::thread_rng());
+        let keypair = Keypair::from_secret_key(&secp, &secret_key);
+        let (x_only_public_key, _parity) = XOnlyPublicKey::from_keypair(&keypair);
 
         let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
 
-        self.add_address(secret_key, public_key, x_only_public_key, address)
+        self.add_address(
+            keypair.secret_key(),
+            keypair.public_key(),
+            keypair.x_only_public_key().0,
+            address,
+        )
     }
 }
 
@@ -63,24 +70,27 @@ mod tests {
     #[test]
     fn addresses() {
         let ledger = Ledger::new();
-        assert_eq!(ledger.addresses.take().len(), 0);
+        assert_eq!(ledger.credentials.take().len(), 0);
 
         ledger.generate_address();
-        let addresses = ledger.addresses.take();
-        assert_eq!(addresses.len(), 1);
+        let credentials = ledger.credentials.take();
+        assert_eq!(credentials.len(), 1);
 
-        let address = addresses.get(0).unwrap().to_owned();
+        let credential = credentials.get(0).unwrap().to_owned();
 
-        assert_eq!(address.address.address_type().unwrap(), AddressType::P2tr);
-        assert!(address
+        assert_eq!(
+            credential.address.address_type().unwrap(),
+            AddressType::P2tr
+        );
+        assert!(credential
             .address
             .as_unchecked()
             .is_valid_for_network(bitcoin::Network::Regtest));
-        // assert!(address
+        // assert!(credential
         //     .address
-        //     .is_related_to_pubkey(&address.public_key.into()));
-        // assert!(address
+        //     .is_related_to_xonly_pubkey(&credential.x_only_public_key));
+        // assert!(credential
         //     .address
-        //     .is_related_to_xonly_pubkey(&address.x_only_public_key));
+        //     .is_related_to_pubkey(&credential.public_key.into()));
     }
 }

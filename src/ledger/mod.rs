@@ -5,7 +5,7 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
-use address::UserAddress;
+use address::UserCredential;
 use bitcoin::{Transaction, TxOut};
 use bitcoin_simulator::database::Database;
 use std::{
@@ -25,7 +25,7 @@ pub struct Ledger {
     /// to use this mock in an asynchronous environment, like `async` or threads.
     database: Arc<Mutex<Database>>,
     /// User's keys and address.
-    addresses: Cell<Vec<UserAddress>>,
+    credentials: Cell<Vec<UserCredential>>,
     /// User's unspent transaction outputs.
     utxos: Cell<Vec<TxOut>>,
     /// User's transactions.
@@ -42,7 +42,7 @@ impl Ledger {
     pub fn new() -> Self {
         Self {
             database: Arc::new(Mutex::new(Database::connect_temporary_database().unwrap())),
-            addresses: Cell::new(Vec::new()),
+            credentials: Cell::new(Vec::new()),
             utxos: Cell::new(Vec::new()),
             transactions: Cell::new(Vec::new()),
         }
