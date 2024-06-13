@@ -18,7 +18,7 @@ pub struct UserCredential {
 
 impl Ledger {
     /// Adds a new secret/public key + address for the user.
-    pub fn add_address(
+    pub fn add_credential(
         &self,
         secret_key: SecretKey,
         public_key: PublicKey,
@@ -37,23 +37,21 @@ impl Ledger {
         credentials
     }
     /// Returns secret/public key + address list of the user.
-    pub fn _get_address(&self) -> Vec<UserCredential> {
+    pub fn _get_credentials(&self) -> Vec<UserCredential> {
         get_item!(self.credentials);
     }
 
-    /// Generates a random secret/public key pair and creates a new address from
-    /// them.
-    pub fn generate_address(&self) -> UserCredential {
+    /// Generates a random secret/public key pair and creates a new Bicoin
+    /// address from them.
+    pub fn generate_credential(&self) -> UserCredential {
         let secp = Secp256k1::new();
-        // let secret_key = PrivateKey::generate(Network::Regtest);
-        // let public_key = PublicKey::from_private_key(&secp, &secret_key);
         let (secret_key, _public_key) = secp.generate_keypair(&mut rand::thread_rng());
         let keypair = Keypair::from_secret_key(&secp, &secret_key);
         let (x_only_public_key, _parity) = XOnlyPublicKey::from_keypair(&keypair);
 
         let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
 
-        self.add_address(
+        self.add_credential(
             keypair.secret_key(),
             keypair.public_key(),
             keypair.x_only_public_key().0,
@@ -72,7 +70,7 @@ mod tests {
         let ledger = Ledger::new();
         assert_eq!(ledger.credentials.take().len(), 0);
 
-        ledger.generate_address();
+        ledger.generate_credential();
         let credentials = ledger.credentials.take();
         assert_eq!(credentials.len(), 1);
 

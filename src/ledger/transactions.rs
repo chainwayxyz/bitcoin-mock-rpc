@@ -73,12 +73,12 @@ mod tests {
         assert_eq!(ledger._get_utxos().len(), 0);
 
         // Generate a random address.
-        ledger.generate_address();
+        ledger.generate_credential();
 
         // Insert a dummy UTXO.
         let utxo = TxOut {
             value: Amount::from_sat(0x45),
-            script_pubkey: ledger._get_address()[0].address.script_pubkey(),
+            script_pubkey: ledger._get_credentials()[0].address.script_pubkey(),
         };
         ledger.add_utxo(utxo);
 

@@ -149,7 +149,7 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
         Ok(self
             .ledger
-            .generate_address()
+            .generate_credential()
             .address
             .as_unchecked()
             .to_owned())
@@ -197,7 +197,7 @@ mod tests {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
         // Create and address for the user.
-        let address = rpc.ledger.generate_address().address;
+        let address = rpc.ledger.generate_credential().address;
 
         // First, add some funds to user, for free.
         let txout = test_common::create_txout(100_000_000, None);
@@ -213,7 +213,7 @@ mod tests {
         let txin = test_common::create_txin(inserted_tx1.compute_txid());
         let txout = TxOut {
             value: Amount::from_sat(0x45),
-            script_pubkey: rpc.ledger.generate_address().address.script_pubkey(),
+            script_pubkey: rpc.ledger.generate_credential().address.script_pubkey(),
         };
         let inserted_tx2 = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
@@ -249,7 +249,7 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: rpc.ledger.generate_address().address.script_pubkey(),
+            script_pubkey: rpc.ledger.generate_credential().address.script_pubkey(),
         };
         let inserted_tx = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx).unwrap();
@@ -266,7 +266,7 @@ mod tests {
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = rpc.ledger.generate_address().address;
+        let address = rpc.ledger.generate_credential().address;
 
         let txid = rpc
             .send_to_address(
@@ -296,7 +296,7 @@ mod tests {
         assert!(!address.is_valid_for_network(Network::Signet));
         assert!(!address.is_valid_for_network(Network::Bitcoin));
         assert_eq!(
-            *rpc.ledger._get_address()[0].address.as_unchecked(),
+            *rpc.ledger._get_credentials()[0].address.as_unchecked(),
             address
         );
 
@@ -311,7 +311,7 @@ mod tests {
             assert!(!curr.is_valid_for_network(Network::Signet));
             assert!(!curr.is_valid_for_network(Network::Bitcoin));
             assert_eq!(
-                *rpc.ledger._get_address()[i + 1].address.as_unchecked(),
+                *rpc.ledger._get_credentials()[i + 1].address.as_unchecked(),
                 curr
             );
 
