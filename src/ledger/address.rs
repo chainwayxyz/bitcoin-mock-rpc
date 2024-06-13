@@ -45,25 +45,21 @@ impl Ledger {
     /// address from them.
     pub fn generate_credential(&self) -> UserCredential {
         let secp = Secp256k1::new();
-        let (secret_key, _public_key) = secp.generate_keypair(&mut rand::thread_rng());
+        let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
         let keypair = Keypair::from_secret_key(&secp, &secret_key);
         let (x_only_public_key, _parity) = XOnlyPublicKey::from_keypair(&keypair);
 
         let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
 
-        self.add_credential(
-            keypair.secret_key(),
-            keypair.public_key(),
-            keypair.x_only_public_key().0,
-            address,
-        )
+        self.add_credential(secret_key, public_key, x_only_public_key, address)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::AddressType;
+    use bitcoin::{key::TapTweak, AddressType};
+    use secp256k1::Secp256k1;
 
     #[test]
     fn addresses() {
@@ -84,11 +80,12 @@ mod tests {
             .address
             .as_unchecked()
             .is_valid_for_network(bitcoin::Network::Regtest));
-        // assert!(credential
-        //     .address
-        //     .is_related_to_xonly_pubkey(&credential.x_only_public_key));
-        // assert!(credential
-        //     .address
-        //     .is_related_to_pubkey(&credential.public_key.into()));
+        assert!(credential.address.is_related_to_xonly_pubkey(
+            &credential
+                .x_only_public_key
+                .tap_tweak(&Secp256k1::new(), None)
+                .0
+                .into()
+        ));
     }
 }
