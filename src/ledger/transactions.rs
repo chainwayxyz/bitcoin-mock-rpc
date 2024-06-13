@@ -122,14 +122,11 @@ mod tests {
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
-        let txout = TxOut {
-            value: Amount::from_sat(0x45 * 0x45),
-            script_pubkey: ScriptBuf::new(),
-        };
+        let txout = test_common::create_txout(0x45 * 0x45);
         let tx = test_common::create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
 
-        // First add some funds to user.
+        // First, add some funds to user, for free.
         assert_eq!(
             txid,
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()

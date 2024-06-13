@@ -10,8 +10,8 @@ use bitcoin::{
     key::UntweakedPublicKey,
     opcodes::all::OP_EQUAL,
     taproot::{LeafVersion, TaprootBuilder},
-    Address, Network, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness, WitnessProgram,
-    XOnlyPublicKey,
+    Address, Amount, Network, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness,
+    WitnessProgram, XOnlyPublicKey,
 };
 use secp256k1::Secp256k1;
 use std::str::FromStr;
@@ -67,6 +67,14 @@ pub fn create_txin(txid: Txid) -> TxIn {
         previous_output: OutPoint { txid, vout: 0 },
         witness,
         ..Default::default()
+    }
+}
+
+#[allow(unused)]
+pub fn create_txout(satoshi: u64) -> TxOut {
+    TxOut {
+        value: Amount::from_sat(satoshi),
+        script_pubkey: ScriptBuf::new(),
     }
 }
 
