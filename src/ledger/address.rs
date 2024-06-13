@@ -36,6 +36,10 @@ impl Ledger {
 
         addresses
     }
+    /// Returns secret/public key + address list of the user.
+    pub fn _get_address(&self) -> Vec<UserAddress> {
+        get_item!(self.addresses);
+    }
 
     /// Generates a random secret/public key pair and creates a new address from
     /// them.
@@ -48,11 +52,6 @@ impl Ledger {
         let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
 
         self.add_address(secret_key, public_key, x_only_public_key, address)
-    }
-
-    /// Returns secret/public key + address list of the user.
-    pub fn _get_address(&self) -> Vec<UserAddress> {
-        get_item!(self.addresses);
     }
 }
 
@@ -77,6 +76,9 @@ mod tests {
             .address
             .as_unchecked()
             .is_valid_for_network(bitcoin::Network::Regtest));
+        // assert!(address
+        //     .address
+        //     .is_related_to_pubkey(&address.public_key.into()));
         // assert!(address
         //     .address
         //     .is_related_to_xonly_pubkey(&address.x_only_public_key));

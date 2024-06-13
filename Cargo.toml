@@ -8,7 +8,7 @@ bitcoin = "0.32.0"
 secp256k1 = "0.29.0"
 serde = { version = "1.0", default-features = false }
 serde_json = "1.0.108"
-bitcoincore-rpc = { git = "https://github.com/rust-bitcoin/rust-bitcoincore-rpc.git" }
+bitcoincore-rpc = "0.19.0"
 bitcoin-simulator = { git = "https://github.com/chainwayxyz/bitcoin-simulator" }
 anyhow = "1.0.86"
 thiserror = "1.0.61"
