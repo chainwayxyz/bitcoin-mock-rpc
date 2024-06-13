@@ -122,7 +122,7 @@ mod tests {
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
-        let txout = test_common::create_txout(0x45 * 0x45);
+        let txout = test_common::create_txout(0x45 * 0x45, None);
         let tx = test_common::create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
 

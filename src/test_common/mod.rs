@@ -71,10 +71,13 @@ pub fn create_txin(txid: Txid) -> TxIn {
 }
 
 #[allow(unused)]
-pub fn create_txout(satoshi: u64) -> TxOut {
+pub fn create_txout(satoshi: u64, script_pubkey: Option<ScriptBuf>) -> TxOut {
     TxOut {
         value: Amount::from_sat(satoshi),
-        script_pubkey: ScriptBuf::new(),
+        script_pubkey: match script_pubkey {
+            Some(script_pubkey) => script_pubkey,
+            None => ScriptBuf::new(),
+        },
     }
 }
 
