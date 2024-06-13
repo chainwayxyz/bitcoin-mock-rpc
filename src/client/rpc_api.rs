@@ -213,7 +213,7 @@ mod tests {
         let txin = test_common::create_txin(inserted_tx1.compute_txid());
         let txout = TxOut {
             value: Amount::from_sat(0x45),
-            script_pubkey: test_common::get_temp_address().script_pubkey(),
+            script_pubkey: rpc.ledger.generate_address().address.script_pubkey(),
         };
         let inserted_tx2 = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
@@ -249,7 +249,7 @@ mod tests {
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: test_common::get_temp_address().script_pubkey(),
+            script_pubkey: rpc.ledger.generate_address().address.script_pubkey(),
         };
         let inserted_tx = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx).unwrap();
@@ -266,7 +266,7 @@ mod tests {
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = test_common::get_temp_address();
+        let address = rpc.ledger.generate_address().address;
 
         let txid = rpc
             .send_to_address(

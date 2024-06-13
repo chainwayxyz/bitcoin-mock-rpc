@@ -77,6 +77,8 @@ mod tests {
             .address
             .as_unchecked()
             .is_valid_for_network(bitcoin::Network::Regtest));
-        // assert!(address.address.is_related_to_xonly_pubkey(&address.x_only_public_key));
+        // assert!(address
+        //     .address
+        //     .is_related_to_xonly_pubkey(&address.x_only_public_key));
     }
 }
