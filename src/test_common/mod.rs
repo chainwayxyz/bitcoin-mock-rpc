@@ -8,14 +8,14 @@
 use bitcoin::{
     absolute,
     key::UntweakedPublicKey,
-    opcodes::all::OP_EQUAL,
+    opcodes::OP_TRUE,
     taproot::{LeafVersion, TaprootBuilder},
-    Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness, WitnessProgram,
+    Address, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness, WitnessProgram,
 };
 use std::str::FromStr;
 
 #[allow(unused)]
-pub fn create_txin(txid: Txid) -> TxIn {
+pub fn create_witness() -> (WitnessProgram, Witness) {
     let secp = bitcoin::secp256k1::Secp256k1::new();
     let internal_key = UntweakedPublicKey::from(
         bitcoin::secp256k1::PublicKey::from_str(
@@ -25,8 +25,7 @@ pub fn create_txin(txid: Txid) -> TxIn {
     );
 
     let mut script = ScriptBuf::new();
-    script.push_slice([12, 34]);
-    script.push_instruction(bitcoin::script::Instruction::Op(OP_EQUAL));
+    script.push_instruction(bitcoin::script::Instruction::Op(OP_TRUE));
 
     let taproot_builder = TaprootBuilder::new().add_leaf(0, script.clone()).unwrap();
     let taproot_spend_info = taproot_builder.finalize(&secp, internal_key).unwrap();
@@ -41,12 +40,23 @@ pub fn create_txin(txid: Txid) -> TxIn {
         .encode(&mut control_block_bytes)
         .unwrap();
 
-    let mut script2 = ScriptBuf::new();
-    script2.push_slice([12, 34]);
     let mut witness = Witness::new();
-    witness.push(script2);
     witness.push(script.to_bytes());
     witness.push(control_block_bytes);
+
+    (witness_program, witness)
+}
+
+#[allow(unused)]
+pub fn create_address() -> Address {
+    let witness_program = create_witness().0;
+
+    Address::from_witness_program(witness_program, bitcoin::Network::Regtest)
+}
+
+#[allow(unused)]
+pub fn create_txin(txid: Txid) -> TxIn {
+    let witness = create_witness().1;
 
     TxIn {
         previous_output: OutPoint { txid, vout: 0 },

@@ -192,21 +192,19 @@ mod tests {
     /// Tests raw transaction operations, using `send_raw_transaction` and
     /// `get_raw_transaction`.
     #[test]
-    #[ignore = "raw_transaction not working"]
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        // Create and address for the user.
-        let address = rpc.ledger.generate_credential().address;
+        let dummy_addr = test_common::create_address();
 
         // First, add some funds to user, for free.
-        let txout = test_common::create_txout(100_000_000, None);
+        let txout = test_common::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
         let tx = test_common::create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Create a new raw transactions that is valid.
         let txin = test_common::create_txin(txid);
-        let txout = test_common::create_txout(0x45, Some(address.script_pubkey()));
+        let txout = test_common::create_txout(0x45, Some(dummy_addr.script_pubkey()));
         let inserted_tx1 = test_common::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
