@@ -187,7 +187,7 @@ impl RpcApi for Client {
 mod tests {
     use super::*;
     use crate::test_common;
-    use bitcoin::{hashes::Hash, Amount, Network, OutPoint, ScriptBuf, TxIn, TxOut, Txid, Witness};
+    use bitcoin::{Amount, Network, TxOut};
 
     /// Tests raw transaction operations, using `send_raw_transaction` and
     /// `get_raw_transaction`.
@@ -231,28 +231,23 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "raw_transaction not working"]
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        // Insert raw transactions to Bitcoin.
-        let txin = TxIn {
-            previous_output: OutPoint {
-                txid: Txid::from_byte_array([0x45; 32]),
-                vout: 0,
-            },
-            sequence: bitcoin::transaction::Sequence::ENABLE_RBF_NO_LOCKTIME,
-            script_sig: ScriptBuf::default(),
-            witness: Witness::new(),
-        };
-        let txout = TxOut {
-            value: Amount::from_sat(0x1F),
-            script_pubkey: rpc.ledger.generate_credential().address.script_pubkey(),
-        };
-        let inserted_tx = test_common::create_transaction(vec![txin], vec![txout]);
-        rpc.send_raw_transaction(&inserted_tx).unwrap();
+        let dummy_addr = test_common::create_address();
 
-        let txid = inserted_tx.compute_txid();
+        // First, add some funds to user, for free.
+        let txout = test_common::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
+        let tx = test_common::create_transaction(vec![], vec![txout]);
+        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+
+        // Insert raw transactions to Bitcoin.
+        let txin = test_common::create_txin(txid);
+        let txout = test_common::create_txout(0x1F, Some(dummy_addr.script_pubkey()));
+        let tx = test_common::create_transaction(vec![txin], vec![txout]);
+        rpc.send_raw_transaction(&tx).unwrap();
+
+        let txid = tx.compute_txid();
 
         let tx = rpc.get_transaction(&txid, None).unwrap();
 
