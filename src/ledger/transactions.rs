@@ -2,7 +2,7 @@
 
 use super::{errors::LedgerError, Ledger};
 use crate::{add_item, get_item};
-use bitcoin::{Transaction, TxOut, Txid};
+use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid};
 
 impl Ledger {
     /// Adds a new UTXO to user's UTXO's.
@@ -58,11 +58,40 @@ impl Ledger {
             .unwrap()
             .verify_transaction(transaction)?)
     }
+
+    pub fn create_txin(txid: Txid) -> TxIn {
+        let witness = Self::create_witness().1;
+
+        TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            witness,
+            ..Default::default()
+        }
+    }
+
+    pub fn create_txout(satoshi: u64, script_pubkey: Option<ScriptBuf>) -> TxOut {
+        TxOut {
+            value: Amount::from_sat(satoshi),
+            script_pubkey: match script_pubkey {
+                Some(script_pubkey) => script_pubkey,
+                None => ScriptBuf::new(),
+            },
+        }
+    }
+
+    pub fn create_transaction(tx_ins: Vec<TxIn>, tx_outs: Vec<TxOut>) -> Transaction {
+        bitcoin::Transaction {
+            version: bitcoin::transaction::Version(2),
+            lock_time: absolute::LockTime::from_consensus(0),
+            input: tx_ins,
+            output: tx_outs,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{ledger::Ledger, test_common};
+    use crate::ledger::Ledger;
     use bitcoin::{Amount, ScriptBuf, TxOut};
 
     /// Tests UTXO operations over ledger.
@@ -97,7 +126,7 @@ mod tests {
             value: Amount::from_sat(0x45),
             script_pubkey: ScriptBuf::new(),
         };
-        let tx = test_common::create_transaction(vec![], vec![txout]);
+        let tx = Ledger::create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
 
         assert_eq!(
@@ -122,8 +151,8 @@ mod tests {
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
-        let txout = test_common::create_txout(0x45 * 0x45, None);
-        let tx = test_common::create_transaction(vec![], vec![txout.clone()]);
+        let txout = Ledger::create_txout(0x45 * 0x45, None);
+        let tx = Ledger::create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
 
         // First, add some funds to user, for free.
@@ -137,8 +166,8 @@ mod tests {
             assert!(false);
         };
 
-        let txin = test_common::create_txin(txid);
-        let tx = test_common::create_transaction(vec![txin], vec![txout]);
+        let txin = Ledger::create_txin(txid);
+        let tx = Ledger::create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
 
         // Input amount is OK. This should be accepted.

@@ -186,7 +186,7 @@ impl RpcApi for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_common;
+    use crate::ledger::Ledger;
     use bitcoin::{Amount, Network, TxOut};
 
     /// Tests raw transaction operations, using `send_raw_transaction` and
@@ -195,25 +195,25 @@ mod tests {
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = test_common::create_address();
+        let dummy_addr = Ledger::create_address();
 
         // First, add some funds to user, for free.
-        let txout = test_common::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
-        let tx = test_common::create_transaction(vec![], vec![txout]);
+        let txout = Ledger::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
+        let tx = Ledger::create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Create a new raw transactions that is valid.
-        let txin = test_common::create_txin(txid);
-        let txout = test_common::create_txout(0x45, Some(dummy_addr.script_pubkey()));
-        let inserted_tx1 = test_common::create_transaction(vec![txin], vec![txout]);
+        let txin = Ledger::create_txin(txid);
+        let txout = Ledger::create_txout(0x45, Some(dummy_addr.script_pubkey()));
+        let inserted_tx1 = Ledger::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        let txin = test_common::create_txin(inserted_tx1.compute_txid());
+        let txin = Ledger::create_txin(inserted_tx1.compute_txid());
         let txout = TxOut {
             value: Amount::from_sat(0x45),
             script_pubkey: rpc.ledger.generate_credential().address.script_pubkey(),
         };
-        let inserted_tx2 = test_common::create_transaction(vec![txin], vec![txout]);
+        let inserted_tx2 = Ledger::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
 
         // Retrieve inserted transactions from Bitcoin.
@@ -234,17 +234,17 @@ mod tests {
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = test_common::create_address();
+        let dummy_addr = Ledger::create_address();
 
         // First, add some funds to user, for free.
-        let txout = test_common::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
-        let tx = test_common::create_transaction(vec![], vec![txout]);
+        let txout = Ledger::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
+        let tx = Ledger::create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Insert raw transactions to Bitcoin.
-        let txin = test_common::create_txin(txid);
-        let txout = test_common::create_txout(0x1F, Some(dummy_addr.script_pubkey()));
-        let tx = test_common::create_transaction(vec![txin], vec![txout]);
+        let txin = Ledger::create_txin(txid);
+        let txout = Ledger::create_txout(0x1F, Some(dummy_addr.script_pubkey()));
+        let tx = Ledger::create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&tx).unwrap();
 
         let txid = tx.compute_txid();
@@ -313,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "not implemented"]
+    #[ignore = "Witness not setup"]
     fn generate_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -324,39 +324,26 @@ mod tests {
             value: Amount::from_sat(1),
             script_pubkey: address.script_pubkey(),
         };
-        let _tx = Transaction {
-            version: bitcoin::transaction::Version(2),
-            lock_time: absolute::LockTime::from_consensus(0),
-            input: vec![],
-            output: vec![txout],
+        let tx = Ledger::create_transaction(vec![], vec![txout]);
+        if let Ok(()) = rpc.ledger.check_transaction(&tx) {
+            assert!(false);
         };
-        // if let Ok(()) = rpc.database.lock().unwrap().verify_transaction(&tx) {
-        //     assert!(false);
-        // };
 
         // Generating blocks should add funds to wallet.
         rpc.generate_to_address(101, &address).unwrap();
 
         // Wallet has funds now. It should not be rejected.
-        // let txin = TxIn {
-        //     previous_output: OutPoint {
-        //         txid: rpc.ledger.get_utxos()[0],
-        //         vout: 0,
-        //     },
-        //     ..Default::default()
-        // };
-        let txout = TxOut {
-            value: Amount::from_sat(1),
-            script_pubkey: address.script_pubkey(),
+        let txin = Ledger::create_txin(
+            rpc.ledger
+                ._get_transactions()
+                .get(0)
+                .unwrap()
+                .compute_txid(),
+        );
+        let txout = Ledger::create_txout(1, Some(address.script_pubkey()));
+        let tx = Ledger::create_transaction(vec![txin], vec![txout]);
+        if let Err(e) = rpc.ledger.check_transaction(&tx) {
+            assert!(false, "{:?}", e);
         };
-        let _tx = Transaction {
-            version: bitcoin::transaction::Version(2),
-            lock_time: absolute::LockTime::from_consensus(0),
-            input: vec![],
-            output: vec![txout],
-        };
-        // if let Err(_) = rpc.database.lock().unwrap().verify_transaction(&tx) {
-        //     assert!(false);
-        // };
     }
 }
