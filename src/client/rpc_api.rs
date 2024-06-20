@@ -186,7 +186,6 @@ impl RpcApi for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ledger::Ledger;
     use bitcoin::{Amount, Network, TxOut};
 
     /// Tests raw transaction operations, using `send_raw_transaction` and
@@ -195,25 +194,29 @@ mod tests {
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = Ledger::create_address();
+        let dummy_addr = rpc.ledger.create_address();
 
         // First, add some funds to user, for free.
-        let txout = Ledger::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
-        let tx = Ledger::create_transaction(vec![], vec![txout]);
+        let txout = rpc
+            .ledger
+            .create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Create a new raw transactions that is valid.
-        let txin = Ledger::create_txin(txid);
-        let txout = Ledger::create_txout(0x45, Some(dummy_addr.script_pubkey()));
-        let inserted_tx1 = Ledger::create_transaction(vec![txin], vec![txout]);
+        let txin = rpc.ledger.create_txin(txid);
+        let txout = rpc
+            .ledger
+            .create_txout(0x45, Some(dummy_addr.script_pubkey()));
+        let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        let txin = Ledger::create_txin(inserted_tx1.compute_txid());
+        let txin = rpc.ledger.create_txin(inserted_tx1.compute_txid());
         let txout = TxOut {
             value: Amount::from_sat(0x45),
             script_pubkey: rpc.ledger.generate_credential().address.script_pubkey(),
         };
-        let inserted_tx2 = Ledger::create_transaction(vec![txin], vec![txout]);
+        let inserted_tx2 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
 
         // Retrieve inserted transactions from Bitcoin.
@@ -234,17 +237,21 @@ mod tests {
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = Ledger::create_address();
+        let dummy_addr = rpc.ledger.create_address();
 
         // First, add some funds to user, for free.
-        let txout = Ledger::create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
-        let tx = Ledger::create_transaction(vec![], vec![txout]);
+        let txout = rpc
+            .ledger
+            .create_txout(100_000_000, Some(dummy_addr.script_pubkey()));
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Insert raw transactions to Bitcoin.
-        let txin = Ledger::create_txin(txid);
-        let txout = Ledger::create_txout(0x1F, Some(dummy_addr.script_pubkey()));
-        let tx = Ledger::create_transaction(vec![txin], vec![txout]);
+        let txin = rpc.ledger.create_txin(txid);
+        let txout = rpc
+            .ledger
+            .create_txout(0x1F, Some(dummy_addr.script_pubkey()));
+        let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&tx).unwrap();
 
         let txid = tx.compute_txid();
@@ -324,7 +331,7 @@ mod tests {
             value: Amount::from_sat(1),
             script_pubkey: address.script_pubkey(),
         };
-        let tx = Ledger::create_transaction(vec![], vec![txout]);
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         if let Ok(()) = rpc.ledger.check_transaction(&tx) {
             assert!(false);
         };
@@ -333,15 +340,15 @@ mod tests {
         rpc.generate_to_address(101, &address).unwrap();
 
         // Wallet has funds now. It should not be rejected.
-        let txin = Ledger::create_txin(
+        let txin = rpc.ledger.create_txin(
             rpc.ledger
                 ._get_transactions()
                 .get(0)
                 .unwrap()
                 .compute_txid(),
         );
-        let txout = Ledger::create_txout(1, Some(address.script_pubkey()));
-        let tx = Ledger::create_transaction(vec![txin], vec![txout]);
+        let txout = rpc.ledger.create_txout(1, Some(address.script_pubkey()));
+        let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         if let Err(e) = rpc.ledger.check_transaction(&tx) {
             assert!(false, "{:?}", e);
         };

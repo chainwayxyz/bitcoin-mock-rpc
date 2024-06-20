@@ -59,8 +59,8 @@ impl Ledger {
             .verify_transaction(transaction)?)
     }
 
-    pub fn create_txin(txid: Txid) -> TxIn {
-        let witness = Self::create_witness().1;
+    pub fn create_txin(&self, txid: Txid) -> TxIn {
+        let witness = self.create_witness().1;
 
         TxIn {
             previous_output: OutPoint { txid, vout: 0 },
@@ -69,7 +69,7 @@ impl Ledger {
         }
     }
 
-    pub fn create_txout(satoshi: u64, script_pubkey: Option<ScriptBuf>) -> TxOut {
+    pub fn create_txout(&self, satoshi: u64, script_pubkey: Option<ScriptBuf>) -> TxOut {
         TxOut {
             value: Amount::from_sat(satoshi),
             script_pubkey: match script_pubkey {
@@ -79,7 +79,7 @@ impl Ledger {
         }
     }
 
-    pub fn create_transaction(tx_ins: Vec<TxIn>, tx_outs: Vec<TxOut>) -> Transaction {
+    pub fn create_transaction(&self, tx_ins: Vec<TxIn>, tx_outs: Vec<TxOut>) -> Transaction {
         bitcoin::Transaction {
             version: bitcoin::transaction::Version(2),
             lock_time: absolute::LockTime::from_consensus(0),
@@ -126,7 +126,7 @@ mod tests {
             value: Amount::from_sat(0x45),
             script_pubkey: ScriptBuf::new(),
         };
-        let tx = Ledger::create_transaction(vec![], vec![txout]);
+        let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
 
         assert_eq!(
@@ -151,8 +151,8 @@ mod tests {
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
-        let txout = Ledger::create_txout(0x45 * 0x45, None);
-        let tx = Ledger::create_transaction(vec![], vec![txout.clone()]);
+        let txout = ledger.create_txout(0x45 * 0x45, None);
+        let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
 
         // First, add some funds to user, for free.
@@ -166,8 +166,8 @@ mod tests {
             assert!(false);
         };
 
-        let txin = Ledger::create_txin(txid);
-        let tx = Ledger::create_transaction(vec![txin], vec![txout]);
+        let txin = ledger.create_txin(txid);
+        let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
 
         // Input amount is OK. This should be accepted.

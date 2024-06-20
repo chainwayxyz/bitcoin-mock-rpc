@@ -61,7 +61,7 @@ impl Ledger {
         self.add_credential(secret_key, public_key, x_only_public_key, address)
     }
 
-    pub fn create_witness() -> (WitnessProgram, Witness) {
+    pub fn create_witness(&self) -> (WitnessProgram, Witness) {
         let secp = bitcoin::secp256k1::Secp256k1::new();
         let internal_key = UntweakedPublicKey::from(
             bitcoin::secp256k1::PublicKey::from_str(
@@ -94,8 +94,8 @@ impl Ledger {
     }
 
     /// Creates a Bitcoin address from a witness program.
-    pub fn create_address() -> Address {
-        let witness_program = Self::create_witness().0;
+    pub fn create_address(&self) -> Address {
+        let witness_program = self.create_witness().0;
 
         Address::from_witness_program(witness_program, bitcoin::Network::Regtest)
     }
