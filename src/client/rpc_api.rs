@@ -194,7 +194,7 @@ mod tests {
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = rpc.ledger.create_address();
+        let dummy_addr = rpc.ledger.create_address_from_witness();
 
         // First, add some funds to user, for free.
         let txout = rpc
@@ -237,7 +237,7 @@ mod tests {
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = rpc.ledger.create_address();
+        let dummy_addr = rpc.ledger.create_address_from_witness();
 
         // First, add some funds to user, for free.
         let txout = rpc

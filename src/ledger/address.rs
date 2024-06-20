@@ -2,12 +2,9 @@
 //!
 //! This crate provides address related ledger interfaces.
 
-use std::str::FromStr;
-
 use super::Ledger;
 use crate::{add_item, get_item};
 use bitcoin::{
-    key::UntweakedPublicKey,
     opcodes::OP_TRUE,
     taproot::{LeafVersion, TaprootBuilder},
     Address, Network, ScriptBuf, Witness, WitnessProgram, XOnlyPublicKey,
@@ -17,31 +14,45 @@ use secp256k1::{rand, Keypair, PublicKey, Secp256k1, SecretKey};
 /// User's keys and generated address.
 #[derive(Clone, Debug)]
 pub struct UserCredential {
-    pub secret_key: SecretKey,
-    pub public_key: PublicKey,
-    pub x_only_public_key: XOnlyPublicKey,
+    secp: Secp256k1<secp256k1::All>,
+    secret_key: SecretKey,
+    public_key: PublicKey,
+    x_only_public_key: XOnlyPublicKey,
     pub address: Address,
+    pub witness: Option<Witness>,
+    witness_program: Option<WitnessProgram>,
 }
 
-impl Ledger {
-    /// Adds a new secret/public key + address for the user.
-    pub fn add_credential(
-        &self,
-        secret_key: SecretKey,
-        public_key: PublicKey,
-        x_only_public_key: XOnlyPublicKey,
-        address: Address,
-    ) -> UserCredential {
-        let credentials = UserCredential {
+impl UserCredential {
+    /// Creates a new `UserCredential` with random keys.
+    pub fn new() -> Self {
+        let secp = Secp256k1::new();
+
+        let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
+
+        let keypair = Keypair::from_secret_key(&secp, &secret_key);
+        let (x_only_public_key, _parity) = XOnlyPublicKey::from_keypair(&keypair);
+
+        let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
+
+        Self {
+            secp,
             secret_key,
             public_key,
             x_only_public_key,
             address,
-        };
+            witness: None,
+            witness_program: None,
+        }
+    }
+}
 
-        add_item!(self.credentials, credentials.clone());
+impl Ledger {
+    /// Adds a new secret/public key + address for the user.
+    pub fn add_credential(&self, credential: UserCredential) -> UserCredential {
+        add_item!(self.credentials, credential.clone());
 
-        credentials
+        credential
     }
     /// Returns secret/public key + address list of the user.
     pub fn _get_credentials(&self) -> Vec<UserCredential> {
@@ -51,33 +62,27 @@ impl Ledger {
     /// Generates a random secret/public key pair and creates a new Bicoin
     /// address from them.
     pub fn generate_credential(&self) -> UserCredential {
-        let secp = Secp256k1::new();
-        let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
-        let keypair = Keypair::from_secret_key(&secp, &secret_key);
-        let (x_only_public_key, _parity) = XOnlyPublicKey::from_keypair(&keypair);
+        let credential = UserCredential::new();
 
-        let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
-
-        self.add_credential(secret_key, public_key, x_only_public_key, address)
+        self.add_credential(credential)
     }
 
-    pub fn create_witness(&self) -> (WitnessProgram, Witness) {
-        let secp = bitcoin::secp256k1::Secp256k1::new();
-        let internal_key = UntweakedPublicKey::from(
-            bitcoin::secp256k1::PublicKey::from_str(
-                "0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0",
-            )
-            .unwrap(),
-        );
+    pub fn create_witness(&self) -> UserCredential {
+        let mut credential = self.generate_credential();
 
         let mut script = ScriptBuf::new();
         script.push_instruction(bitcoin::script::Instruction::Op(OP_TRUE));
 
         let taproot_builder = TaprootBuilder::new().add_leaf(0, script.clone()).unwrap();
-        let taproot_spend_info = taproot_builder.finalize(&secp, internal_key).unwrap();
+        let taproot_spend_info = taproot_builder
+            .finalize(&credential.secp, credential.x_only_public_key)
+            .unwrap();
 
-        let witness_program =
-            WitnessProgram::p2tr(&secp, internal_key, taproot_spend_info.merkle_root());
+        let witness_program = WitnessProgram::p2tr(
+            &credential.secp,
+            credential.x_only_public_key,
+            taproot_spend_info.merkle_root(),
+        );
 
         let mut control_block_bytes = Vec::new();
         taproot_spend_info
@@ -90,14 +95,24 @@ impl Ledger {
         witness.push(script.to_bytes());
         witness.push(control_block_bytes);
 
-        (witness_program, witness)
+        credential.witness = Some(witness);
+        credential.witness_program = Some(witness_program);
+
+        credential
     }
 
     /// Creates a Bitcoin address from a witness program.
-    pub fn create_address(&self) -> Address {
-        let witness_program = self.create_witness().0;
+    pub fn create_address_from_witness(&self) -> Address {
+        let mut credential = self.create_witness();
 
-        Address::from_witness_program(witness_program, bitcoin::Network::Regtest)
+        credential.address = Address::from_witness_program(
+            credential.witness_program.unwrap(),
+            bitcoin::Network::Regtest,
+        );
+
+        add_item!(self.credentials, credential.clone());
+
+        credential.address
     }
 }
 

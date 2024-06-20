@@ -1,8 +1,8 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use crate::{add_item, get_item};
-use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid};
+use crate::{add_item, assign_item, get_item, ledger::address::UserCredential};
+use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
     /// Adds a new UTXO to user's UTXO's.
@@ -60,7 +60,15 @@ impl Ledger {
     }
 
     pub fn create_txin(&self, txid: Txid) -> TxIn {
-        let witness = self.create_witness().1;
+        let credentials: Vec<UserCredential>;
+        assign_item!(self.credentials, credentials);
+        let witness = match credentials.last() {
+            Some(c) => match c.to_owned().witness {
+                Some(w) => w,
+                None => Witness::new(),
+            },
+            None => Witness::new(),
+        };
 
         TxIn {
             previous_output: OutPoint { txid, vout: 0 },
