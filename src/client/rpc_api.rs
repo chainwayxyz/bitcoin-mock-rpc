@@ -254,12 +254,19 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "raw_transaction not working"]
+    #[ignore = "UTXO combining not working"]
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
         let address = rpc.ledger.generate_credential_from_witness().address;
 
+        let txout = rpc
+            .ledger
+            .create_txout(100_000_000, Some(address.script_pubkey()));
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        let _txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+
+        // send_to_address should combine UTXO's and create a valid transaction.
         let txid = rpc
             .send_to_address(
                 &address,
