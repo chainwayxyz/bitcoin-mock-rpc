@@ -3,7 +3,7 @@
 //! This crate provides address related ledger interfaces.
 
 use super::Ledger;
-use crate::{add_item, get_item};
+use crate::{add_item, assign_item, get_item, update_item};
 use bitcoin::{
     opcodes::OP_TRUE,
     taproot::{LeafVersion, TaprootBuilder},
@@ -12,7 +12,7 @@ use bitcoin::{
 use secp256k1::{rand, Keypair, PublicKey, Secp256k1, SecretKey};
 
 /// User's keys and generated address.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UserCredential {
     secp: Secp256k1<secp256k1::All>,
     secret_key: SecretKey,
@@ -66,9 +66,29 @@ impl Ledger {
 
         self.add_credential(credential)
     }
-
-    pub fn create_witness(&self) -> UserCredential {
+    /// Creates a Bitcoin address from a witness program.
+    pub fn generate_credential_from_witness(&self) -> UserCredential {
         let mut credential = self.generate_credential();
+
+        self.create_witness(&mut credential);
+
+        credential.address = Address::from_witness_program(
+            credential.witness_program.unwrap(),
+            bitcoin::Network::Regtest,
+        );
+
+        // Update previously inserted element.
+        let mut credentials: Vec<UserCredential>;
+        assign_item!(self.credentials, credentials);
+        credentials.pop();
+        credentials.push(credential.clone());
+        update_item!(self.credentials, credentials);
+
+        credential
+    }
+
+    pub fn create_witness(&self, credential: &mut UserCredential) {
+        // let mut credential = self.generate_credential();
 
         let mut script = ScriptBuf::new();
         script.push_instruction(bitcoin::script::Instruction::Op(OP_TRUE));
@@ -97,22 +117,6 @@ impl Ledger {
 
         credential.witness = Some(witness);
         credential.witness_program = Some(witness_program);
-
-        credential
-    }
-
-    /// Creates a Bitcoin address from a witness program.
-    pub fn create_address_from_witness(&self) -> Address {
-        let mut credential = self.create_witness();
-
-        credential.address = Address::from_witness_program(
-            credential.witness_program.unwrap(),
-            bitcoin::Network::Regtest,
-        );
-
-        add_item!(self.credentials, credential.clone());
-
-        credential.address
     }
 }
 
@@ -120,18 +124,17 @@ impl Ledger {
 mod tests {
     use crate::ledger::Ledger;
     use bitcoin::{key::TapTweak, AddressType};
-    use secp256k1::Secp256k1;
 
     #[test]
     fn addresses() {
         let ledger = Ledger::new();
         assert_eq!(ledger.credentials.take().len(), 0);
 
-        ledger.generate_credential();
+        let credential = ledger.generate_credential();
         let credentials = ledger.credentials.take();
         assert_eq!(credentials.len(), 1);
 
-        let credential = credentials.get(0).unwrap().to_owned();
+        assert_eq!(credential, credentials.get(0).unwrap().to_owned());
 
         assert_eq!(
             credential.address.address_type().unwrap(),
@@ -144,7 +147,7 @@ mod tests {
         assert!(credential.address.is_related_to_xonly_pubkey(
             &credential
                 .x_only_public_key
-                .tap_tweak(&Secp256k1::new(), None)
+                .tap_tweak(&credential.secp, None)
                 .0
                 .into()
         ));

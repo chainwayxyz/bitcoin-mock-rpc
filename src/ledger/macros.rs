@@ -18,12 +18,7 @@ macro_rules! add_item {
 #[macro_export]
 macro_rules! update_item {
     ($member:expr, $item:expr) => {
-        // Update item list.
-        let mut mut_item = $member.take();
-        mut_item = $item;
-
-        // Commit new change.
-        $member.set(mut_item);
+        $member.set($item);
     };
 }
 /// Returns item `Vec` of a member, guarded by a `Cell`.

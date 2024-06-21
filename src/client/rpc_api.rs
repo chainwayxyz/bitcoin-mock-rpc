@@ -5,8 +5,8 @@
 
 use super::Client;
 use bitcoin::{
-    absolute, address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, BlockHash,
-    SignedAmount, Transaction, TxIn, TxOut, Wtxid,
+    address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, BlockHash,
+    SignedAmount, Transaction, Wtxid,
 };
 use bitcoincore_rpc::{
     json::{
@@ -125,17 +125,10 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let txin = TxIn::default();
-        let txout = TxOut {
-            value: amount,
-            script_pubkey: address.script_pubkey(),
-        };
-        let tx = bitcoin::Transaction {
-            version: bitcoin::transaction::Version(2),
-            lock_time: absolute::LockTime::from_consensus(0),
-            input: vec![txin],
-            output: vec![txout],
-        };
+        let txout = self
+            .ledger
+            .create_txout(amount.to_sat(), Some(address.script_pubkey()));
+        let tx = self.ledger.create_transaction(vec![], vec![txout]);
 
         let txid = self.send_raw_transaction(&tx)?;
 
@@ -149,7 +142,7 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
         Ok(self
             .ledger
-            .generate_credential()
+            .generate_credential_from_witness()
             .address
             .as_unchecked()
             .to_owned())
@@ -162,16 +155,10 @@ impl RpcApi for Client {
         address: &Address<NetworkChecked>,
     ) -> bitcoincore_rpc::Result<Vec<bitcoin::BlockHash>> {
         // Block reward is 1 BTC regardless of how many block is mined.
-        let txout = TxOut {
-            value: Amount::from_sat(100_000_000 * block_num),
-            script_pubkey: address.script_pubkey(),
-        };
-        let tx = Transaction {
-            version: bitcoin::transaction::Version(2),
-            lock_time: absolute::LockTime::from_consensus(0),
-            input: vec![],
-            output: vec![txout],
-        };
+        let txout = self
+            .ledger
+            .create_txout(100_000_000 * block_num, Some(address.script_pubkey()));
+        let tx = self.ledger.create_transaction(vec![], vec![txout]);
 
         self.ledger.add_transaction_unconditionally(tx.clone())?;
 
@@ -186,7 +173,7 @@ impl RpcApi for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::{Amount, Network, TxOut};
+    use bitcoin::{Amount, Network};
 
     /// Tests raw transaction operations, using `send_raw_transaction` and
     /// `get_raw_transaction`.
@@ -194,7 +181,7 @@ mod tests {
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = rpc.ledger.create_address_from_witness();
+        let dummy_addr = rpc.ledger.generate_credential_from_witness().address;
 
         // First, add some funds to user, for free.
         let txout = rpc
@@ -212,10 +199,15 @@ mod tests {
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
         let txin = rpc.ledger.create_txin(inserted_tx1.compute_txid());
-        let txout = TxOut {
-            value: Amount::from_sat(0x45),
-            script_pubkey: rpc.ledger.generate_credential().address.script_pubkey(),
-        };
+        let txout = rpc.ledger.create_txout(
+            0x45,
+            Some(
+                rpc.ledger
+                    .generate_credential_from_witness()
+                    .address
+                    .script_pubkey(),
+            ),
+        );
         let inserted_tx2 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
 
@@ -237,7 +229,7 @@ mod tests {
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = rpc.ledger.create_address_from_witness();
+        let dummy_addr = rpc.ledger.generate_credential_from_witness().address;
 
         // First, add some funds to user, for free.
         let txout = rpc
@@ -266,7 +258,7 @@ mod tests {
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = rpc.ledger.generate_credential().address;
+        let address = rpc.ledger.generate_credential_from_witness().address;
 
         let txid = rpc
             .send_to_address(
@@ -320,17 +312,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Witness not setup"]
     fn generate_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
         let address = rpc.get_new_address(None, None).unwrap().assume_checked();
 
         // Empty wallet should reject transaction.
-        let txout = TxOut {
-            value: Amount::from_sat(1),
-            script_pubkey: address.script_pubkey(),
-        };
+        let txout = rpc.ledger.create_txout(1, Some(address.script_pubkey()));
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         if let Ok(()) = rpc.ledger.check_transaction(&tx) {
             assert!(false);
