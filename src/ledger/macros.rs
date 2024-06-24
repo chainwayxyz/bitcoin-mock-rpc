@@ -2,7 +2,7 @@
 //!
 //! Useful macros for Ledger crate.
 
-/// Adds a new item to a `Vec` member, which guarded by a `Cell`.
+/// Adds a new item to a `Vec` member, which is guarded by a `Cell`.
 #[macro_export]
 macro_rules! add_item_to_vec {
     ($member:expr, $item:expr) => {
@@ -14,7 +14,21 @@ macro_rules! add_item_to_vec {
         $member.set(items);
     };
 }
-/// Returns items of a `Vec` member, which guarded by a `Cell`.
+/// Removes given item from a `Vec` member, which is guarded by a `Cell`.
+#[macro_export]
+macro_rules! remove_item_from_vec {
+    ($member:expr, $item:expr) => {
+        // Get item list.
+        let mut items = $member.take();
+
+        // Delete given item.
+        items.retain(|&i| i != $item);
+
+        // Commit new change.
+        $member.set(items);
+    };
+}
+/// Returns items of a `Vec` member, which is guarded by a `Cell`.
 #[macro_export]
 macro_rules! return_vec_item {
     ($member:expr) => {
@@ -25,7 +39,7 @@ macro_rules! return_vec_item {
     };
 }
 
-/// Updates an item, which guarded by a `Cell`.
+/// Updates an item, which is guarded by a `Cell`.
 #[macro_export]
 macro_rules! update_item {
     ($member:expr, $item:expr) => {
@@ -33,7 +47,7 @@ macro_rules! update_item {
     };
 }
 
-/// Assigns an item from member to given assignee, which guarded by a `Cell`.
+/// Assigns an item from member to given assignee, which is guarded by a `Cell`.
 #[macro_export]
 macro_rules! get_item {
     ($member:expr, $assignee:expr) => {
@@ -83,5 +97,29 @@ mod tests {
 
         get_item!(strct.int_member_1, item);
         assert_eq!(item, 0x45);
+    }
+
+    #[test]
+    fn remove_item_from_vec() {
+        let strct = Test::default();
+
+        let mut items: Vec<isize>;
+
+        add_item_to_vec!(strct.vec_member_1, 0x45);
+        add_item_to_vec!(strct.vec_member_1, 0x1F);
+        add_item_to_vec!(strct.vec_member_1, 0x100);
+
+        get_item!(strct.vec_member_1, items);
+        assert_eq!(items.len(), 3);
+        assert_eq!(*items.get(0).unwrap(), 0x45);
+        assert_eq!(*items.get(1).unwrap(), 0x1F);
+        assert_eq!(*items.get(2).unwrap(), 0x100);
+
+        remove_item_from_vec!(strct.vec_member_1, 0x1F);
+
+        get_item!(strct.vec_member_1, items);
+        assert_eq!(items.len(), 2);
+        assert_eq!(*items.get(0).unwrap(), 0x45);
+        assert_eq!(*items.get(1).unwrap(), 0x100);
     }
 }
