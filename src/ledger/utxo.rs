@@ -1,6 +1,4 @@
-//! # Unspent Trancasction Outputs
-//!
-//! This crate manages UTXO's.
+//! # Unspent Trancasction Output Management
 
 use super::Ledger;
 use crate::{add_item_to_vec, remove_item_from_vec, return_vec_item};
@@ -11,10 +9,12 @@ impl Ledger {
     pub fn _add_utxo(&self, utxo: OutPoint) {
         add_item_to_vec!(self.utxos, utxo);
     }
-    /// Removes an UTXO, when it's spent.
+
+    /// Removes an UTXO from user's UTXO's.
     pub fn _remove_utxo(&self, utxo: OutPoint) {
         remove_item_from_vec!(self.utxos, utxo);
     }
+
     /// Returns UTXO's of the user.
     pub fn _get_utxos(&self) -> Vec<OutPoint> {
         return_vec_item!(self.utxos);
