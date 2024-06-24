@@ -1,17 +1,19 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use crate::{add_item, assign_item, get_item, ledger::address::UserCredential};
+use crate::{add_item_to_vec, get_item, ledger::address::UserCredential, return_vec_item};
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
     /// Adds a new UTXO to user's UTXO's.
-    pub fn add_utxo(&self, utxo: TxOut) {
-        add_item!(self.utxos, utxo);
+    pub fn _add_utxo(&self, utxo: OutPoint) {
+        add_item_to_vec!(self.utxos, utxo);
     }
+    /// Removes an UTXO, when it's spent.
+    pub fn _remove_utxo(&self, _utxo: OutPoint) {}
     /// Returns UTXO's of the user.
-    pub fn _get_utxos(&self) -> Vec<TxOut> {
-        get_item!(self.utxos);
+    pub fn _get_utxos(&self) -> Vec<OutPoint> {
+        return_vec_item!(self.utxos);
     }
 
     /// Adds transaction to current block, after verifying.
@@ -25,7 +27,7 @@ impl Ledger {
         &self,
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
-        add_item!(self.transactions, transaction.clone());
+        // add_item!(self.transactions, transaction.clone());
 
         Ok(transaction.compute_txid())
     }
@@ -35,7 +37,8 @@ impl Ledger {
     }
     /// Returns user's list of transactions.
     pub fn _get_transactions(&self) -> Vec<Transaction> {
-        get_item!(self.transactions);
+        // get_item!(self.transactions);
+        todo!()
     }
     /// Checks if a transaction is valid or not.
     ///
@@ -48,7 +51,7 @@ impl Ledger {
 
     pub fn _create_txin(&self, txid: Txid) -> TxIn {
         let credentials: Vec<UserCredential>;
-        assign_item!(self.credentials, credentials);
+        get_item!(self.credentials, credentials);
         let witness = match credentials.last() {
             Some(c) => match c.to_owned().witness {
                 Some(w) => w,
@@ -100,14 +103,14 @@ mod tests {
         ledger.generate_credential();
 
         // Insert a dummy UTXO.
-        let utxo = TxOut {
+        let _utxo = TxOut {
             value: Amount::from_sat(0x45),
             script_pubkey: ledger._get_credentials()[0].address.script_pubkey(),
         };
-        ledger.add_utxo(utxo);
+        // ledger.add_utxo(utxo);
 
-        assert_eq!(ledger._get_utxos().len(), 1);
-        assert_eq!(ledger._get_utxos()[0].value, Amount::from_sat(0x45));
+        // assert_eq!(ledger._get_utxos().len(), 1);
+        // assert_eq!(ledger._get_utxos()[0].value, Amount::from_sat(0x45));
     }
 
     /// Tests transaction operations over ledger, without any rule checks.

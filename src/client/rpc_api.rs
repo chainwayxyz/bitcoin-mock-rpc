@@ -162,9 +162,9 @@ impl RpcApi for Client {
 
         self.ledger.add_transaction_unconditionally(tx.clone())?;
 
-        for output in tx.output {
-            self.ledger.add_utxo(output);
-        }
+        // for output in tx.output {
+        //     self.ledger.add_utxo(output);
+        // }
 
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }

@@ -3,7 +3,7 @@
 //! This crate provides address related ledger interfaces.
 
 use super::Ledger;
-use crate::{add_item, assign_item, get_item, update_item};
+use crate::{add_item_to_vec, get_item, return_vec_item, update_item};
 use bitcoin::{
     opcodes::OP_TRUE,
     taproot::{LeafVersion, TaprootBuilder},
@@ -50,13 +50,13 @@ impl UserCredential {
 impl Ledger {
     /// Adds a new secret/public key + address for the user.
     pub fn add_credential(&self, credential: UserCredential) -> UserCredential {
-        add_item!(self.credentials, credential.clone());
+        add_item_to_vec!(self.credentials, credential.clone());
 
         credential
     }
     /// Returns secret/public key + address list of the user.
     pub fn _get_credentials(&self) -> Vec<UserCredential> {
-        get_item!(self.credentials);
+        return_vec_item!(self.credentials);
     }
 
     /// Generates a random secret/public key pair and creates a new Bicoin
@@ -79,7 +79,7 @@ impl Ledger {
 
         // Update previously inserted element.
         let mut credentials: Vec<UserCredential>;
-        assign_item!(self.credentials, credentials);
+        get_item!(self.credentials, credentials);
         credentials.pop();
         credentials.push(credential.clone());
         update_item!(self.credentials, credentials);
