@@ -13,6 +13,7 @@ mod address;
 mod errors;
 mod macros;
 mod transactions;
+mod utxo;
 
 /// Mock Bitcoin ledger.
 pub struct Ledger {

@@ -340,9 +340,13 @@ mod tests {
         rpc.generate_to_address(101, &address).unwrap();
 
         // Wallet has funds now. It should not be rejected.
-        let txin = rpc
-            .ledger
-            ._create_txin(rpc.ledger.get_transactions().get(0).unwrap().compute_txid());
+        let txin = rpc.ledger._create_txin(
+            rpc.ledger
+                ._get_transactions()
+                .get(0)
+                .unwrap()
+                .compute_txid(),
+        );
         let txout = rpc.ledger.create_txout(1, Some(address.script_pubkey()));
         let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         if let Err(e) = rpc.ledger.check_transaction(&tx) {

@@ -1,26 +1,10 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use crate::{
-    add_item_to_vec, get_item, ledger::address::UserCredential, remove_item_from_vec,
-    return_vec_item,
-};
+use crate::{get_item, ledger::address::UserCredential, return_vec_item};
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
-    /// Adds a new UTXO to user's UTXO's.
-    pub fn _add_utxo(&self, utxo: OutPoint) {
-        add_item_to_vec!(self.utxos, utxo);
-    }
-    /// Removes an UTXO, when it's spent.
-    pub fn _remove_utxo(&self, utxo: OutPoint) {
-        remove_item_from_vec!(self.utxos, utxo);
-    }
-    /// Returns UTXO's of the user.
-    pub fn get_utxos(&self) -> Vec<OutPoint> {
-        return_vec_item!(self.utxos);
-    }
-
     /// Adds transaction to current block, after verifying.
     pub fn add_transaction(&self, transaction: Transaction) -> Result<Txid, LedgerError> {
         self.check_transaction(&transaction)?;
@@ -52,7 +36,7 @@ impl Ledger {
         Ok(tx)
     }
     /// Returns user's list of transactions.
-    pub fn get_transactions(&self) -> Vec<Transaction> {
+    pub fn _get_transactions(&self) -> Vec<Transaction> {
         return_vec_item!(self.transactions);
     }
 
@@ -102,32 +86,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut};
-
-    #[test]
-    fn add_remove_utxos() {
-        let ledger = Ledger::new();
-
-        assert_eq!(ledger.get_utxos().len(), 0);
-
-        let dummy_tx = ledger.create_transaction(vec![], vec![]);
-        let txid = dummy_tx.compute_txid();
-
-        let utxo = OutPoint { txid, vout: 0 };
-        ledger._add_utxo(utxo);
-
-        let utxos = ledger.get_utxos();
-        assert_eq!(utxos.len(), 1);
-        assert_eq!(*utxos.get(0).unwrap(), utxo);
-
-        let utxo = OutPoint { txid, vout: 1 };
-        ledger._add_utxo(utxo);
-
-        let utxos = ledger.get_utxos();
-        assert_eq!(utxos.len(), 2);
-        assert_ne!(*utxos.get(0).unwrap(), utxo);
-        assert_eq!(*utxos.get(1).unwrap(), utxo);
-    }
+    use bitcoin::{Amount, ScriptBuf, TxOut};
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
@@ -135,7 +94,7 @@ mod tests {
     fn transactions_without_checks() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         let txout = TxOut {
             value: Amount::from_sat(0x45),
@@ -149,7 +108,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -165,7 +124,7 @@ mod tests {
     fn transactions_with_checks() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         let txout = ledger.create_txout(0x45 * 0x45, None);
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
@@ -189,7 +148,7 @@ mod tests {
         // Input amount is OK. This should be accepted.
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 2);
 
         let tx2 = txs.get(1).unwrap().to_owned();
