@@ -27,7 +27,7 @@ mod tests {
     use bitcoin::OutPoint;
 
     #[test]
-    fn add_remove_utxos() {
+    fn add_get_utxos() {
         let ledger = Ledger::new();
 
         assert_eq!(ledger._get_utxos().len(), 0);
@@ -49,5 +49,34 @@ mod tests {
         assert_eq!(utxos.len(), 2);
         assert_ne!(*utxos.get(0).unwrap(), utxo);
         assert_eq!(*utxos.get(1).unwrap(), utxo);
+    }
+
+    #[test]
+    fn add_remove_utxos() {
+        let ledger = Ledger::new();
+
+        let dummy_tx = ledger.create_transaction(vec![], vec![]);
+        let txid = dummy_tx.compute_txid();
+
+        let utxo1 = OutPoint { txid, vout: 0 };
+        ledger._add_utxo(utxo1);
+        let utxo2 = OutPoint { txid, vout: 1 };
+        ledger._add_utxo(utxo2);
+        let utxo3 = OutPoint { txid, vout: 2 };
+        ledger._add_utxo(utxo3);
+
+        let utxos = ledger._get_utxos();
+        assert_eq!(*utxos.get(0).unwrap(), utxo1);
+        assert_eq!(*utxos.get(1).unwrap(), utxo2);
+        assert_eq!(*utxos.get(2).unwrap(), utxo3);
+        assert_eq!(utxos.len(), 3);
+
+        let new_utxo = OutPoint { txid, vout: 1 };
+        ledger._remove_utxo(new_utxo);
+
+        let utxos = ledger._get_utxos();
+        assert_eq!(utxos.len(), 2);
+        assert_eq!(*utxos.get(0).unwrap(), utxo1);
+        assert_eq!(*utxos.get(1).unwrap(), utxo3);
     }
 }
