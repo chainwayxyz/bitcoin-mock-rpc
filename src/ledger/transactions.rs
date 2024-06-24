@@ -5,7 +5,6 @@ use crate::{
     add_item_to_vec, get_item, ledger::address::UserCredential, remove_item_from_vec,
     return_vec_item,
 };
-use anyhow::Error;
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
@@ -45,8 +44,8 @@ impl Ledger {
         let tx = txs
             .iter()
             .find(|tx| tx.compute_txid() == txid)
-            .ok_or(LedgerError::Database(Error::msg(
-                "No transaction is matched with txid.",
+            .ok_or(LedgerError::General(String::from(
+                "No transaction is matched with ".to_string() + txid.to_string().as_str(),
             )))?
             .to_owned();
 
