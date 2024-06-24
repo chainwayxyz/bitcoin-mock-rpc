@@ -7,11 +7,7 @@
 
 use address::UserCredential;
 use bitcoin::{Transaction, TxOut};
-use bitcoin_simulator::database::Database;
-use std::{
-    cell::Cell,
-    sync::{Arc, Mutex},
-};
+use std::cell::Cell;
 
 mod address;
 mod errors;
@@ -20,16 +16,25 @@ mod transactions;
 
 /// Mock Bitcoin ledger.
 pub struct Ledger {
-    /// Private database interface. Data will be written to this temporary
-    /// database. Note: It is wrapped around an `Arc<Mutex<>>`. This will help
-    /// to use this mock in an asynchronous environment, like `async` or threads.
-    database: Arc<Mutex<Database>>,
+    /// Inner ledger that holds real ledger information.
+    _inner: Cell<InnerLedger>,
     /// User's keys and address.
     credentials: Cell<Vec<UserCredential>>,
     /// User's unspent transaction outputs.
     utxos: Cell<Vec<TxOut>>,
     /// User's transactions.
     transactions: Cell<Vec<Transaction>>,
+}
+
+/// Real mock ledger that holds history of the transactions and other
+/// information. This struct must be wrapped around a synchronization structure,
+/// like `Cell`.
+struct InnerLedger {}
+
+impl InnerLedger {
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 impl Ledger {
@@ -41,10 +46,10 @@ impl Ledger {
     /// will panic.
     pub fn new() -> Self {
         Self {
-            database: Arc::new(Mutex::new(Database::connect_temporary_database().unwrap())),
             credentials: Cell::new(Vec::new()),
             utxos: Cell::new(Vec::new()),
             transactions: Cell::new(Vec::new()),
+            _inner: Cell::new(InnerLedger::new()),
         }
     }
 }

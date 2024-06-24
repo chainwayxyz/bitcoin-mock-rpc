@@ -25,22 +25,13 @@ impl Ledger {
         &self,
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
-        self.database
-            .lock()
-            .unwrap()
-            .insert_transaction_unconditionally(&transaction)?;
-
         add_item!(self.transactions, transaction.clone());
 
         Ok(transaction.compute_txid())
     }
     /// Returns user's list of transactions.
-    pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
-        Ok(self
-            .database
-            .lock()
-            .unwrap()
-            .get_transaction(&txid.to_string())?)
+    pub fn get_transaction(&self, _txid: Txid) -> Result<Transaction, LedgerError> {
+        todo!()
     }
     /// Returns user's list of transactions.
     pub fn _get_transactions(&self) -> Vec<Transaction> {
@@ -51,15 +42,11 @@ impl Ledger {
     /// # Panics
     ///
     /// If mutex can't be locked, it will panic.
-    pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
-        Ok(self
-            .database
-            .lock()
-            .unwrap()
-            .verify_transaction(transaction)?)
+    pub fn check_transaction(&self, _transaction: &Transaction) -> Result<(), LedgerError> {
+        todo!()
     }
 
-    pub fn create_txin(&self, txid: Txid) -> TxIn {
+    pub fn _create_txin(&self, txid: Txid) -> TxIn {
         let credentials: Vec<UserCredential>;
         assign_item!(self.credentials, credentials);
         let witness = match credentials.last() {
@@ -125,6 +112,7 @@ mod tests {
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
+    #[ignore = "Ledger under construction"]
     fn transactions_without_checking() {
         let ledger = Ledger::new();
 
@@ -154,6 +142,7 @@ mod tests {
 
     /// Tests transaction operations over ledger, with rule checks.
     #[test]
+    #[ignore = "Ledger under construction"]
     fn transactions_with_checks() {
         let ledger = Ledger::new();
 
@@ -174,7 +163,7 @@ mod tests {
             assert!(false);
         };
 
-        let txin = ledger.create_txin(txid);
+        let txin = ledger._create_txin(txid);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
 

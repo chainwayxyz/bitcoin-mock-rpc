@@ -178,6 +178,7 @@ mod tests {
     /// Tests raw transaction operations, using `send_raw_transaction` and
     /// `get_raw_transaction`.
     #[test]
+    #[ignore = "Ledger under construction"]
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -191,14 +192,14 @@ mod tests {
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Create a new raw transactions that is valid.
-        let txin = rpc.ledger.create_txin(txid);
+        let txin = rpc.ledger._create_txin(txid);
         let txout = rpc
             .ledger
             .create_txout(0x45, Some(dummy_addr.script_pubkey()));
         let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        let txin = rpc.ledger.create_txin(inserted_tx1.compute_txid());
+        let txin = rpc.ledger._create_txin(inserted_tx1.compute_txid());
         let txout = rpc.ledger.create_txout(
             0x45,
             Some(
@@ -226,6 +227,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Ledger under construction"]
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -239,7 +241,7 @@ mod tests {
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Insert raw transactions to Bitcoin.
-        let txin = rpc.ledger.create_txin(txid);
+        let txin = rpc.ledger._create_txin(txid);
         let txout = rpc
             .ledger
             .create_txout(0x1F, Some(dummy_addr.script_pubkey()));
@@ -254,7 +256,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "UTXO combining not working"]
+    // #[ignore = "UTXO combining not working"]
+    #[ignore = "Ledger under construction"]
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -285,6 +288,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Ledger under construction"]
     fn get_new_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -319,6 +323,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Ledger under construction"]
     fn generate_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -335,7 +340,7 @@ mod tests {
         rpc.generate_to_address(101, &address).unwrap();
 
         // Wallet has funds now. It should not be rejected.
-        let txin = rpc.ledger.create_txin(
+        let txin = rpc.ledger._create_txin(
             rpc.ledger
                 ._get_transactions()
                 .get(0)
