@@ -1,7 +1,10 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use crate::{add_item_to_vec, get_item, ledger::address::UserCredential, return_vec_item};
+use crate::{
+    add_item_to_vec, get_item, ledger::address::UserCredential, remove_item_from_vec,
+    return_vec_item,
+};
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
@@ -10,7 +13,9 @@ impl Ledger {
         add_item_to_vec!(self.utxos, utxo);
     }
     /// Removes an UTXO, when it's spent.
-    pub fn _remove_utxo(&self, _utxo: OutPoint) {}
+    pub fn _remove_utxo(&self, utxo: OutPoint) {
+        remove_item_from_vec!(self.utxos, utxo);
+    }
     /// Returns UTXO's of the user.
     pub fn _get_utxos(&self) -> Vec<OutPoint> {
         return_vec_item!(self.utxos);
@@ -90,27 +95,31 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::{Amount, ScriptBuf, TxOut};
+    use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut};
 
-    /// Tests UTXO operations over ledger.
     #[test]
-    fn utxo() {
+    fn add_remove_utxos() {
         let ledger = Ledger::new();
 
         assert_eq!(ledger._get_utxos().len(), 0);
 
-        // Generate a random address.
-        ledger.generate_credential();
+        let dummy_tx = ledger.create_transaction(vec![], vec![]);
+        let txid = dummy_tx.compute_txid();
 
-        // Insert a dummy UTXO.
-        let _utxo = TxOut {
-            value: Amount::from_sat(0x45),
-            script_pubkey: ledger._get_credentials()[0].address.script_pubkey(),
-        };
-        // ledger.add_utxo(utxo);
+        let utxo = OutPoint { txid, vout: 0 };
+        ledger._add_utxo(utxo);
 
-        // assert_eq!(ledger._get_utxos().len(), 1);
-        // assert_eq!(ledger._get_utxos()[0].value, Amount::from_sat(0x45));
+        let utxos = ledger._get_utxos();
+        assert_eq!(utxos.len(), 1);
+        assert_eq!(*utxos.get(0).unwrap(), utxo);
+
+        let utxo = OutPoint { txid, vout: 1 };
+        ledger._add_utxo(utxo);
+
+        let utxos = ledger._get_utxos();
+        assert_eq!(utxos.len(), 2);
+        assert_ne!(*utxos.get(0).unwrap(), utxo);
+        assert_eq!(*utxos.get(1).unwrap(), utxo);
     }
 
     /// Tests transaction operations over ledger, without any rule checks.
