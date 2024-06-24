@@ -5,6 +5,7 @@ use crate::{
     add_item_to_vec, get_item, ledger::address::UserCredential, remove_item_from_vec,
     return_vec_item,
 };
+use anyhow::Error;
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
@@ -17,7 +18,7 @@ impl Ledger {
         remove_item_from_vec!(self.utxos, utxo);
     }
     /// Returns UTXO's of the user.
-    pub fn _get_utxos(&self) -> Vec<OutPoint> {
+    pub fn get_utxos(&self) -> Vec<OutPoint> {
         return_vec_item!(self.utxos);
     }
 
@@ -36,20 +37,27 @@ impl Ledger {
 
         Ok(transaction.compute_txid())
     }
-    /// Returns user's list of transactions.
-    pub fn get_transaction(&self, _txid: Txid) -> Result<Transaction, LedgerError> {
-        todo!()
+    /// Returns a transaction which matches the given txid.
+    pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
+        let txs: Vec<Transaction>;
+        get_item!(self.transactions, txs);
+
+        let tx = txs
+            .iter()
+            .find(|tx| tx.compute_txid() == txid)
+            .ok_or(LedgerError::Database(Error::msg(
+                "No transaction is matched with txid.",
+            )))?
+            .to_owned();
+
+        Ok(tx)
     }
     /// Returns user's list of transactions.
-    pub fn _get_transactions(&self) -> Vec<Transaction> {
-        // get_item!(self.transactions);
-        todo!()
+    pub fn get_transactions(&self) -> Vec<Transaction> {
+        return_vec_item!(self.transactions);
     }
+
     /// Checks if a transaction is valid or not.
-    ///
-    /// # Panics
-    ///
-    /// If mutex can't be locked, it will panic.
     pub fn check_transaction(&self, _transaction: &Transaction) -> Result<(), LedgerError> {
         todo!()
     }
@@ -101,7 +109,7 @@ mod tests {
     fn add_remove_utxos() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger._get_utxos().len(), 0);
+        assert_eq!(ledger.get_utxos().len(), 0);
 
         let dummy_tx = ledger.create_transaction(vec![], vec![]);
         let txid = dummy_tx.compute_txid();
@@ -109,14 +117,14 @@ mod tests {
         let utxo = OutPoint { txid, vout: 0 };
         ledger._add_utxo(utxo);
 
-        let utxos = ledger._get_utxos();
+        let utxos = ledger.get_utxos();
         assert_eq!(utxos.len(), 1);
         assert_eq!(*utxos.get(0).unwrap(), utxo);
 
         let utxo = OutPoint { txid, vout: 1 };
         ledger._add_utxo(utxo);
 
-        let utxos = ledger._get_utxos();
+        let utxos = ledger.get_utxos();
         assert_eq!(utxos.len(), 2);
         assert_ne!(*utxos.get(0).unwrap(), utxo);
         assert_eq!(*utxos.get(1).unwrap(), utxo);
@@ -125,10 +133,10 @@ mod tests {
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
     #[ignore = "Ledger under construction"]
-    fn transactions_without_checking() {
+    fn transactions_without_checks() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         let txout = TxOut {
             value: Amount::from_sat(0x45),
@@ -142,7 +150,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -158,7 +166,7 @@ mod tests {
     fn transactions_with_checks() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         let txout = ledger.create_txout(0x45 * 0x45, None);
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
@@ -182,7 +190,7 @@ mod tests {
         // Input amount is OK. This should be accepted.
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 2);
 
         let tx2 = txs.get(1).unwrap().to_owned();
