@@ -192,14 +192,14 @@ mod tests {
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Create a new raw transactions that is valid.
-        let txin = rpc.ledger._create_txin(txid);
+        let txin = rpc.ledger.create_txin(txid);
         let txout = rpc
             .ledger
             .create_txout(0x45, Some(dummy_addr.script_pubkey()));
         let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        let txin = rpc.ledger._create_txin(inserted_tx1.compute_txid());
+        let txin = rpc.ledger.create_txin(inserted_tx1.compute_txid());
         let txout = rpc.ledger.create_txout(
             0x45,
             Some(
@@ -241,7 +241,7 @@ mod tests {
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Insert raw transactions to Bitcoin.
-        let txin = rpc.ledger._create_txin(txid);
+        let txin = rpc.ledger.create_txin(txid);
         let txout = rpc
             .ledger
             .create_txout(0x1F, Some(dummy_addr.script_pubkey()));
@@ -342,7 +342,7 @@ mod tests {
         // Wallet has funds now. It should not be rejected.
         let txin = rpc
             .ledger
-            ._create_txin(rpc.ledger.get_transactions().get(0).unwrap().compute_txid());
+            .create_txin(rpc.ledger.get_transactions().get(0).unwrap().compute_txid());
         let txout = rpc.ledger.create_txout(1, Some(address.script_pubkey()));
         let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         if let Err(e) = rpc.ledger.check_transaction(&tx) {

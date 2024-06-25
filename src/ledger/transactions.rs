@@ -1,7 +1,7 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use crate::{get_item, ledger::address::UserCredential, return_vec_item};
+use crate::{add_item_to_vec, get_item, ledger::address::UserCredential, return_vec_item};
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
@@ -16,7 +16,12 @@ impl Ledger {
         &self,
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
-        // add_item!(self.transactions, transaction.clone());
+        // Add transaction to list.
+        add_item_to_vec!(self.transactions, transaction.clone());
+
+        // TODO: Add UTXO's to list. Careful about only adding if address is
+        // user's.
+        transaction.output.iter().for_each(|_utxo| {});
 
         Ok(transaction.compute_txid())
     }
@@ -41,11 +46,21 @@ impl Ledger {
     }
 
     /// Checks if a transaction is valid or not.
-    pub fn check_transaction(&self, _transaction: &Transaction) -> Result<(), LedgerError> {
-        todo!()
+    pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
+        let balance = self.calculate_balance()?;
+        let out_value = self.calculate_transaction_output_value(transaction.clone());
+
+        if balance < out_value {
+            return Err(LedgerError::Transaction(format!(
+                "Balance: {} is not enough for: {}",
+                balance, out_value
+            )));
+        }
+
+        Ok(())
     }
 
-    pub fn _create_txin(&self, txid: Txid) -> TxIn {
+    pub fn create_txin(&self, txid: Txid) -> TxIn {
         let credentials: Vec<UserCredential>;
         get_item!(self.credentials, credentials);
         let witness = match credentials.last() {
@@ -86,20 +101,16 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::{Amount, ScriptBuf, TxOut};
+    use bitcoin::ScriptBuf;
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
-    #[ignore = "Ledger under construction"]
     fn transactions_without_checks() {
         let ledger = Ledger::new();
 
         assert_eq!(ledger.get_transactions().len(), 0);
 
-        let txout = TxOut {
-            value: Amount::from_sat(0x45),
-            script_pubkey: ScriptBuf::new(),
-        };
+        let txout = ledger.create_txout(0x45, Some(ScriptBuf::new()));
         let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
 
@@ -141,7 +152,7 @@ mod tests {
             assert!(false);
         };
 
-        let txin = ledger._create_txin(txid);
+        let txin = ledger.create_txin(txid);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
 
