@@ -137,9 +137,9 @@ impl Ledger {
         }
     }
     /// Creates a `TxOut` with some defaults.
-    pub fn create_txout(&self, satoshi: u64, script_pubkey: Option<ScriptBuf>) -> TxOut {
+    pub fn create_txout(&self, amount: Amount, script_pubkey: Option<ScriptBuf>) -> TxOut {
         TxOut {
-            value: Amount::from_sat(satoshi),
+            value: amount,
             script_pubkey: match script_pubkey {
                 Some(script_pubkey) => script_pubkey,
                 None => ScriptBuf::new(),
@@ -169,7 +169,7 @@ mod tests {
 
         assert_eq!(ledger.get_transactions().len(), 0);
 
-        let txout = ledger.create_txout(0x45, Some(ScriptBuf::new()));
+        let txout = ledger.create_txout(Amount::from_sat(0x45), Some(ScriptBuf::new()));
         let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
 
@@ -197,7 +197,10 @@ mod tests {
         assert_eq!(ledger.get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
-        let txout = ledger.create_txout(0x45 * 0x45, Some(credentials.address.script_pubkey()));
+        let txout = ledger.create_txout(
+            Amount::from_sat(0x45 * 0x45),
+            Some(credentials.address.script_pubkey()),
+        );
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
         assert_eq!(
@@ -213,7 +216,7 @@ mod tests {
 
         // Create a valid transaction. This should pass checks.
         let txin = ledger.create_txin(txid, 0);
-        let txout = ledger.create_txout(0x44 * 0x45, None);
+        let txout = ledger.create_txout(Amount::from_sat(0x44 * 0x45), None);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
@@ -234,7 +237,10 @@ mod tests {
         let credential = ledger.generate_credential();
 
         // Add some funds.
-        let txout = ledger.create_txout(0x45, Some(credential.address.script_pubkey()));
+        let txout = ledger.create_txout(
+            Amount::from_sat(0x45),
+            Some(credential.address.script_pubkey()),
+        );
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
         assert_eq!(
@@ -260,14 +266,14 @@ mod tests {
     fn calculate_transaction_output_value() {
         let ledger = Ledger::new();
 
-        let txout1 = ledger.create_txout(0x45, None);
+        let txout1 = ledger.create_txout(Amount::from_sat(0x45), None);
         let tx = ledger.create_transaction(vec![], vec![txout1.clone()]);
         assert_eq!(
             ledger.calculate_transaction_output_value(tx),
             Amount::from_sat(0x45)
         );
 
-        let txout2 = ledger.create_txout(0x1F, None);
+        let txout2 = ledger.create_txout(Amount::from_sat(0x1F), None);
         let tx = ledger.create_transaction(vec![], vec![txout1, txout2]);
         assert_eq!(
             ledger.calculate_transaction_output_value(tx),
