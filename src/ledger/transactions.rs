@@ -28,7 +28,7 @@ impl Ledger {
         let tx = txs
             .iter()
             .find(|tx| tx.compute_txid() == txid)
-            .ok_or(LedgerError::General(String::from(
+            .ok_or(LedgerError::Transaction(String::from(
                 "No transaction is matched with ".to_string() + txid.to_string().as_str(),
             )))?
             .to_owned();
@@ -36,7 +36,7 @@ impl Ledger {
         Ok(tx)
     }
     /// Returns user's list of transactions.
-    pub fn _get_transactions(&self) -> Vec<Transaction> {
+    pub fn get_transactions(&self) -> Vec<Transaction> {
         return_vec_item!(self.transactions);
     }
 
@@ -94,7 +94,7 @@ mod tests {
     fn transactions_without_checks() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         let txout = TxOut {
             value: Amount::from_sat(0x45),
@@ -108,7 +108,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -124,7 +124,7 @@ mod tests {
     fn transactions_with_checks() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         let txout = ledger.create_txout(0x45 * 0x45, None);
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
@@ -148,7 +148,7 @@ mod tests {
         // Input amount is OK. This should be accepted.
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 2);
 
         let tx2 = txs.get(1).unwrap().to_owned();
