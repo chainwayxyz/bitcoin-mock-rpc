@@ -255,4 +255,23 @@ mod tests {
             Amount::from_sat(0x45)
         );
     }
+
+    #[test]
+    fn calculate_transaction_output_value() {
+        let ledger = Ledger::new();
+
+        let txout1 = ledger.create_txout(0x45, None);
+        let tx = ledger.create_transaction(vec![], vec![txout1.clone()]);
+        assert_eq!(
+            ledger.calculate_transaction_output_value(tx),
+            Amount::from_sat(0x45)
+        );
+
+        let txout2 = ledger.create_txout(0x1F, None);
+        let tx = ledger.create_transaction(vec![], vec![txout1, txout2]);
+        assert_eq!(
+            ledger.calculate_transaction_output_value(tx),
+            Amount::from_sat(100)
+        );
+    }
 }
