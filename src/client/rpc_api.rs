@@ -168,6 +168,14 @@ impl RpcApi for Client {
 
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }
+
+    fn get_balance(
+        &self,
+        _minconf: Option<usize>,
+        _include_watchonly: Option<bool>,
+    ) -> bitcoincore_rpc::Result<Amount> {
+        Ok(self.ledger.calculate_balance()?)
+    }
 }
 
 #[cfg(test)]
@@ -342,5 +350,19 @@ mod tests {
         if let Err(e) = rpc.ledger.check_transaction(&tx) {
             assert!(false, "{:?}", e);
         };
+    }
+
+    #[test]
+    fn get_balance() {
+        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+        let address = rpc.ledger.generate_credential_from_witness().address;
+
+        assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0));
+
+        let txout = rpc.ledger.create_txout(0x45, Some(address.script_pubkey()));
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+
+        assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0x45));
     }
 }
