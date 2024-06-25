@@ -175,10 +175,7 @@ mod tests {
     use super::*;
     use bitcoin::{Amount, Network};
 
-    /// Tests raw transaction operations, using `send_raw_transaction` and
-    /// `get_raw_transaction`.
     #[test]
-    #[ignore = "Ledger under construction"]
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -227,7 +224,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ledger under construction"]
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -256,8 +252,7 @@ mod tests {
     }
 
     #[test]
-    // #[ignore = "UTXO combining not working"]
-    #[ignore = "Ledger under construction"]
+    #[ignore = "UTXO combining not working"]
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -288,7 +283,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ledger under construction"]
     fn get_new_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -323,7 +317,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Ledger under construction"]
     fn generate_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
