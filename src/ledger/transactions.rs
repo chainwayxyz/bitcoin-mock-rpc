@@ -69,13 +69,13 @@ impl Ledger {
 
     /// Checks if a transaction is valid or not.
     pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
-        let balance = self.calculate_balance()?;
-        let out_value = self.calculate_transaction_output_value(transaction.clone());
+        let input_value = self.calculate_transaction_input_value(transaction.clone())?;
+        let output_value = self.calculate_transaction_output_value(transaction.clone());
 
-        if balance < out_value {
+        if input_value < output_value {
             return Err(LedgerError::Transaction(format!(
-                "Balance: {} is not enough for: {}",
-                balance, out_value
+                "Input value {} is not above or equal of output value {}",
+                input_value, output_value
             )));
         }
 
@@ -190,14 +190,14 @@ mod tests {
 
     /// Tests transaction operations over ledger, with rule checks.
     #[test]
-    #[ignore = "Ledger under construction"]
     fn transactions_with_checks() {
         let ledger = Ledger::new();
+        let credentials = ledger.generate_credential();
 
         assert_eq!(ledger.get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
-        let txout = ledger.create_txout(0x45 * 0x45, None);
+        let txout = ledger.create_txout(0x45 * 0x45, Some(credentials.address.script_pubkey()));
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
         assert_eq!(
