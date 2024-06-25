@@ -16,14 +16,36 @@ impl Ledger {
         &self,
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
+        let txid = transaction.compute_txid();
+
+        // Remove UTXO's that are used.
+        transaction.input.iter().for_each(|input| {
+            self.remove_utxo(input.previous_output);
+        });
+
+        // Add UTXO's that are sent to user.
+        let script_pubkeys: Vec<ScriptBuf> = self
+            .get_credentials()
+            .iter()
+            .map(|credential| credential.address.script_pubkey())
+            .collect();
+        transaction.output.iter().enumerate().for_each(|(i, utxo)| {
+            if script_pubkeys
+                .iter()
+                .any(|hash| *hash == utxo.script_pubkey)
+            {
+                let utxo = OutPoint {
+                    txid,
+                    vout: i as u32,
+                };
+                self.add_utxo(utxo);
+            }
+        });
+
         // Add transaction to list.
         add_item_to_vec!(self.transactions, transaction.clone());
 
-        // TODO: Add UTXO's to list. Careful about only adding if address is
-        // user's.
-        transaction.output.iter().for_each(|_utxo| {});
-
-        Ok(transaction.compute_txid())
+        Ok(txid)
     }
     /// Returns a transaction which matches the given txid.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
@@ -60,7 +82,44 @@ impl Ledger {
         Ok(())
     }
 
-    pub fn create_txin(&self, txid: Txid) -> TxIn {
+    /// Calculates a transaction's total output value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if found UTXO doesn't match transaction.
+    pub fn calculate_transaction_input_value(
+        &self,
+        transaction: Transaction,
+    ) -> Result<Amount, LedgerError> {
+        let mut amount = Amount::from_sat(0);
+        let utxos = self.get_utxos();
+
+        for input in transaction.input {
+            let utxo = utxos
+                .iter()
+                .find(|utxo| **utxo == input.previous_output)
+                .ok_or(LedgerError::UTXO(format!(
+                    "UTXO {:?} is not found in UTXO list.",
+                    input.previous_output
+                )))?;
+
+            amount += self
+                .get_transaction(utxo.txid)?
+                .output
+                .get(utxo.vout as usize)
+                .unwrap()
+                .value;
+        }
+
+        Ok(amount)
+    }
+    /// Calculates a transaction's total output value.
+    pub fn calculate_transaction_output_value(&self, transaction: Transaction) -> Amount {
+        transaction.output.iter().map(|output| output.value).sum()
+    }
+
+    /// Creates a `TxIn` with some defaults.
+    pub fn create_txin(&self, txid: Txid, vout: u32) -> TxIn {
         let credentials: Vec<UserCredential>;
         get_item!(self.credentials, credentials);
         let witness = match credentials.last() {
@@ -72,12 +131,12 @@ impl Ledger {
         };
 
         TxIn {
-            previous_output: OutPoint { txid, vout: 0 },
+            previous_output: OutPoint { txid, vout },
             witness,
             ..Default::default()
         }
     }
-
+    /// Creates a `TxOut` with some defaults.
     pub fn create_txout(&self, satoshi: u64, script_pubkey: Option<ScriptBuf>) -> TxOut {
         TxOut {
             value: Amount::from_sat(satoshi),
@@ -87,7 +146,7 @@ impl Ledger {
             },
         }
     }
-
+    /// Creates a `Transaction` with some defaults.
     pub fn create_transaction(&self, tx_ins: Vec<TxIn>, tx_outs: Vec<TxOut>) -> Transaction {
         bitcoin::Transaction {
             version: bitcoin::transaction::Version(2),
@@ -101,7 +160,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::ScriptBuf;
+    use bitcoin::{Amount, ScriptBuf};
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
@@ -137,35 +196,63 @@ mod tests {
 
         assert_eq!(ledger.get_transactions().len(), 0);
 
+        // First, add some funds to user, for free.
         let txout = ledger.create_txout(0x45 * 0x45, None);
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
-
-        // First, add some funds to user, for free.
         assert_eq!(
             txid,
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        // Input amount is zero. This should not be accepted.
+        // Input amount is zero. Same transaction should not be accepted, if
+        // checks are performed..
         if let Ok(_) = ledger.add_transaction(tx.clone()) {
             assert!(false);
         };
 
-        let txin = ledger.create_txin(txid);
+        // Create a valid transaction. This should pass checks.
+        let txin = ledger.create_txin(txid, 0);
+        let txout = ledger.create_txout(0x44 * 0x45, None);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
-
-        // Input amount is OK. This should be accepted.
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
         let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 2);
 
-        let tx2 = txs.get(1).unwrap().to_owned();
-        assert_eq!(tx, tx2);
+        let read_tx = txs.get(1).unwrap().to_owned();
+        assert_eq!(tx, read_tx);
 
-        let tx2 = ledger.get_transaction(txid).unwrap();
-        assert_eq!(tx, tx2);
+        let read_tx = ledger.get_transaction(txid).unwrap();
+        assert_eq!(tx, read_tx);
+    }
+
+    #[test]
+    fn calculate_transaction_input_value() {
+        let ledger = Ledger::new();
+        let credential = ledger.generate_credential();
+
+        // Add some funds.
+        let txout = ledger.create_txout(0x45, Some(credential.address.script_pubkey()));
+        let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
+        let txid = tx.compute_txid();
+        assert_eq!(
+            txid,
+            ledger.add_transaction_unconditionally(tx.clone()).unwrap()
+        );
+
+        // Without any inputs, this must return 0 Sats.
+        assert_eq!(
+            ledger.calculate_transaction_input_value(tx).unwrap(),
+            Amount::from_sat(0)
+        );
+        // Valid input should be OK.
+        let txin = ledger.create_txin(txid, 0);
+        let tx = ledger.create_transaction(vec![txin], vec![txout]);
+        assert_eq!(
+            ledger.calculate_transaction_input_value(tx).unwrap(),
+            Amount::from_sat(0x45)
+        );
     }
 }

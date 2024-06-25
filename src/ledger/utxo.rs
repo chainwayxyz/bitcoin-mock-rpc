@@ -2,7 +2,7 @@
 
 use super::{errors::LedgerError, Ledger};
 use crate::{add_item_to_vec, remove_item_from_vec, return_vec_item};
-use bitcoin::{Amount, OutPoint, Transaction};
+use bitcoin::{Amount, OutPoint};
 
 impl Ledger {
     /// Adds a new UTXO to user's UTXO's.
@@ -18,11 +18,6 @@ impl Ledger {
     /// Returns UTXO's of the user.
     pub fn get_utxos(&self) -> Vec<OutPoint> {
         return_vec_item!(self.utxos);
-    }
-
-    /// Calculates a transaction's total output value.
-    pub fn calculate_transaction_output_value(&self, transaction: Transaction) -> Amount {
-        transaction.output.iter().map(|output| output.value).sum()
     }
 
     /// Calculate balance using UTXO's.

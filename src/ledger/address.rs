@@ -55,7 +55,7 @@ impl Ledger {
         credential
     }
     /// Returns secret/public key + address list of the user.
-    pub fn _get_credentials(&self) -> Vec<UserCredential> {
+    pub fn get_credentials(&self) -> Vec<UserCredential> {
         return_vec_item!(self.credentials);
     }
 
