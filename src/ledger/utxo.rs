@@ -187,6 +187,7 @@ mod tests {
         for i in 0..100 {
             let txout = ledger.create_txout(Amount::from_sat(i), Some(address.script_pubkey()));
             let tx = ledger.create_transaction(vec![], vec![txout]);
+
             ledger.add_transaction_unconditionally(tx).unwrap();
         }
 
