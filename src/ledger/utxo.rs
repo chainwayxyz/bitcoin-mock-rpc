@@ -45,7 +45,7 @@ impl Ledger {
         }
 
         if amount > total_value {
-            return Err(LedgerError::UTXO(format!(
+            return Err(LedgerError::Utxo(format!(
                 "Requested amount bigger than balance: {amount} > {total_value}"
             )));
         }
@@ -63,7 +63,7 @@ impl Ledger {
             let txout = tx
                 .output
                 .get(utxo.vout as usize)
-                .ok_or(LedgerError::UTXO(format!(
+                .ok_or(LedgerError::Utxo(format!(
                     "vout {} couldn't be found in transaction with txid {}",
                     utxo.vout, utxo.txid
                 )))?;

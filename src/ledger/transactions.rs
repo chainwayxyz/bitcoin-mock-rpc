@@ -98,7 +98,7 @@ impl Ledger {
             let utxo = utxos
                 .iter()
                 .find(|utxo| **utxo == input.previous_output)
-                .ok_or(LedgerError::UTXO(format!(
+                .ok_or(LedgerError::Utxo(format!(
                     "UTXO {:?} is not found in UTXO list.",
                     input.previous_output
                 )))?;

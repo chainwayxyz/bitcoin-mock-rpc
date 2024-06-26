@@ -12,7 +12,7 @@ pub enum LedgerError {
     #[error("Transaction is not OK: {0}")]
     Transaction(String),
     #[error("UTXO cannot be spend: {0}")]
-    UTXO(String),
+    Utxo(String),
 }
 
 impl From<LedgerError> for bitcoincore_rpc::Error {

@@ -139,9 +139,9 @@ impl RpcApi for Client {
             .ledger
             .get_credentials()
             .last()
-            .ok_or(bitcoincore_rpc::Error::Io(Error::other(format!(
-                "No user address found!"
-            ))))?
+            .ok_or(bitcoincore_rpc::Error::Io(Error::other(
+                "No user address found!".to_string(),
+            )))?
             .address
             .to_owned();
 
@@ -162,7 +162,7 @@ impl RpcApi for Client {
             .ledger
             .create_transaction(txins, vec![target_txout, change]);
 
-        Ok(self.send_raw_transaction(&tx)?)
+        self.send_raw_transaction(&tx)
     }
 
     fn get_new_address(
