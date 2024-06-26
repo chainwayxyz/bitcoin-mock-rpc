@@ -1,6 +1,10 @@
 //! # Transaction Related Ledger Operations
 
-use super::{errors::LedgerError, Ledger};
+use super::{
+    errors::LedgerError,
+    spending_requirements::{P2TRChecker, P2WPKHChecker, P2WSHChecker},
+    Ledger,
+};
 use crate::{add_item_to_vec, get_item, return_vec_item};
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
@@ -77,6 +81,26 @@ impl Ledger {
                 "Input value {} is not above or equal of output value {}",
                 input_value, output_value
             )));
+        }
+
+        for input in transaction.input.iter() {
+            for input_idx in 0..transaction.input.len() {
+                let previous_output = self.get_transaction(input.previous_output.txid)?.output;
+                let previous_output = previous_output
+                    .get(input.previous_output.vout as usize)
+                    .unwrap()
+                    .to_owned();
+
+                let script_pubkey = previous_output.clone().script_pubkey;
+
+                if script_pubkey.is_p2wpkh() {
+                    P2WPKHChecker::check(&transaction, &previous_output, input_idx)?;
+                } else if script_pubkey.is_p2wsh() {
+                    P2WSHChecker::check(&transaction, &previous_output, input_idx)?;
+                } else if script_pubkey.is_p2tr() {
+                    P2TRChecker::check(&transaction, &previous_output, input_idx)?;
+                }
+            }
         }
 
         Ok(())
@@ -192,7 +216,7 @@ mod tests {
     fn transactions_with_checks() {
         let ledger = Ledger::new();
 
-        let credential = Ledger::generate_credential();
+        let credential = Ledger::generate_credential_from_witness();
         ledger.add_credential(credential.clone());
 
         assert_eq!(ledger._get_transactions().len(), 0);
@@ -217,7 +241,10 @@ mod tests {
 
         // Create a valid transaction. This should pass checks.
         let txin = ledger.create_txin(txid, 0);
-        let txout = ledger.create_txout(Amount::from_sat(0x44 * 0x45), None);
+        let txout = ledger.create_txout(
+            Amount::from_sat(0x44 * 0x45),
+            Some(credential.address.script_pubkey()),
+        );
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
