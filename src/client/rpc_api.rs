@@ -369,7 +369,11 @@ mod tests {
 
         // Wallet has funds now. It should not be rejected.
         let txin = rpc.ledger.create_txin(
-            rpc.ledger.get_transactions().get(0).unwrap().compute_txid(),
+            rpc.ledger
+                ._get_transactions()
+                .get(0)
+                .unwrap()
+                .compute_txid(),
             0,
         );
         let txout = rpc
