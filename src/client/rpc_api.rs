@@ -134,6 +134,17 @@ impl RpcApi for Client {
             ))));
         }
 
+        // Get latest address of the user. Change will be sent to this address.
+        let user_address = self
+            .ledger
+            .get_credentials()
+            .last()
+            .ok_or(bitcoincore_rpc::Error::Io(Error::other(format!(
+                "No user address found!"
+            ))))?
+            .address
+            .to_owned();
+
         let (utxos, total_value) = self.ledger.combine_utxos(amount)?;
         let txins: Vec<TxIn> = utxos
             .iter()
@@ -143,7 +154,9 @@ impl RpcApi for Client {
         let target_txout = self
             .ledger
             .create_txout(amount, Some(address.script_pubkey()));
-        let change = self.ledger.create_txout(total_value - amount, None); // TODO: return to user
+        let change = self
+            .ledger
+            .create_txout(total_value - amount, Some(user_address.script_pubkey()));
 
         let tx = self
             .ledger
@@ -282,6 +295,9 @@ mod tests {
         rpc.ledger.add_credential(credential.clone());
         let address = credential.address;
 
+        let credential = Ledger::generate_credential_from_witness();
+        let receiver_address = credential.address;
+
         // Add small UTXO's to user.
         for i in 0..100 {
             let txout = rpc
@@ -299,7 +315,7 @@ mod tests {
         // send_to_address should combine UTXO's and create a valid transaction.
         let txid = rpc
             .send_to_address(
-                &address,
+                &receiver_address,
                 Amount::from_sat(0x45),
                 None,
                 None,
@@ -311,10 +327,15 @@ mod tests {
             .unwrap();
 
         let tx = rpc.get_raw_transaction(&txid, None).unwrap();
+
+        // Receiver should have this.
         assert_eq!(tx.output[0].value.to_sat(), 0x45);
-        assert_ne!(
+        assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
+
+        // User should have 0x45 less Sats.
+        assert_eq!(
             rpc.ledger.calculate_balance().unwrap(),
-            Amount::from_sat((0..100).sum())
+            Amount::from_sat((0..100).sum::<u64>() - 0x45)
         );
     }
 
