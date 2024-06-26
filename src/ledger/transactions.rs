@@ -1,7 +1,7 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use crate::{add_item_to_vec, get_item, ledger::address::UserCredential, return_vec_item};
+use crate::{add_item_to_vec, get_item, return_vec_item};
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
@@ -49,7 +49,6 @@ impl Ledger {
     }
     /// Returns a transaction which matches the given txid.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
-        let txs: Vec<Transaction>;
         get_item!(self.transactions, txs);
 
         let tx = txs
@@ -121,7 +120,6 @@ impl Ledger {
 
     /// Creates a `TxIn` with some defaults.
     pub fn create_txin(&self, txid: Txid, vout: u32) -> TxIn {
-        let credentials: Vec<UserCredential>;
         get_item!(self.credentials, credentials);
         let witness = match credentials.last() {
             Some(c) => match c.to_owned().witness {

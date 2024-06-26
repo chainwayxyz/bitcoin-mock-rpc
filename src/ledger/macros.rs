@@ -50,8 +50,8 @@ macro_rules! update_item {
 /// Assigns an item from member to given assignee, which is guarded by a `Cell`.
 #[macro_export]
 macro_rules! get_item {
-    ($member:expr, $assignee:expr) => {
-        $assignee = $member.take();
+    ($member:expr, $assignee:ident) => {
+        let $assignee = $member.take();
         $member.set($assignee.clone());
     };
 }
@@ -71,7 +71,6 @@ mod tests {
     fn add_get_item_to_vec() {
         let strct = Test::default();
 
-        let mut items: Vec<isize>;
         get_item!(strct.vec_member_1, items);
         assert_eq!(items.len(), 0);
 
@@ -86,7 +85,6 @@ mod tests {
     fn update_member() {
         let strct = Test::default();
 
-        let mut item: isize;
         get_item!(strct.int_member_1, item);
         assert_eq!(item, isize::default());
 
@@ -102,8 +100,6 @@ mod tests {
     #[test]
     fn remove_item_from_vec() {
         let strct = Test::default();
-
-        let mut items: Vec<isize>;
 
         add_item_to_vec!(strct.vec_member_1, 0x45);
         add_item_to_vec!(strct.vec_member_1, 0x1F);
