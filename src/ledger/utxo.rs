@@ -86,8 +86,8 @@ mod tests {
 
         assert_eq!(ledger.get_utxos().len(), 0);
 
-        let dummy_tx = ledger.create_transaction(vec![], vec![]);
-        let txid = dummy_tx.compute_txid();
+        let tx = ledger.create_transaction(vec![], vec![]);
+        let txid = tx.compute_txid();
 
         let utxo = OutPoint { txid, vout: 0 };
         ledger.add_utxo(utxo);
@@ -109,8 +109,8 @@ mod tests {
     fn add_remove_utxos() {
         let ledger = Ledger::new();
 
-        let dummy_tx = ledger.create_transaction(vec![], vec![]);
-        let txid = dummy_tx.compute_txid();
+        let tx = ledger.create_transaction(vec![], vec![]);
+        let txid = tx.compute_txid();
 
         let utxo1 = OutPoint { txid, vout: 0 };
         ledger.add_utxo(utxo1);
@@ -140,7 +140,6 @@ mod tests {
 
         assert_eq!(ledger.calculate_balance().unwrap(), Amount::from_sat(0));
 
-        // Insert dummy transactions.
         let txout = ledger.create_txout(Amount::from_sat(100 - 0x1F), None);
         let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
@@ -181,7 +180,10 @@ mod tests {
     #[test]
     fn combine_utxos() {
         let ledger = Ledger::new();
-        let address = ledger.generate_credential().address;
+
+        let credential = Ledger::generate_credential_from_witness();
+        ledger.add_credential(credential.clone());
+        let address = credential.address;
 
         // Add some small UTXO's to user.
         for i in 0..100 {

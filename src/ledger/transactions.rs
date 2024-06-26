@@ -192,14 +192,16 @@ mod tests {
     #[test]
     fn transactions_with_checks() {
         let ledger = Ledger::new();
-        let credentials = ledger.generate_credential();
+
+        let credential = Ledger::generate_credential();
+        ledger.add_credential(credential.clone());
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
         let txout = ledger.create_txout(
             Amount::from_sat(0x45 * 0x45),
-            Some(credentials.address.script_pubkey()),
+            Some(credential.address.script_pubkey()),
         );
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
@@ -234,7 +236,9 @@ mod tests {
     #[test]
     fn calculate_transaction_input_value() {
         let ledger = Ledger::new();
-        let credential = ledger.generate_credential();
+
+        let credential = Ledger::generate_credential();
+        ledger.add_credential(credential.clone());
 
         // Add some funds.
         let txout = ledger.create_txout(

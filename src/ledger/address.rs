@@ -3,7 +3,7 @@
 //! This crate provides address related ledger interfaces.
 
 use super::Ledger;
-use crate::{add_item_to_vec, get_item, return_vec_item, update_item};
+use crate::{add_item_to_vec, return_vec_item};
 use bitcoin::{
     opcodes::OP_TRUE,
     taproot::{LeafVersion, TaprootBuilder},
@@ -61,35 +61,25 @@ impl Ledger {
 
     /// Generates a random secret/public key pair and creates a new Bicoin
     /// address from them.
-    pub fn generate_credential(&self) -> UserCredential {
-        let credential = UserCredential::new();
-
-        self.add_credential(credential)
+    pub fn generate_credential() -> UserCredential {
+        UserCredential::new()
     }
     /// Creates a Bitcoin address from a witness program.
-    pub fn generate_credential_from_witness(&self) -> UserCredential {
-        let mut credential = self.generate_credential();
+    pub fn generate_credential_from_witness() -> UserCredential {
+        let mut credential = Ledger::generate_credential();
 
-        self.create_witness(&mut credential);
+        Ledger::create_witness(&mut credential);
 
         credential.address = Address::from_witness_program(
             credential.witness_program.unwrap(),
             bitcoin::Network::Regtest,
         );
 
-        // Update previously inserted element.
-        let mut credentials: Vec<UserCredential>;
-        get_item!(self.credentials, credentials);
-        credentials.pop();
-        credentials.push(credential.clone());
-        update_item!(self.credentials, credentials);
-
         credential
     }
 
-    pub fn create_witness(&self, credential: &mut UserCredential) {
-        // let mut credential = self.generate_credential();
-
+    /// Creates a witness for the given secret/public key pair.
+    pub fn create_witness(credential: &mut UserCredential) {
         let mut script = ScriptBuf::new();
         script.push_instruction(bitcoin::script::Instruction::Op(OP_TRUE));
 
@@ -128,9 +118,12 @@ mod tests {
     #[test]
     fn addresses() {
         let ledger = Ledger::new();
+
         assert_eq!(ledger.credentials.take().len(), 0);
 
-        let credential = ledger.generate_credential();
+        let credential = Ledger::generate_credential();
+        ledger.add_credential(credential.clone());
+
         let credentials = ledger.credentials.take();
         assert_eq!(credentials.len(), 1);
 

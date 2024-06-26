@@ -4,6 +4,7 @@
 //! `Client`.
 
 use super::Client;
+use crate::ledger::Ledger;
 use bitcoin::{
     address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, BlockHash,
     SignedAmount, Transaction, TxIn, Wtxid,
@@ -156,12 +157,10 @@ impl RpcApi for Client {
         _label: Option<&str>,
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
-        Ok(self
-            .ledger
-            .generate_credential_from_witness()
-            .address
-            .as_unchecked()
-            .to_owned())
+        let credential = Ledger::generate_credential_from_witness();
+        self.ledger.add_credential(credential.clone());
+
+        Ok(credential.address.as_unchecked().to_owned())
     }
 
     /// Generates `block_num` amount of block rewards to user.
@@ -200,13 +199,14 @@ mod tests {
     fn raw_transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = rpc.ledger.generate_credential_from_witness().address;
+        let credential = Ledger::generate_credential_from_witness();
+        rpc.ledger.add_credential(credential.clone());
+        let address = credential.address;
 
         // First, add some funds to user, for free.
-        let txout = rpc.ledger.create_txout(
-            Amount::from_sat(100_000_000),
-            Some(dummy_addr.script_pubkey()),
-        );
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(100_000_000), Some(address.script_pubkey()));
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
@@ -214,7 +214,7 @@ mod tests {
         let txin = rpc.ledger.create_txin(txid, 0);
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(0x45), Some(dummy_addr.script_pubkey()));
+            .create_txout(Amount::from_sat(0x45), Some(address.script_pubkey()));
         let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
@@ -222,8 +222,7 @@ mod tests {
         let txout = rpc.ledger.create_txout(
             Amount::from_sat(0x45),
             Some(
-                rpc.ledger
-                    .generate_credential_from_witness()
+                Ledger::generate_credential_from_witness()
                     .address
                     .script_pubkey(),
             ),
@@ -249,13 +248,14 @@ mod tests {
     fn transaction() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let dummy_addr = rpc.ledger.generate_credential_from_witness().address;
+        let credential = Ledger::generate_credential_from_witness();
+        rpc.ledger.add_credential(credential.clone());
+        let address = credential.address;
 
         // First, add some funds to user, for free.
-        let txout = rpc.ledger.create_txout(
-            Amount::from_sat(100_000_000),
-            Some(dummy_addr.script_pubkey()),
-        );
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(100_000_000), Some(address.script_pubkey()));
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
@@ -263,7 +263,7 @@ mod tests {
         let txin = rpc.ledger.create_txin(txid, 0);
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(0x1F), Some(dummy_addr.script_pubkey()));
+            .create_txout(Amount::from_sat(0x1F), Some(address.script_pubkey()));
         let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&tx).unwrap();
 
@@ -277,7 +277,10 @@ mod tests {
     #[test]
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-        let address = rpc.ledger.generate_credential_from_witness().address;
+
+        let credential = Ledger::generate_credential_from_witness();
+        rpc.ledger.add_credential(credential.clone());
+        let address = credential.address;
 
         // Add small UTXO's to user.
         for i in 0..100 {
@@ -388,7 +391,10 @@ mod tests {
     #[test]
     fn get_balance() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-        let address = rpc.ledger.generate_credential_from_witness().address;
+
+        let credential = Ledger::generate_credential_from_witness();
+        rpc.ledger.add_credential(credential.clone());
+        let address = credential.address;
 
         assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0));
 
