@@ -55,8 +55,9 @@ impl Ledger {
         let tx = txs
             .iter()
             .find(|tx| tx.compute_txid() == txid)
-            .ok_or(LedgerError::Transaction(String::from(
-                "No transaction is matched with ".to_string() + txid.to_string().as_str(),
+            .ok_or(LedgerError::Transaction(format!(
+                "No transaction is matched with {}",
+                txid
             )))?
             .to_owned();
 
