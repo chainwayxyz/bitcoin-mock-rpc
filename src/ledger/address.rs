@@ -14,13 +14,13 @@ use secp256k1::{rand, Keypair, PublicKey, Secp256k1, SecretKey};
 /// User's keys and generated address.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UserCredential {
-    secp: Secp256k1<secp256k1::All>,
-    secret_key: SecretKey,
-    public_key: PublicKey,
-    x_only_public_key: XOnlyPublicKey,
+    pub secp: Secp256k1<secp256k1::All>,
+    pub secret_key: SecretKey,
+    pub public_key: PublicKey,
+    pub x_only_public_key: XOnlyPublicKey,
     pub address: Address,
     pub witness: Option<Witness>,
-    witness_program: Option<WitnessProgram>,
+    pub witness_program: Option<WitnessProgram>,
 }
 
 impl UserCredential {

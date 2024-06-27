@@ -12,6 +12,7 @@ use std::cell::Cell;
 mod address;
 mod errors;
 mod macros;
+mod spending_requirements;
 mod transactions;
 mod utxo;
 
