@@ -7,11 +7,11 @@
 macro_rules! add_item_to_vec {
     ($member:expr, $item:expr) => {
         // Update item list.
-        let mut items = $member.take();
+        let mut items = $member.lock().unwrap().take();
         items.push($item);
 
         // Commit new change.
-        $member.set(items);
+        $member.lock().unwrap().set(items);
     };
 }
 /// Removes given item from a `Vec` member, which is guarded by a `Cell`.
@@ -19,21 +19,21 @@ macro_rules! add_item_to_vec {
 macro_rules! remove_item_from_vec {
     ($member:expr, $item:expr) => {
         // Get item list.
-        let mut items = $member.take();
+        let mut items = $member.lock().unwrap().take();
 
         // Delete given item.
         items.retain(|&i| i != $item);
 
         // Commit new change.
-        $member.set(items);
+        $member.lock().unwrap().set(items);
     };
 }
 /// Returns items of a `Vec` member, which is guarded by a `Cell`.
 #[macro_export]
 macro_rules! return_vec_item {
     ($member:expr) => {
-        let items = $member.take();
-        $member.set(items.clone());
+        let items = $member.lock().unwrap().take();
+        $member.lock().unwrap().set(items.clone());
 
         return items;
     };
@@ -43,7 +43,7 @@ macro_rules! return_vec_item {
 #[macro_export]
 macro_rules! update_item {
     ($member:expr, $item:expr) => {
-        $member.set($item);
+        $member.lock().unwrap().set($item);
     };
 }
 
@@ -51,20 +51,23 @@ macro_rules! update_item {
 #[macro_export]
 macro_rules! get_item {
     ($member:expr, $assignee:ident) => {
-        let $assignee = $member.take();
-        $member.set($assignee.clone());
+        let $assignee = $member.lock().unwrap().take();
+        $member.lock().unwrap().set($assignee.clone());
     };
 }
 
 #[cfg(test)]
 mod tests {
-    use std::cell::Cell;
+    use std::{
+        cell::Cell,
+        sync::{Arc, Mutex},
+    };
 
     /// Temporary struct for macro testing.
     #[derive(Default)]
     struct Test {
-        pub vec_member_1: Cell<Vec<isize>>,
-        pub int_member_1: Cell<isize>,
+        pub vec_member_1: Arc<Mutex<Cell<Vec<isize>>>>,
+        pub int_member_1: Arc<Mutex<Cell<isize>>>,
     }
 
     #[test]
