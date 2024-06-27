@@ -206,6 +206,7 @@ impl RpcApi for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::RpcApiWrapper;
     use bitcoin::{Amount, Network};
 
     #[test]
