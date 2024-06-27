@@ -7,7 +7,10 @@
 
 use address::UserCredential;
 use bitcoin::{OutPoint, Transaction};
-use std::cell::Cell;
+use std::{
+    cell::Cell,
+    sync::{Arc, Mutex},
+};
 
 mod address;
 mod errors;
@@ -19,20 +22,20 @@ mod utxo;
 /// Mock Bitcoin ledger.
 pub struct Ledger {
     /// User's keys and address.
-    credentials: Cell<Vec<UserCredential>>,
+    credentials: Arc<Mutex<Cell<Vec<UserCredential>>>>,
     /// Happened transactions.
-    transactions: Cell<Vec<Transaction>>,
+    transactions: Arc<Mutex<Cell<Vec<Transaction>>>>,
     /// Unspent transaction outputs.
-    utxos: Cell<Vec<OutPoint>>,
+    utxos: Arc<Mutex<Cell<Vec<OutPoint>>>>,
 }
 
 impl Ledger {
     /// Creates a new empty ledger.
     pub fn new() -> Self {
         Self {
-            credentials: Cell::new(Vec::new()),
-            utxos: Cell::new(Vec::new()),
-            transactions: Cell::new(Vec::new()),
+            credentials: Arc::new(Mutex::new(Cell::new(Vec::new()))),
+            utxos: Arc::new(Mutex::new(Cell::new(Vec::new()))),
+            transactions: Arc::new(Mutex::new(Cell::new(Vec::new()))),
         }
     }
 }

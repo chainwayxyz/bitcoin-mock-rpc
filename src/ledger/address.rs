@@ -119,12 +119,12 @@ mod tests {
     fn addresses() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger.credentials.take().len(), 0);
+        assert_eq!(ledger.credentials.lock().unwrap().take().len(), 0);
 
         let credential = Ledger::generate_credential();
         ledger.add_credential(credential.clone());
 
-        let credentials = ledger.credentials.take();
+        let credentials = ledger.credentials.lock().unwrap().take();
         assert_eq!(credentials.len(), 1);
 
         assert_eq!(credential, credentials.get(0).unwrap().to_owned());
