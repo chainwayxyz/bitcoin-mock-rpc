@@ -20,22 +20,23 @@ mod transactions;
 mod utxo;
 
 /// Mock Bitcoin ledger.
+#[derive(Clone)]
 pub struct Ledger {
     /// User's keys and address.
-    credentials: Arc<Mutex<Cell<Vec<UserCredential>>>>,
+    credentials: Box<Arc<Mutex<Cell<Vec<UserCredential>>>>>,
     /// Happened transactions.
-    transactions: Arc<Mutex<Cell<Vec<Transaction>>>>,
+    transactions: Box<Arc<Mutex<Cell<Vec<Transaction>>>>>,
     /// Unspent transaction outputs.
-    utxos: Arc<Mutex<Cell<Vec<OutPoint>>>>,
+    utxos: Box<Arc<Mutex<Cell<Vec<OutPoint>>>>>,
 }
 
 impl Ledger {
     /// Creates a new empty ledger.
     pub fn new() -> Self {
         Self {
-            credentials: Arc::new(Mutex::new(Cell::new(Vec::new()))),
-            utxos: Arc::new(Mutex::new(Cell::new(Vec::new()))),
-            transactions: Arc::new(Mutex::new(Cell::new(Vec::new()))),
+            credentials: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
+            utxos: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
+            transactions: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
         }
     }
 }
