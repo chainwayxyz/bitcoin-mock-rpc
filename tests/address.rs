@@ -4,8 +4,6 @@ use bitcoin_mock_rpc::{Client, RpcApiWrapper};
 use bitcoincore_rpc::{Auth, RpcApi};
 use std::thread;
 
-mod common;
-
 #[test]
 fn generate_to_address_multi_threaded() {
     // Bacause `thread::spawn` moves value to closure, cloning a new is needed. This is good,
