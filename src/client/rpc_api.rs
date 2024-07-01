@@ -6,8 +6,8 @@
 use super::Client;
 use crate::ledger::Ledger;
 use bitcoin::{
-    address::NetworkChecked, consensus::encode, hashes::Hash, Address, Amount, BlockHash,
-    SignedAmount, Transaction, TxIn, Wtxid,
+    address::NetworkChecked, consensus::encode, hashes::Hash, params::Params, Address, Amount,
+    BlockHash, SignedAmount, Transaction, TxIn, Wtxid,
 };
 use bitcoincore_rpc::{
     json::{
@@ -86,6 +86,28 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<json::GetTransactionResult> {
         let raw_tx = self.get_raw_transaction(txid, None).unwrap();
 
+        let details: Vec<GetTransactionResultDetail> = raw_tx
+            .output
+            .iter()
+            .map(|utxo| GetTransactionResultDetail {
+                address: Some(
+                    Address::from_script(
+                        &utxo.script_pubkey,
+                        Params::new(bitcoin::Network::Regtest),
+                    )
+                    .unwrap()
+                    .as_unchecked()
+                    .clone(),
+                ),
+                category: GetTransactionResultDetailCategory::Send,
+                amount: SignedAmount::from_sat(utxo.value.to_sat() as i64),
+                label: None,
+                vout: 0,
+                fee: None,
+                abandoned: None,
+            })
+            .collect();
+
         let res = GetTransactionResult {
             info: WalletTxInfo {
                 confirmations: i32::MAX,
@@ -101,15 +123,7 @@ impl RpcApi for Client {
             },
             amount: SignedAmount::from_sat(raw_tx.output[0].value.to_sat() as i64),
             fee: None,
-            details: vec![GetTransactionResultDetail {
-                address: None,
-                category: GetTransactionResultDetailCategory::Send,
-                amount: SignedAmount::from_sat(raw_tx.output[0].value.to_sat() as i64),
-                label: None,
-                vout: 0,
-                fee: None,
-                abandoned: None,
-            }],
+            details,
             hex: encode::serialize(&raw_tx),
         };
 
@@ -200,6 +214,41 @@ impl RpcApi for Client {
         _include_watchonly: Option<bool>,
     ) -> bitcoincore_rpc::Result<Amount> {
         Ok(self.ledger.calculate_balance()?)
+    }
+
+    fn list_unspent(
+        &self,
+        _minconf: Option<usize>,
+        _maxconf: Option<usize>,
+        _addresses: Option<&[&Address<NetworkChecked>]>,
+        _include_unsafe: Option<bool>,
+        _query_options: Option<json::ListUnspentQueryOptions>,
+    ) -> bitcoincore_rpc::Result<Vec<json::ListUnspentResultEntry>> {
+        let utxos = self.ledger.get_utxos();
+
+        Ok(utxos
+            .iter()
+            .map(|utxo| {
+                let tx = self.ledger.get_transaction(utxo.txid).unwrap();
+                let output = tx.output.get(utxo.vout as usize).unwrap();
+
+                json::ListUnspentResultEntry {
+                    txid: utxo.txid,
+                    vout: utxo.vout,
+                    address: None,
+                    label: None,
+                    redeem_script: None,
+                    witness_script: None,
+                    script_pub_key: output.script_pubkey.clone(),
+                    amount: output.value,
+                    confirmations: 101,
+                    spendable: true,
+                    solvable: true,
+                    descriptor: None,
+                    safe: true,
+                }
+            })
+            .collect())
     }
 }
 

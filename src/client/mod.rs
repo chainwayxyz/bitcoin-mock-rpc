@@ -23,6 +23,7 @@ impl RpcApiWrapper for bitcoincore_rpc::Client {
 }
 
 /// Mock Bitcoin RPC client.
+#[derive(Clone)]
 pub struct Client {
     /// Bitcoin ledger.
     ledger: Ledger,
