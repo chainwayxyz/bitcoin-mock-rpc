@@ -83,6 +83,7 @@ impl Ledger {
             )));
         }
 
+        // TODO: Use these checks.
         for input in transaction.input.iter() {
             for input_idx in 0..transaction.input.len() {
                 let previous_output = self.get_transaction(input.previous_output.txid)?.output;
@@ -94,11 +95,11 @@ impl Ledger {
                 let script_pubkey = previous_output.clone().script_pubkey;
 
                 if script_pubkey.is_p2wpkh() {
-                    P2WPKHChecker::check(&transaction, &previous_output, input_idx)?;
+                    let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
                 } else if script_pubkey.is_p2wsh() {
-                    P2WSHChecker::check(&transaction, &previous_output, input_idx)?;
+                    let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
                 } else if script_pubkey.is_p2tr() {
-                    P2TRChecker::check(&transaction, &previous_output, input_idx)?;
+                    let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
                 }
             }
         }
