@@ -143,7 +143,7 @@ impl Ledger {
     }
 
     /// Creates a `TxIn` with some defaults.
-    pub fn create_txin(&self, txid: Txid, vout: u32) -> TxIn {
+    pub fn _create_txin(&self, txid: Txid, vout: u32) -> TxIn {
         get_item!(self.credentials, credentials);
         let witness = match credentials.last() {
             Some(c) => match c.to_owned().witness {
@@ -240,7 +240,7 @@ mod tests {
         };
 
         // Create a valid transaction. This should pass checks.
-        let txin = ledger.create_txin(txid, 0);
+        let txin = ledger._create_txin(txid, 0);
         let txout = ledger.create_txout(
             Amount::from_sat(0x44 * 0x45),
             Some(credential.address.script_pubkey()),
@@ -284,7 +284,7 @@ mod tests {
             Amount::from_sat(0)
         );
         // Valid input should be OK.
-        let txin = ledger.create_txin(txid, 0);
+        let txin = ledger._create_txin(txid, 0);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         assert_eq!(
             ledger.calculate_transaction_input_value(tx).unwrap(),
