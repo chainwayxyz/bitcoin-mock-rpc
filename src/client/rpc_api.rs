@@ -7,7 +7,7 @@ use super::Client;
 use crate::ledger::Ledger;
 use bitcoin::{
     address::NetworkChecked, consensus::encode, hashes::Hash, params::Params, Address, Amount,
-    BlockHash, SignedAmount, Transaction, TxIn, Wtxid,
+    BlockHash, SignedAmount, Transaction, Wtxid,
 };
 use bitcoincore_rpc::{
     json::{
@@ -16,7 +16,6 @@ use bitcoincore_rpc::{
     },
     RpcApi,
 };
-use std::io::Error;
 
 impl RpcApi for Client {
     /// This function normally talks with Bitcoin network. Therefore, other
@@ -130,6 +129,8 @@ impl RpcApi for Client {
         Ok(res)
     }
 
+    /// Warning `send_to_address` won't check anything. It will only send funds
+    /// to specified address. This means: Unlimited free money.
     fn send_to_address(
         &self,
         address: &Address<NetworkChecked>,
@@ -141,42 +142,13 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let balance = self.ledger.calculate_balance()?;
-        if balance < amount {
-            return Err(bitcoincore_rpc::Error::Io(Error::other(format!(
-                "Output larger than current balance: {amount} > {balance}"
-            ))));
-        }
-
-        // Get latest address of the user. Change will be sent to this address.
-        let user_address = self
-            .ledger
-            .get_credentials()
-            .last()
-            .ok_or(bitcoincore_rpc::Error::Io(Error::other(
-                "No user address found!".to_string(),
-            )))?
-            .address
-            .to_owned();
-
-        let (utxos, total_value) = self.ledger.combine_utxos(amount)?;
-        let txins: Vec<TxIn> = utxos
-            .iter()
-            .map(|utxo| self.ledger.create_txin(utxo.txid, utxo.vout))
-            .collect();
-
         let target_txout = self
             .ledger
             .create_txout(amount, Some(address.script_pubkey()));
-        let change = self
-            .ledger
-            .create_txout(total_value - amount, Some(user_address.script_pubkey()));
 
-        let tx = self
-            .ledger
-            .create_transaction(txins, vec![target_txout, change]);
+        let tx = self.ledger.create_transaction(vec![], vec![target_txout]);
 
-        self.send_raw_transaction(&tx)
+        Ok(self.ledger.add_transaction_unconditionally(tx.clone())?)
     }
 
     fn get_new_address(
@@ -274,14 +246,14 @@ mod tests {
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Create a new raw transactions that is valid.
-        let txin = rpc.ledger.create_txin(txid, 0);
+        let txin = rpc.ledger._create_txin(txid, 0);
         let txout = rpc
             .ledger
             .create_txout(Amount::from_sat(0x45), Some(address.script_pubkey()));
         let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        let txin = rpc.ledger.create_txin(inserted_tx1.compute_txid(), 0);
+        let txin = rpc.ledger._create_txin(inserted_tx1.compute_txid(), 0);
         let txout = rpc.ledger.create_txout(
             Amount::from_sat(0x45),
             Some(
@@ -323,7 +295,7 @@ mod tests {
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
         // Insert raw transactions to Bitcoin.
-        let txin = rpc.ledger.create_txin(txid, 0);
+        let txin = rpc.ledger._create_txin(txid, 0);
         let txout = rpc
             .ledger
             .create_txout(Amount::from_sat(0x1F), Some(address.script_pubkey()));
@@ -338,6 +310,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Not necessary after the send_to_address simplification"]
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -387,6 +360,35 @@ mod tests {
             rpc.ledger.calculate_balance().unwrap(),
             Amount::from_sat((0..100).sum::<u64>() - 0x45)
         );
+    }
+
+    #[test]
+    fn send_to_address_without_balance_check() {
+        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+
+        let credential = Ledger::generate_credential_from_witness();
+        let receiver_address = credential.address;
+
+        // send_to_address should send `amount` to `address`, regardless of the
+        // user's balance.
+        let txid = rpc
+            .send_to_address(
+                &receiver_address,
+                Amount::from_sat(0x45),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+        let tx = rpc.get_raw_transaction(&txid, None).unwrap();
+
+        // Receiver should have this.
+        assert_eq!(tx.output[0].value.to_sat(), 0x45);
+        assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
     }
 
     #[test]
@@ -442,7 +444,7 @@ mod tests {
         rpc.generate_to_address(101, &address).unwrap();
 
         // Wallet has funds now. It should not be rejected.
-        let txin = rpc.ledger.create_txin(
+        let txin = rpc.ledger._create_txin(
             rpc.ledger
                 ._get_transactions()
                 .get(0)

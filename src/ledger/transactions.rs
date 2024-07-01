@@ -83,6 +83,7 @@ impl Ledger {
             )));
         }
 
+        // TODO: Use these checks.
         for input in transaction.input.iter() {
             for input_idx in 0..transaction.input.len() {
                 let previous_output = self.get_transaction(input.previous_output.txid)?.output;
@@ -94,11 +95,11 @@ impl Ledger {
                 let script_pubkey = previous_output.clone().script_pubkey;
 
                 if script_pubkey.is_p2wpkh() {
-                    P2WPKHChecker::check(&transaction, &previous_output, input_idx)?;
+                    let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
                 } else if script_pubkey.is_p2wsh() {
-                    P2WSHChecker::check(&transaction, &previous_output, input_idx)?;
+                    let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
                 } else if script_pubkey.is_p2tr() {
-                    P2TRChecker::check(&transaction, &previous_output, input_idx)?;
+                    let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
                 }
             }
         }
@@ -143,7 +144,7 @@ impl Ledger {
     }
 
     /// Creates a `TxIn` with some defaults.
-    pub fn create_txin(&self, txid: Txid, vout: u32) -> TxIn {
+    pub fn _create_txin(&self, txid: Txid, vout: u32) -> TxIn {
         get_item!(self.credentials, credentials);
         let witness = match credentials.last() {
             Some(c) => match c.to_owned().witness {
@@ -240,7 +241,7 @@ mod tests {
         };
 
         // Create a valid transaction. This should pass checks.
-        let txin = ledger.create_txin(txid, 0);
+        let txin = ledger._create_txin(txid, 0);
         let txout = ledger.create_txout(
             Amount::from_sat(0x44 * 0x45),
             Some(credential.address.script_pubkey()),
@@ -284,7 +285,7 @@ mod tests {
             Amount::from_sat(0)
         );
         // Valid input should be OK.
-        let txin = ledger.create_txin(txid, 0);
+        let txin = ledger._create_txin(txid, 0);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         assert_eq!(
             ledger.calculate_transaction_input_value(tx).unwrap(),

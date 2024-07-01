@@ -28,7 +28,7 @@ impl Ledger {
     /// # Returns
     ///
     /// Returns UTXO's in a `Vec` and their total value.
-    pub fn combine_utxos(&self, amount: Amount) -> Result<(Vec<OutPoint>, Amount), LedgerError> {
+    pub fn _combine_utxos(&self, amount: Amount) -> Result<(Vec<OutPoint>, Amount), LedgerError> {
         let mut total_value = Amount::from_sat(0);
         let mut utxos = Vec::new();
 
@@ -196,25 +196,25 @@ mod tests {
         // Because combining currently uses FIFO algorithm for choosing UTXO's
         // and we know what are getting pushed, we can guess correct txin value.
         assert_eq!(
-            ledger.combine_utxos(Amount::from_sat(1)).unwrap().1,
+            ledger._combine_utxos(Amount::from_sat(1)).unwrap().1,
             Amount::from_sat(1)
         );
         assert_eq!(
-            ledger.combine_utxos(Amount::from_sat(4)).unwrap().1,
+            ledger._combine_utxos(Amount::from_sat(4)).unwrap().1,
             Amount::from_sat(6)
         );
         assert_eq!(
-            ledger.combine_utxos(Amount::from_sat(10)).unwrap().1,
+            ledger._combine_utxos(Amount::from_sat(10)).unwrap().1,
             Amount::from_sat(10)
         );
         assert_eq!(
-            ledger.combine_utxos(Amount::from_sat(11)).unwrap().1,
+            ledger._combine_utxos(Amount::from_sat(11)).unwrap().1,
             Amount::from_sat(15)
         );
 
         // Trying to request an amount bigger than current balance should throw
         // an error.
-        if let Ok(_) = ledger.combine_utxos(Amount::from_sat((0..100).sum::<u64>() + 1)) {
+        if let Ok(_) = ledger._combine_utxos(Amount::from_sat((0..100).sum::<u64>() + 1)) {
             assert!(false);
         }
     }
