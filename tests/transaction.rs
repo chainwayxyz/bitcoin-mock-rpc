@@ -8,6 +8,7 @@ mod common;
 use common::test_common;
 
 #[test]
+#[ignore = "Not necessary after the send_to_address simplification"]
 fn send_to_address_multi_threaded() {
     // Bacause `thread::spawn` moves value to closure, cloning a new is needed. This is good,
     // because cloning an rpc struct should have a persistent ledger even though there are more than

@@ -310,6 +310,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Not necessary after the send_to_address simplification"]
     fn send_to_address() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -359,6 +360,35 @@ mod tests {
             rpc.ledger.calculate_balance().unwrap(),
             Amount::from_sat((0..100).sum::<u64>() - 0x45)
         );
+    }
+
+    #[test]
+    fn send_to_address_without_balance_check() {
+        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+
+        let credential = Ledger::generate_credential_from_witness();
+        let receiver_address = credential.address;
+
+        // send_to_address should send `amount` to `address`, regardless of the
+        // user's balance.
+        let txid = rpc
+            .send_to_address(
+                &receiver_address,
+                Amount::from_sat(0x45),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+        let tx = rpc.get_raw_transaction(&txid, None).unwrap();
+
+        // Receiver should have this.
+        assert_eq!(tx.output[0].value.to_sat(), 0x45);
+        assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
     }
 
     #[test]
