@@ -187,41 +187,6 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<Amount> {
         Ok(self.ledger.calculate_balance()?)
     }
-
-    fn list_unspent(
-        &self,
-        _minconf: Option<usize>,
-        _maxconf: Option<usize>,
-        _addresses: Option<&[&Address<NetworkChecked>]>,
-        _include_unsafe: Option<bool>,
-        _query_options: Option<json::ListUnspentQueryOptions>,
-    ) -> bitcoincore_rpc::Result<Vec<json::ListUnspentResultEntry>> {
-        let utxos = self.ledger.get_utxos();
-
-        Ok(utxos
-            .iter()
-            .map(|utxo| {
-                let tx = self.ledger.get_transaction(utxo.txid).unwrap();
-                let output = tx.output.get(utxo.vout as usize).unwrap();
-
-                json::ListUnspentResultEntry {
-                    txid: utxo.txid,
-                    vout: utxo.vout,
-                    address: None,
-                    label: None,
-                    redeem_script: None,
-                    witness_script: None,
-                    script_pub_key: output.script_pubkey.clone(),
-                    amount: output.value,
-                    confirmations: 101,
-                    spendable: true,
-                    solvable: true,
-                    descriptor: None,
-                    safe: true,
-                }
-            })
-            .collect())
-    }
 }
 
 #[cfg(test)]
