@@ -81,7 +81,7 @@ impl Ledger {
         let mut amount = Amount::from_sat(0);
 
         for utxo in self.get_user_utxos()? {
-            let tx = self.get_transaction(utxo.txid).unwrap();
+            let tx = self.get_transaction(utxo.txid)?;
 
             let txout = tx
                 .output
@@ -89,8 +89,7 @@ impl Ledger {
                 .ok_or(LedgerError::Utxo(format!(
                     "vout {} couldn't be found in transaction with txid {}",
                     utxo.vout, utxo.txid
-                )))
-                .unwrap();
+                )))?;
 
             amount += txout.value;
         }
