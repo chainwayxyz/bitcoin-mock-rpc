@@ -12,3 +12,6 @@ bitcoincore-rpc = "0.19.0"
 thiserror = "1.0.61"
 bitcoin-script = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-script" }
 bitcoin-scriptexec = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-scriptexec" }
+
+[dev-dependencies]
+tokio = { version = "1.38.0", features = ["full"]}
