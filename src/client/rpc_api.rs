@@ -148,7 +148,7 @@ impl RpcApi for Client {
 
         let tx = self.ledger.create_transaction(vec![], vec![target_txout]);
 
-        Ok(self.ledger.add_transaction_unconditionally(tx.clone())?)
+        Ok(self.ledger.add_transaction_unconditionally(tx)?)
     }
 
     fn get_new_address(
@@ -175,7 +175,7 @@ impl RpcApi for Client {
         );
         let tx = self.ledger.create_transaction(vec![], vec![txout]);
 
-        self.ledger.add_transaction_unconditionally(tx.clone())?;
+        self.ledger.add_transaction_unconditionally(tx)?;
 
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }
