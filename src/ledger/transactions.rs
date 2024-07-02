@@ -94,7 +94,7 @@ impl Ledger {
             )));
         }
 
-        // TODO: Use these checks.
+        // TODO: Perform these checks.
         for input in transaction.input.iter() {
             for input_idx in 0..transaction.input.len() {
                 let previous_output = self.get_transaction(input.previous_output.txid)?.output;
@@ -128,21 +128,12 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
-        let utxos = self.get_user_utxos()?;
 
         for input in transaction.input {
-            let utxo = utxos
-                .iter()
-                .find(|utxo| **utxo == input.previous_output)
-                .ok_or(LedgerError::Utxo(format!(
-                    "UTXO {:?} is not found in UTXO list.",
-                    input.previous_output
-                )))?;
-
             amount += self
-                .get_transaction(utxo.txid)?
+                .get_transaction(input.previous_output.txid)?
                 .output
-                .get(utxo.vout as usize)
+                .get(input.previous_output.vout as usize)
                 .unwrap()
                 .value;
         }
