@@ -6,9 +6,10 @@
 //! immutable nature.
 
 use address::UserCredential;
-use bitcoin::{OutPoint, Transaction};
+use bitcoin::{Address, OutPoint, Transaction};
 use std::{
     cell::Cell,
+    collections::HashMap,
     sync::{Arc, Mutex},
 };
 
@@ -26,8 +27,8 @@ pub struct Ledger {
     credentials: Box<Arc<Mutex<Cell<Vec<UserCredential>>>>>,
     /// Happened transactions.
     transactions: Box<Arc<Mutex<Cell<Vec<Transaction>>>>>,
-    /// Unspent transaction outputs.
-    utxos: Box<Arc<Mutex<Cell<Vec<OutPoint>>>>>,
+    /// Unspent transaction outputs, for every addresses.
+    utxos: Box<Arc<Mutex<Cell<HashMap<Address, Vec<OutPoint>>>>>>,
 }
 
 impl Ledger {
@@ -35,8 +36,8 @@ impl Ledger {
     pub fn new() -> Self {
         Self {
             credentials: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
-            utxos: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
             transactions: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
+            utxos: Box::new(Arc::new(Mutex::new(Cell::new(HashMap::new())))),
         }
     }
 }

@@ -6,7 +6,10 @@ use super::{
     Ledger,
 };
 use crate::{add_item_to_vec, get_item, return_vec_item};
-use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
+use bitcoin::{
+    absolute, Address, Amount, Network, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
+    Witness,
+};
 
 impl Ledger {
     /// Adds transaction to current block, after verifying.
@@ -24,7 +27,10 @@ impl Ledger {
 
         // Remove UTXO's that are used.
         transaction.input.iter().for_each(|input| {
-            self.remove_utxo(input.previous_output);
+            self.remove_utxo(
+                Address::p2shwsh(&input.script_sig.to_owned(), Network::Regtest),
+                input.previous_output,
+            );
         });
 
         // Add UTXO's that are sent to user.
@@ -33,16 +39,21 @@ impl Ledger {
             .iter()
             .map(|credential| credential.address.script_pubkey())
             .collect();
-        transaction.output.iter().enumerate().for_each(|(i, utxo)| {
-            if script_pubkeys
-                .iter()
-                .any(|hash| *hash == utxo.script_pubkey)
-            {
-                let utxo = OutPoint {
-                    txid,
-                    vout: i as u32,
-                };
-                self.add_utxo(utxo);
+
+        transaction.output.iter().for_each(|utxo| {
+            for i in 0..script_pubkeys.len() {
+                if script_pubkeys[i] == utxo.script_pubkey {
+                    let utxo = OutPoint {
+                        txid,
+                        vout: i as u32,
+                    };
+                    self.add_utxo(
+                        Address::p2shwsh(&script_pubkeys[i].to_owned(), Network::Regtest),
+                        utxo,
+                    );
+
+                    break;
+                }
             }
         });
 
@@ -117,7 +128,7 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
-        let utxos = self.get_utxos();
+        let utxos = self.get_user_utxos()?;
 
         for input in transaction.input {
             let utxo = utxos
