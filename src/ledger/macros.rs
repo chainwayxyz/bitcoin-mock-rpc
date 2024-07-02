@@ -60,13 +60,71 @@ macro_rules! get_item {
         $member.lock().unwrap().set($assignee.clone());
     };
 }
+/// Assigns an item from member to given mutable assignee, which is guarded by a
+/// `Cell`.
+#[macro_export]
+macro_rules! get_mut_item {
+    ($member:expr, $assignee:ident) => {
+        let mut $assignee = $member.lock().unwrap().take();
+        $member.lock().unwrap().set($assignee.clone());
+    };
+}
+
+/// Adds a new UTXO for an address, which is guarded by a `Cell`.
+#[macro_export]
+macro_rules! add_utxo_to_address {
+    ($member:expr, $address:expr, $utxo:expr) => {
+        // Update utxo list.
+        let mut address_utxos = $member.lock().unwrap().take();
+
+        address_utxos
+            .entry($address)
+            .and_modify(|utxos| utxos.push($utxo))
+            .or_insert(vec![$utxo]);
+
+        // Commit new change.
+        $member.lock().unwrap().set(address_utxos);
+    };
+}
+/// Gets UTXO's for the address, which is guarded by a `Cell`.
+#[macro_export]
+macro_rules! get_utxos_for_address {
+    ($member:expr, $address:expr, $assignee:ident) => {
+        let $assignee = $member.lock().unwrap().take();
+        $member.lock().unwrap().set($assignee.clone());
+        let $assignee = $assignee.get(&$address.clone()).unwrap().to_owned();
+    };
+}
+/// Removes given UTXO from an address, which is guarded by a `Cell`.
+#[macro_export]
+macro_rules! remove_utxo_from_address {
+    ($member:expr, $address:expr, $item:expr) => {
+        // Get item list.
+        let mut address_utxos = $member.lock().unwrap().take();
+        address_utxos.entry($address).and_modify(|address_utxo| {
+            // Delete given item.
+            for i in 0..address_utxo.len() {
+                if address_utxo[i] == $item {
+                    address_utxo.remove(i);
+                    break;
+                }
+            }
+        });
+
+        // Commit new change.
+        $member.lock().unwrap().set(address_utxos);
+    };
+}
 
 #[cfg(test)]
 mod tests {
+    use bitcoin::{hashes::Hash, OutPoint, Txid};
     use std::{
         cell::Cell,
         sync::{Arc, Mutex},
     };
+
+    use crate::ledger::Ledger;
 
     /// Temporary struct for macro testing.
     #[derive(Default)]
@@ -125,5 +183,55 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(*items.get(0).unwrap(), 0x45);
         assert_eq!(*items.get(1).unwrap(), 0x100);
+    }
+
+    #[test]
+    fn add_get_remove_utxo_to_address() {
+        let ledger = Ledger::new();
+        let address = Ledger::generate_credential().address;
+
+        let utxos = [
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: 1,
+            },
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: 2,
+            },
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: 3,
+            },
+        ];
+
+        add_utxo_to_address!(ledger.utxos, address.clone(), utxos[0]);
+        get_utxos_for_address!(ledger.utxos, address.clone(), get_utxos);
+        assert_eq!(get_utxos, vec![utxos[0]]);
+
+        add_utxo_to_address!(ledger.utxos, address.clone(), utxos[1]);
+        get_utxos_for_address!(ledger.utxos, address.clone(), get_utxos);
+        assert_eq!(get_utxos, vec![utxos[0], utxos[1]]);
+
+        add_utxo_to_address!(ledger.utxos, address.clone(), utxos[2]);
+        get_utxos_for_address!(ledger.utxos, address.clone(), get_utxos);
+        assert_eq!(get_utxos, vec![utxos[0], utxos[1], utxos[2]]);
+
+        remove_utxo_from_address!(ledger.utxos, address.clone(), utxos[1]);
+        get_utxos_for_address!(ledger.utxos, address.clone(), get_utxos);
+        assert_eq!(get_utxos, vec![utxos[0], utxos[2]]);
+
+        // Should not change anything.
+        remove_utxo_from_address!(ledger.utxos, address.clone(), utxos[1]);
+        get_utxos_for_address!(ledger.utxos, address.clone(), get_utxos);
+        assert_eq!(get_utxos, vec![utxos[0], utxos[2]]);
+
+        remove_utxo_from_address!(ledger.utxos, address.clone(), utxos[0]);
+        get_utxos_for_address!(ledger.utxos, address.clone(), get_utxos);
+        assert_eq!(get_utxos, vec![utxos[2]]);
+
+        remove_utxo_from_address!(ledger.utxos, address.clone(), utxos[2]);
+        get_utxos_for_address!(ledger.utxos, address.clone(), get_utxos);
+        assert_eq!(get_utxos, vec![]);
     }
 }
