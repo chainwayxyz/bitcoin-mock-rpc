@@ -22,7 +22,12 @@ macro_rules! remove_item_from_vec {
         let mut items = $member.lock().unwrap().take();
 
         // Delete given item.
-        items.retain(|&i| i != $item);
+        for i in 0..items.len() {
+            if items[i] == $item {
+                items.remove(i);
+                break;
+            }
+        }
 
         // Commit new change.
         $member.lock().unwrap().set(items);
