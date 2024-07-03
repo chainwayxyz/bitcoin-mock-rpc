@@ -275,60 +275,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Not necessary after the send_to_address simplification"]
     fn send_to_address() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-
-        let credential = Ledger::generate_credential_from_witness();
-        rpc.ledger.add_credential(credential.clone());
-        let address = credential.address;
-
-        let credential = Ledger::generate_credential_from_witness();
-        let receiver_address = credential.address;
-
-        // Add small UTXO's to user.
-        for i in 0..100 {
-            let txout = rpc
-                .ledger
-                .create_txout(Amount::from_sat(i), Some(address.script_pubkey()));
-            let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-
-            rpc.ledger.add_transaction_unconditionally(tx).unwrap();
-        }
-        assert_eq!(
-            rpc.ledger.calculate_balance().unwrap(),
-            Amount::from_sat((0..100).sum())
-        );
-
-        // send_to_address should combine UTXO's and create a valid transaction.
-        let txid = rpc
-            .send_to_address(
-                &receiver_address,
-                Amount::from_sat(0x45),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .unwrap();
-
-        let tx = rpc.get_raw_transaction(&txid, None).unwrap();
-
-        // Receiver should have this.
-        assert_eq!(tx.output[0].value.to_sat(), 0x45);
-        assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
-
-        // User should have 0x45 less Sats.
-        assert_eq!(
-            rpc.ledger.calculate_balance().unwrap(),
-            Amount::from_sat((0..100).sum::<u64>() - 0x45)
-        );
-    }
-
-    #[test]
-    fn send_to_address_without_balance_check() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
         let credential = Ledger::generate_credential_from_witness();
