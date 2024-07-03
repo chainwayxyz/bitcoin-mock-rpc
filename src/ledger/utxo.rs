@@ -5,7 +5,7 @@ use crate::{add_utxo_to_address, get_utxos_for_address, remove_utxo_from_address
 use bitcoin::{Address, Amount, OutPoint};
 
 impl Ledger {
-    /// Adds a new UTXO to user's UTXO's.
+    /// Adds a new UTXO to `address`'es UTXO's.
     pub fn add_utxo(&self, address: Address, utxo: OutPoint) {
         add_utxo_to_address!(self.utxos, address, utxo);
     }
@@ -16,31 +16,28 @@ impl Ledger {
     }
 
     /// Returns UTXO's of an address.
-    pub fn get_utxos(&self, address: Address) -> Result<Vec<OutPoint>, LedgerError> {
+    pub fn get_utxos(&self, address: Address) -> Vec<OutPoint> {
         get_utxos_for_address!(self.utxos, &address, utxos);
 
         match utxos {
-            Some(utxos) => Ok(utxos.to_owned()),
-            None => Err(LedgerError::General(format!(
-                "No UTXO found for address: {}",
-                address
-            ))),
+            Some(utxos) => utxos.to_owned(),
+            None => Vec::new(),
         }
     }
 
     /// Returns UTXO's of the user.
-    pub fn get_user_utxos(&self) -> Result<Vec<OutPoint>, LedgerError> {
+    pub fn get_user_utxos(&self) -> Vec<OutPoint> {
         let mut ret = Vec::new();
 
         self.get_credentials().iter().for_each(|credential| {
-            if let Ok(utxos) = self.get_utxos(credential.address.clone()) {
-                utxos.iter().for_each(|utxo| {
+            self.get_utxos(credential.address.clone())
+                .iter()
+                .for_each(|utxo| {
                     ret.push(utxo.to_owned());
                 });
-            }
         });
 
-        Ok(ret)
+        ret
     }
 
     /// Combines UTXO's which equals or more of the specified amount. This is
@@ -55,7 +52,7 @@ impl Ledger {
         let mut total_value = Amount::from_sat(0);
         let mut utxos = Vec::new();
 
-        for utxo in self.get_user_utxos()? {
+        for utxo in self.get_user_utxos() {
             let tx = self.get_transaction(utxo.txid)?;
             let txout = tx.output.get(utxo.vout as usize).unwrap();
 
@@ -80,7 +77,7 @@ impl Ledger {
     pub fn calculate_balance(&self) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
 
-        for utxo in self.get_user_utxos()? {
+        for utxo in self.get_user_utxos() {
             let tx = self.get_transaction(utxo.txid)?;
 
             let txout = tx
@@ -108,25 +105,68 @@ mod tests {
         let ledger = Ledger::new();
         let address = Ledger::generate_credential().address;
 
-        assert_eq!(ledger.get_utxos(address.clone()).unwrap().len(), 0);
+        assert_eq!(ledger.get_utxos(address.clone()).len(), 0);
 
-        let tx = ledger.create_transaction(vec![], vec![]);
+        let txout = ledger.create_txout(Amount::from_sat(0x45), Some(address.script_pubkey()));
+        let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
 
         let utxo = OutPoint { txid, vout: 0 };
         ledger.add_utxo(address.clone(), utxo);
 
-        let utxos = ledger.get_utxos(address.clone()).unwrap();
+        let utxos = ledger.get_utxos(address.clone());
         assert_eq!(utxos.len(), 1);
         assert_eq!(*utxos.get(0).unwrap(), utxo);
 
         let utxo = OutPoint { txid, vout: 1 };
         ledger.add_utxo(address.clone(), utxo);
 
-        let utxos = ledger.get_utxos(address.clone()).unwrap();
+        let utxos = ledger.get_utxos(address.clone());
         assert_eq!(utxos.len(), 2);
         assert_ne!(*utxos.get(0).unwrap(), utxo);
         assert_eq!(*utxos.get(1).unwrap(), utxo);
+    }
+
+    #[test]
+    fn add_get_user_utxos() {
+        let ledger = Ledger::new();
+
+        let credential0 = Ledger::generate_credential();
+        ledger.add_credential(credential0.clone());
+        let address0 = credential0.address;
+
+        let credential1 = Ledger::generate_credential();
+        ledger.add_credential(credential1.clone());
+        let address1 = credential1.address;
+
+        assert_eq!(ledger.get_user_utxos().len(), 0);
+
+        let txout = ledger.create_txout(Amount::from_sat(0x45), Some(address0.script_pubkey()));
+        let tx = ledger.create_transaction(vec![], vec![txout]);
+        let txid = tx.compute_txid();
+        let utxo = OutPoint { txid, vout: 0 };
+        ledger.add_utxo(address0.clone(), utxo);
+
+        let utxos = ledger.get_user_utxos();
+        assert_eq!(utxos.len(), 1);
+        assert_eq!(*utxos.get(0).unwrap(), utxo);
+
+        let utxo = OutPoint { txid, vout: 1 };
+        ledger.add_utxo(address0.clone(), utxo);
+
+        let utxos = ledger.get_user_utxos();
+        assert_eq!(utxos.len(), 2);
+        assert_ne!(*utxos.get(0).unwrap(), utxo);
+        assert_eq!(*utxos.get(1).unwrap(), utxo);
+
+        let utxo = OutPoint { txid, vout: 2 };
+        ledger.add_utxo(address1.clone(), utxo);
+
+        let utxos = ledger.get_user_utxos();
+        assert_eq!(utxos.len(), 3);
+        assert_ne!(*utxos.get(0).unwrap(), utxo);
+        assert_ne!(*utxos.get(1).unwrap(), utxo);
+        assert_eq!(*utxos.get(2).unwrap(), utxo);
     }
 
     #[test]
@@ -144,7 +184,7 @@ mod tests {
         let utxo3 = OutPoint { txid, vout: 2 };
         ledger.add_utxo(address.clone(), utxo3);
 
-        let utxos = ledger.get_utxos(address.clone()).unwrap();
+        let utxos = ledger.get_utxos(address.clone());
         assert_eq!(*utxos.get(0).unwrap(), utxo1);
         assert_eq!(*utxos.get(1).unwrap(), utxo2);
         assert_eq!(*utxos.get(2).unwrap(), utxo3);
@@ -153,7 +193,7 @@ mod tests {
         let new_utxo = OutPoint { txid, vout: 1 };
         ledger.remove_utxo(address.clone(), new_utxo);
 
-        let utxos = ledger.get_utxos(address.clone()).unwrap();
+        let utxos = ledger.get_utxos(address.clone());
         assert_eq!(utxos.len(), 2);
         assert_eq!(*utxos.get(0).unwrap(), utxo1);
         assert_eq!(*utxos.get(1).unwrap(), utxo3);
@@ -162,7 +202,9 @@ mod tests {
     #[test]
     fn calculate_balance() {
         let ledger = Ledger::new();
-        let address = Ledger::generate_credential().address;
+        let credential = Ledger::generate_credential();
+        ledger.add_credential(credential.clone());
+        let address = credential.address;
 
         assert_eq!(ledger.calculate_balance().unwrap(), Amount::from_sat(0));
 

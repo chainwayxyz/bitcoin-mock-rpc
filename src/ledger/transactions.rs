@@ -1,10 +1,6 @@
 //! # Transaction Related Ledger Operations
 
-use super::{
-    errors::LedgerError,
-    spending_requirements::{P2TRChecker, P2WPKHChecker, P2WSHChecker},
-    Ledger,
-};
+use super::{errors::LedgerError, Ledger};
 use crate::{add_item_to_vec, get_item, return_vec_item};
 use bitcoin::{
     absolute, Address, Amount, Network, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
@@ -12,20 +8,20 @@ use bitcoin::{
 };
 
 impl Ledger {
-    /// Adds transaction to current block, after verifying.
+    /// Adds transaction to blockchain, after verifying.
     pub fn add_transaction(&self, transaction: Transaction) -> Result<Txid, LedgerError> {
         self.check_transaction(&transaction)?;
 
         self.add_transaction_unconditionally(transaction)
     }
-    /// Adds transaction to current block, without checking anything.
+    /// Adds transaction to blockchain, without verifying.
     pub fn add_transaction_unconditionally(
         &self,
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
 
-        // Remove UTXO's that are used.
+        // Remove UTXO's that are being used used in this transaction.
         transaction.input.iter().for_each(|input| {
             self.remove_utxo(
                 Address::p2shwsh(&input.script_sig.to_owned(), Network::Regtest),
@@ -57,7 +53,7 @@ impl Ledger {
             }
         });
 
-        // Add transaction to list.
+        // Add transaction to blockchain.
         add_item_to_vec!(self.transactions, transaction.clone());
 
         Ok(txid)
@@ -95,25 +91,25 @@ impl Ledger {
         }
 
         // TODO: Perform these checks.
-        for input in transaction.input.iter() {
-            for input_idx in 0..transaction.input.len() {
-                let previous_output = self.get_transaction(input.previous_output.txid)?.output;
-                let previous_output = previous_output
-                    .get(input.previous_output.vout as usize)
-                    .unwrap()
-                    .to_owned();
+        // for input in transaction.input.iter() {
+        //     for input_idx in 0..transaction.input.len() {
+        //         let previous_output = self.get_transaction(input.previous_output.txid)?.output;
+        //         let previous_output = previous_output
+        //             .get(input.previous_output.vout as usize)
+        //             .unwrap()
+        //             .to_owned();
 
-                let script_pubkey = previous_output.clone().script_pubkey;
+        //         let script_pubkey = previous_output.clone().script_pubkey;
 
-                if script_pubkey.is_p2wpkh() {
-                    let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
-                } else if script_pubkey.is_p2wsh() {
-                    let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
-                } else if script_pubkey.is_p2tr() {
-                    let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
-                }
-            }
-        }
+        //         if script_pubkey.is_p2wpkh() {
+        //             let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
+        //         } else if script_pubkey.is_p2wsh() {
+        //             let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
+        //         } else if script_pubkey.is_p2tr() {
+        //             let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
+        //         }
+        //     }
+        // }
 
         Ok(())
     }
