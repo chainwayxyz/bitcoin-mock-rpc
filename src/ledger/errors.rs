@@ -7,11 +7,9 @@ use thiserror::Error;
 /// Ledger error types.
 #[derive(Error, Debug)]
 pub enum LedgerError {
-    #[error("Ledger returned a general error: {0}")]
-    General(String),
-    #[error("Transaction is not OK: {0}")]
+    #[error("Transaction error: {0}")]
     Transaction(String),
-    #[error("UTXO cannot be spend: {0}")]
+    #[error("UTXO error: {0}")]
     Utxo(String),
 }
 
