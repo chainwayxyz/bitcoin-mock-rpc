@@ -1,10 +1,3 @@
-//! # Common Utilities for Unit and Integration Tests
-//!
-//! This crate compiles for test targets and provides common utilities for it.
-//!
-//! This crate is in `src/` directory because unit tests can't access `tests/`
-//! directory.
-
 use bitcoin::{
     absolute,
     key::UntweakedPublicKey,
