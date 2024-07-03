@@ -55,12 +55,9 @@ pub fn create_address_from_witness() -> Address {
 }
 
 #[allow(unused)]
-pub fn create_txin(txid: Txid) -> TxIn {
-    let witness = create_witness().1;
-
+pub fn create_txin(txid: Txid, vout: u32) -> TxIn {
     TxIn {
-        previous_output: OutPoint { txid, vout: 0 },
-        witness,
+        previous_output: OutPoint { txid, vout },
         ..Default::default()
     }
 }

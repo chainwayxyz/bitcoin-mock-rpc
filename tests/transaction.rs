@@ -165,14 +165,14 @@ async fn send_get_raw_transaction_async() {
     );
 
     // Send some funds to some other user.
-    let txin = common::create_txin(tx1.compute_txid());
+    let txin = common::create_txin(tx1.compute_txid(), 0);
     let txout = TxOut {
         value: Amount::from_sat(0x45),
         script_pubkey: deposit_address.script_pubkey(),
     };
     let tx1 = common::create_transaction(vec![txin], vec![txout]);
 
-    let txin = common::create_txin(tx2.compute_txid());
+    let txin = common::create_txin(tx2.compute_txid(), 0);
     let txout = TxOut {
         value: Amount::from_sat(0x1F),
         script_pubkey: deposit_address.script_pubkey(),
