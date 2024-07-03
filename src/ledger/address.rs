@@ -116,15 +116,15 @@ mod tests {
     use bitcoin::{key::TapTweak, AddressType};
 
     #[test]
-    fn addresses() {
+    fn add_generate_get_credentials() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger.credentials.lock().unwrap().take().len(), 0);
+        assert_eq!(ledger.get_credentials().len(), 0);
 
         let credential = Ledger::generate_credential();
         ledger.add_credential(credential.clone());
 
-        let credentials = ledger.credentials.lock().unwrap().take();
+        let credentials = ledger.get_credentials();
         assert_eq!(credentials.len(), 1);
 
         assert_eq!(credential, credentials.get(0).unwrap().to_owned());

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bitcoin = "0.32.0"
+bitcoin = "0.32.2"
 secp256k1 = "0.29.0"
 serde = { version = "1.0", default-features = false }
 serde_json = "1.0.108"
@@ -12,3 +12,6 @@ bitcoincore-rpc = "0.19.0"
 thiserror = "1.0.61"
 bitcoin-script = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-script" }
 bitcoin-scriptexec = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-scriptexec" }
+
+[dev-dependencies]
+tokio = { version = "1.38.0", features = ["full"]}

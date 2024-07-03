@@ -148,7 +148,7 @@ impl RpcApi for Client {
 
         let tx = self.ledger.create_transaction(vec![], vec![target_txout]);
 
-        Ok(self.ledger.add_transaction_unconditionally(tx.clone())?)
+        Ok(self.ledger.add_transaction_unconditionally(tx)?)
     }
 
     fn get_new_address(
@@ -175,7 +175,7 @@ impl RpcApi for Client {
         );
         let tx = self.ledger.create_transaction(vec![], vec![txout]);
 
-        self.ledger.add_transaction_unconditionally(tx.clone())?;
+        self.ledger.add_transaction_unconditionally(tx)?;
 
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }
@@ -186,41 +186,6 @@ impl RpcApi for Client {
         _include_watchonly: Option<bool>,
     ) -> bitcoincore_rpc::Result<Amount> {
         Ok(self.ledger.calculate_balance()?)
-    }
-
-    fn list_unspent(
-        &self,
-        _minconf: Option<usize>,
-        _maxconf: Option<usize>,
-        _addresses: Option<&[&Address<NetworkChecked>]>,
-        _include_unsafe: Option<bool>,
-        _query_options: Option<json::ListUnspentQueryOptions>,
-    ) -> bitcoincore_rpc::Result<Vec<json::ListUnspentResultEntry>> {
-        let utxos = self.ledger.get_utxos();
-
-        Ok(utxos
-            .iter()
-            .map(|utxo| {
-                let tx = self.ledger.get_transaction(utxo.txid).unwrap();
-                let output = tx.output.get(utxo.vout as usize).unwrap();
-
-                json::ListUnspentResultEntry {
-                    txid: utxo.txid,
-                    vout: utxo.vout,
-                    address: None,
-                    label: None,
-                    redeem_script: None,
-                    witness_script: None,
-                    script_pub_key: output.script_pubkey.clone(),
-                    amount: output.value,
-                    confirmations: 101,
-                    spendable: true,
-                    solvable: true,
-                    descriptor: None,
-                    safe: true,
-                }
-            })
-            .collect())
     }
 }
 
@@ -310,60 +275,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Not necessary after the send_to_address simplification"]
     fn send_to_address() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-
-        let credential = Ledger::generate_credential_from_witness();
-        rpc.ledger.add_credential(credential.clone());
-        let address = credential.address;
-
-        let credential = Ledger::generate_credential_from_witness();
-        let receiver_address = credential.address;
-
-        // Add small UTXO's to user.
-        for i in 0..100 {
-            let txout = rpc
-                .ledger
-                .create_txout(Amount::from_sat(i), Some(address.script_pubkey()));
-            let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-
-            rpc.ledger.add_transaction_unconditionally(tx).unwrap();
-        }
-        assert_eq!(
-            rpc.ledger.calculate_balance().unwrap(),
-            Amount::from_sat((0..100).sum())
-        );
-
-        // send_to_address should combine UTXO's and create a valid transaction.
-        let txid = rpc
-            .send_to_address(
-                &receiver_address,
-                Amount::from_sat(0x45),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .unwrap();
-
-        let tx = rpc.get_raw_transaction(&txid, None).unwrap();
-
-        // Receiver should have this.
-        assert_eq!(tx.output[0].value.to_sat(), 0x45);
-        assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
-
-        // User should have 0x45 less Sats.
-        assert_eq!(
-            rpc.ledger.calculate_balance().unwrap(),
-            Amount::from_sat((0..100).sum::<u64>() - 0x45)
-        );
-    }
-
-    #[test]
-    fn send_to_address_without_balance_check() {
         let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
         let credential = Ledger::generate_credential_from_witness();

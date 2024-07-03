@@ -1,52 +1,55 @@
 //! # Transaction Related Ledger Operations
 
-use super::{
-    errors::LedgerError,
-    spending_requirements::{P2TRChecker, P2WPKHChecker, P2WSHChecker},
-    Ledger,
-};
+use super::{errors::LedgerError, Ledger};
 use crate::{add_item_to_vec, get_item, return_vec_item};
 use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
-    /// Adds transaction to current block, after verifying.
+    /// Adds transaction to blockchain, after verifying.
     pub fn add_transaction(&self, transaction: Transaction) -> Result<Txid, LedgerError> {
         self.check_transaction(&transaction)?;
 
         self.add_transaction_unconditionally(transaction)
     }
-    /// Adds transaction to current block, without checking anything.
+    /// Adds transaction to blockchain, without verifying.
     pub fn add_transaction_unconditionally(
         &self,
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
+        let credentials = self.get_credentials();
 
-        // Remove UTXO's that are used.
+        // Remove UTXO's that are being used used in this transaction.
         transaction.input.iter().for_each(|input| {
-            self.remove_utxo(input.previous_output);
+            if let Ok(tx) = self.get_transaction(input.previous_output.txid) {
+                let utxo = tx.output.get(0).unwrap().to_owned();
+                let script_pubkey = utxo.script_pubkey;
+                for i in 0..credentials.len() {
+                    if credentials[i].address.script_pubkey() == script_pubkey {
+                        self.remove_utxo(credentials[i].address.clone(), input.previous_output);
+
+                        break;
+                    }
+                }
+            };
         });
 
-        // Add UTXO's that are sent to user.
-        let script_pubkeys: Vec<ScriptBuf> = self
-            .get_credentials()
-            .iter()
-            .map(|credential| credential.address.script_pubkey())
-            .collect();
-        transaction.output.iter().enumerate().for_each(|(i, utxo)| {
-            if script_pubkeys
-                .iter()
-                .any(|hash| *hash == utxo.script_pubkey)
-            {
-                let utxo = OutPoint {
-                    txid,
-                    vout: i as u32,
-                };
-                self.add_utxo(utxo);
+        // Add new UTXO's to address.
+        transaction.output.iter().for_each(|output| {
+            for i in 0..credentials.len() {
+                if credentials[i].address.script_pubkey() == output.script_pubkey {
+                    let utxo = OutPoint {
+                        txid,
+                        vout: i as u32,
+                    };
+                    self.add_utxo(credentials[i].address.clone(), utxo);
+
+                    break;
+                }
             }
         });
 
-        // Add transaction to list.
+        // Add transaction to blockchain.
         add_item_to_vec!(self.transactions, transaction.clone());
 
         Ok(txid)
@@ -83,26 +86,26 @@ impl Ledger {
             )));
         }
 
-        // TODO: Use these checks.
-        for input in transaction.input.iter() {
-            for input_idx in 0..transaction.input.len() {
-                let previous_output = self.get_transaction(input.previous_output.txid)?.output;
-                let previous_output = previous_output
-                    .get(input.previous_output.vout as usize)
-                    .unwrap()
-                    .to_owned();
+        // TODO: Perform these checks.
+        // for input in transaction.input.iter() {
+        //     for input_idx in 0..transaction.input.len() {
+        //         let previous_output = self.get_transaction(input.previous_output.txid)?.output;
+        //         let previous_output = previous_output
+        //             .get(input.previous_output.vout as usize)
+        //             .unwrap()
+        //             .to_owned();
 
-                let script_pubkey = previous_output.clone().script_pubkey;
+        //         let script_pubkey = previous_output.clone().script_pubkey;
 
-                if script_pubkey.is_p2wpkh() {
-                    let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
-                } else if script_pubkey.is_p2wsh() {
-                    let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
-                } else if script_pubkey.is_p2tr() {
-                    let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
-                }
-            }
-        }
+        //         if script_pubkey.is_p2wpkh() {
+        //             let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
+        //         } else if script_pubkey.is_p2wsh() {
+        //             let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
+        //         } else if script_pubkey.is_p2tr() {
+        //             let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
+        //         }
+        //     }
+        // }
 
         Ok(())
     }
@@ -117,21 +120,12 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
-        let utxos = self.get_utxos();
 
         for input in transaction.input {
-            let utxo = utxos
-                .iter()
-                .find(|utxo| **utxo == input.previous_output)
-                .ok_or(LedgerError::Utxo(format!(
-                    "UTXO {:?} is not found in UTXO list.",
-                    input.previous_output
-                )))?;
-
             amount += self
-                .get_transaction(utxo.txid)?
+                .get_transaction(input.previous_output.txid)?
                 .output
-                .get(utxo.vout as usize)
+                .get(input.previous_output.vout as usize)
                 .unwrap()
                 .value;
         }
