@@ -51,7 +51,7 @@ impl Ledger {
                 .output
                 .get(utxo.vout as usize)
                 .ok_or(LedgerError::Utxo(format!(
-                    "vout {} couldn't be found in transaction with txid {}",
+                    "Vout {} couldn't be found in transaction with txid {}",
                     utxo.vout, utxo.txid
                 )))?;
 

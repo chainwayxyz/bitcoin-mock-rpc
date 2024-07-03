@@ -62,7 +62,7 @@ impl Ledger {
             .iter()
             .find(|tx| tx.compute_txid() == txid)
             .ok_or(LedgerError::Transaction(format!(
-                "No transaction is matched with {}",
+                "No transaction with txid {} found in ledger",
                 txid
             )))?
             .to_owned();
@@ -81,7 +81,7 @@ impl Ledger {
 
         if input_value < output_value {
             return Err(LedgerError::Transaction(format!(
-                "Input value {} is not above or equal of output value {}",
+                "Input amount is smaller than output amount: {} < {}",
                 input_value, output_value
             )));
         }
