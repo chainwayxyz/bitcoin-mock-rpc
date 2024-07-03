@@ -75,12 +75,15 @@ fn use_utxo_from_send_to_address() {
         previous_output: OutPoint { txid, vout: 0 },
         ..Default::default()
     };
-    let txout = common::create_txout(0x45, Some(deposit_address.script_pubkey()));
+    let txout = common::create_txout(Amount::from_sat(0x45), deposit_address.script_pubkey());
     let tx = common::create_transaction(vec![txin.clone()], vec![txout]);
     rpc.send_raw_transaction(&tx).unwrap();
 
     // Invalid tx.
-    let txout = common::create_txout(0x45 * 0x45, Some(deposit_address.script_pubkey()));
+    let txout = common::create_txout(
+        Amount::from_sat(0x45 * 0x45),
+        deposit_address.script_pubkey(),
+    );
     let tx = common::create_transaction(vec![txin], vec![txout]);
     if let Ok(_) = rpc.send_raw_transaction(&tx) {
         assert!(false);
