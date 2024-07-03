@@ -84,32 +84,36 @@ impl RpcApi for Client {
         _include_watchonly: Option<bool>,
     ) -> bitcoincore_rpc::Result<json::GetTransactionResult> {
         let raw_tx = self.get_raw_transaction(txid, None).unwrap();
+        let mut amount = Amount::from_sat(0);
 
         let details: Vec<GetTransactionResultDetail> = raw_tx
             .output
             .iter()
-            .map(|utxo| GetTransactionResultDetail {
-                address: Some(
-                    Address::from_script(
-                        &utxo.script_pubkey,
-                        Params::new(bitcoin::Network::Regtest),
-                    )
-                    .unwrap()
-                    .as_unchecked()
-                    .clone(),
-                ),
-                category: GetTransactionResultDetailCategory::Send,
-                amount: SignedAmount::from_sat(utxo.value.to_sat() as i64),
-                label: None,
-                vout: 0,
-                fee: None,
-                abandoned: None,
+            .map(|output| {
+                amount += output.value;
+                GetTransactionResultDetail {
+                    address: Some(
+                        Address::from_script(
+                            &output.script_pubkey,
+                            Params::new(bitcoin::Network::Regtest),
+                        )
+                        .unwrap()
+                        .as_unchecked()
+                        .clone(),
+                    ),
+                    category: GetTransactionResultDetailCategory::Send,
+                    amount: SignedAmount::from_sat(output.value.to_sat() as i64),
+                    label: None,
+                    vout: 0,
+                    fee: None,
+                    abandoned: None,
+                }
             })
             .collect();
 
-        let res = GetTransactionResult {
+        Ok(GetTransactionResult {
             info: WalletTxInfo {
-                confirmations: i32::MAX,
+                confirmations: i32::MAX - 1,
                 blockhash: None,
                 blockindex: None,
                 blocktime: Some(0),
@@ -120,13 +124,11 @@ impl RpcApi for Client {
                 bip125_replaceable: json::Bip125Replaceable::Unknown,
                 wallet_conflicts: vec![],
             },
-            amount: SignedAmount::from_sat(raw_tx.output[0].value.to_sat() as i64),
+            amount: SignedAmount::from_sat(amount.to_sat() as i64),
             fee: None,
             details,
             hex: encode::serialize(&raw_tx),
-        };
-
-        Ok(res)
+        })
     }
 
     /// Warning `send_to_address` won't check anything. It will only send funds
