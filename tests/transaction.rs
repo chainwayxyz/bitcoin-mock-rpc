@@ -7,7 +7,6 @@ use std::thread;
 use tokio::join;
 
 mod common;
-use common::test_common;
 
 async fn send_raw_transaction_async(rpc: Client, tx: Transaction) {
     rpc.send_raw_transaction(&tx).unwrap();
@@ -50,7 +49,7 @@ fn use_utxo_from_send_to_address() {
     let rpc = Client::new("", Auth::None).unwrap();
 
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
-    let deposit_address = test_common::create_address_from_witness();
+    let deposit_address = common::create_address_from_witness();
 
     let deposit_value = Amount::from_sat(0x45);
 
@@ -76,13 +75,13 @@ fn use_utxo_from_send_to_address() {
         previous_output: OutPoint { txid, vout: 0 },
         ..Default::default()
     };
-    let txout = test_common::create_txout(0x45, Some(deposit_address.script_pubkey()));
-    let tx = test_common::create_transaction(vec![txin.clone()], vec![txout]);
+    let txout = common::create_txout(0x45, Some(deposit_address.script_pubkey()));
+    let tx = common::create_transaction(vec![txin.clone()], vec![txout]);
     rpc.send_raw_transaction(&tx).unwrap();
 
     // Invalid tx.
-    let txout = test_common::create_txout(0x45 * 0x45, Some(deposit_address.script_pubkey()));
-    let tx = test_common::create_transaction(vec![txin], vec![txout]);
+    let txout = common::create_txout(0x45 * 0x45, Some(deposit_address.script_pubkey()));
+    let tx = common::create_transaction(vec![txin], vec![txout]);
     if let Ok(_) = rpc.send_raw_transaction(&tx) {
         assert!(false);
     };
@@ -93,7 +92,7 @@ async fn send_get_raw_transaction_async() {
     let rpc = Client::new("", Auth::None).unwrap();
 
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
-    let deposit_address = test_common::create_address_from_witness();
+    let deposit_address = common::create_address_from_witness();
 
     // Create some funds to user.
     let txid1 = rpc
@@ -136,7 +135,7 @@ async fn send_get_raw_transaction_async() {
         value: Amount::from_sat(0x45),
         script_pubkey: address.script_pubkey(),
     };
-    let tx1 = test_common::create_transaction(vec![txin1.clone()], vec![txout]);
+    let tx1 = common::create_transaction(vec![txin1.clone()], vec![txout]);
 
     let txin2 = TxIn {
         previous_output: OutPoint {
@@ -149,7 +148,7 @@ async fn send_get_raw_transaction_async() {
         value: Amount::from_sat(0x1F),
         script_pubkey: address.script_pubkey(),
     };
-    let tx2 = test_common::create_transaction(vec![txin2.clone()], vec![txout]);
+    let tx2 = common::create_transaction(vec![txin2.clone()], vec![txout]);
 
     let async_thr1 = send_raw_transaction_async(rpc.clone(), tx1.clone());
     let async_thr2 = send_raw_transaction_async(rpc.clone(), tx2.clone());
@@ -163,19 +162,19 @@ async fn send_get_raw_transaction_async() {
     );
 
     // Send some funds to some other user.
-    let txin = test_common::create_txin(tx1.compute_txid());
+    let txin = common::create_txin(tx1.compute_txid());
     let txout = TxOut {
         value: Amount::from_sat(0x45),
         script_pubkey: deposit_address.script_pubkey(),
     };
-    let tx1 = test_common::create_transaction(vec![txin], vec![txout]);
+    let tx1 = common::create_transaction(vec![txin], vec![txout]);
 
-    let txin = test_common::create_txin(tx2.compute_txid());
+    let txin = common::create_txin(tx2.compute_txid());
     let txout = TxOut {
         value: Amount::from_sat(0x1F),
         script_pubkey: deposit_address.script_pubkey(),
     };
-    let tx2 = test_common::create_transaction(vec![txin], vec![txout]);
+    let tx2 = common::create_transaction(vec![txin], vec![txout]);
 
     let async_thr1 = send_raw_transaction_async(rpc.clone(), tx1);
     let async_thr2 = send_raw_transaction_async(rpc.clone(), tx2);
