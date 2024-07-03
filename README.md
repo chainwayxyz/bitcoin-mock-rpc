@@ -1,16 +1,61 @@
 # Bitcoin Mock Remote Procedure Call
 
-This library mocks [bitcoincore-rpc](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
-library. This mock takes the advantage of `bitcoincore-rpc` trait interface,
-called `RpcApi`. With this mock, every test can have an isolated Bitcoin
-environment without changing your existing code too much.
+This library is a mock of [bitcoincore-rpc](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
+library, which is a wrapper of Bitcoin RPC for Rust. This library aims to mock
+`RpcApi` trait interface of bitcoincore-rpc and provide a separate mock
+blockchain for every unit and integration test.
 
-[bitcoin-simulator](https://github.com/Bitcoin-Wildlife-Sanctuary/bitcoin-simulator)
-is used for creating an isolated Bitcoin environment. Which can be also called a
-mock.
+## Usage
 
-These 2 means one don't need any external connection/binary to test code that
-uses Bitcoin network.
+This mock won't provide a CLI tool. Instead, you should use this in your Rust
+code. You can use generics as your RPC struct and use this mock in your tests
+and real RPC interface in your application code.
+
+Example:
+
+```rust
+struct MyStruct<R: RpcApiWrapper> {
+    data: u32,
+    rpc: R,
+}
+
+fn my_func() {
+    let strct = MyStruct {
+        data: 0x45,
+        // This will connect Bitcoin RPC.
+        rpc: bitcoincore_rpc::Client::new(/** parameters here **/),
+    };
+
+    // Do stuff...
+}
+
+#[test]
+fn test() {
+    let strct = MyStruct {
+        data: 0x1F,
+        // This will create a mock blockchain, on memory.
+        rpc: bitcoin_mock_rpc::Client::new(/** parameters here **/),
+    };
+
+    // Do stuff...
+}
+```
+
+This library is aimed to help development of [clementine](https://github.com/chainwayxyz/clementine).
+Therefore, it's usage of this library can be taken as a reference.
+
+## Testing
+
+Standard Rust tools are sufficient for testing:
+
+```bash
+cargo test
+```
+
+## Documentation
+
+No external documentation is provided. Please read comments in code for
+documentation.
 
 ## License
 
