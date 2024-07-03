@@ -2,10 +2,7 @@
 
 use super::{errors::LedgerError, Ledger};
 use crate::{add_item_to_vec, get_item, return_vec_item};
-use bitcoin::{
-    absolute, Address, Amount, Network, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
-    Witness,
-};
+use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
 
 impl Ledger {
     /// Adds transaction to blockchain, after verifying.
@@ -20,33 +17,32 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
+        let credentials = self.get_credentials();
 
         // Remove UTXO's that are being used used in this transaction.
         transaction.input.iter().for_each(|input| {
-            self.remove_utxo(
-                Address::p2shwsh(&input.script_sig.to_owned(), Network::Regtest),
-                input.previous_output,
-            );
+            if let Ok(tx) = self.get_transaction(input.previous_output.txid) {
+                let utxo = tx.output.get(0).unwrap().to_owned();
+                let script_pubkey = utxo.script_pubkey;
+                for i in 0..credentials.len() {
+                    if credentials[i].address.script_pubkey() == script_pubkey {
+                        self.remove_utxo(credentials[i].address.clone(), input.previous_output);
+
+                        break;
+                    }
+                }
+            };
         });
 
-        // Add UTXO's that are sent to user.
-        let script_pubkeys: Vec<ScriptBuf> = self
-            .get_credentials()
-            .iter()
-            .map(|credential| credential.address.script_pubkey())
-            .collect();
-
-        transaction.output.iter().for_each(|utxo| {
-            for i in 0..script_pubkeys.len() {
-                if script_pubkeys[i] == utxo.script_pubkey {
+        // Add new UTXO's to address.
+        transaction.output.iter().for_each(|output| {
+            for i in 0..credentials.len() {
+                if credentials[i].address.script_pubkey() == output.script_pubkey {
                     let utxo = OutPoint {
                         txid,
                         vout: i as u32,
                     };
-                    self.add_utxo(
-                        Address::p2shwsh(&script_pubkeys[i].to_owned(), Network::Regtest),
-                        utxo,
-                    );
+                    self.add_utxo(credentials[i].address.clone(), utxo);
 
                     break;
                 }

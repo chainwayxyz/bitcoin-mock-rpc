@@ -124,7 +124,9 @@ async fn send_get_raw_transaction_async() {
     let rpc = Client::new("", Auth::None).unwrap();
 
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
+    let deposit_address = test_common::create_address_from_witness();
 
+    // Create some funds to user.
     let txid1 = rpc
         .send_to_address(
             &address,
@@ -149,8 +151,12 @@ async fn send_get_raw_transaction_async() {
             None,
         )
         .unwrap();
+    assert_eq!(
+        rpc.get_balance(None, None).unwrap(),
+        Amount::from_sat(0x45 * 0x45 * 2)
+    );
 
-    let txin = TxIn {
+    let txin1 = TxIn {
         previous_output: OutPoint {
             txid: txid1,
             vout: 0,
@@ -161,9 +167,9 @@ async fn send_get_raw_transaction_async() {
         value: Amount::from_sat(0x45),
         script_pubkey: address.script_pubkey(),
     };
-    let tx1 = test_common::create_transaction(vec![txin], vec![txout]);
+    let tx1 = test_common::create_transaction(vec![txin1.clone()], vec![txout]);
 
-    let txin = TxIn {
+    let txin2 = TxIn {
         previous_output: OutPoint {
             txid: txid2,
             vout: 0,
@@ -174,6 +180,32 @@ async fn send_get_raw_transaction_async() {
         value: Amount::from_sat(0x1F),
         script_pubkey: address.script_pubkey(),
     };
+    let tx2 = test_common::create_transaction(vec![txin2.clone()], vec![txout]);
+
+    let async_thr1 = send_raw_transaction_async(rpc.clone(), tx1.clone());
+    let async_thr2 = send_raw_transaction_async(rpc.clone(), tx2.clone());
+
+    join!(async_thr1, async_thr2);
+
+    // We burned our money. We should only have the amount we send it to ourselves.
+    assert_eq!(
+        rpc.get_balance(None, None).unwrap(),
+        Amount::from_sat(0x1F + 0x45)
+    );
+
+    // Send some funds to some other user.
+    let txin = test_common::create_txin(tx1.compute_txid());
+    let txout = TxOut {
+        value: Amount::from_sat(0x45),
+        script_pubkey: deposit_address.script_pubkey(),
+    };
+    let tx1 = test_common::create_transaction(vec![txin], vec![txout]);
+
+    let txin = test_common::create_txin(tx2.compute_txid());
+    let txout = TxOut {
+        value: Amount::from_sat(0x1F),
+        script_pubkey: deposit_address.script_pubkey(),
+    };
     let tx2 = test_common::create_transaction(vec![txin], vec![txout]);
 
     let async_thr1 = send_raw_transaction_async(rpc.clone(), tx1);
@@ -181,8 +213,6 @@ async fn send_get_raw_transaction_async() {
 
     join!(async_thr1, async_thr2);
 
-    assert_eq!(
-        rpc.get_balance(None, None).unwrap(),
-        Amount::from_sat(0x45 + 0x1F)
-    );
+    // Balance should be lower now.
+    assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0));
 }
