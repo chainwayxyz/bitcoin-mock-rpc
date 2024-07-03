@@ -16,7 +16,7 @@ use std::{
 mod address;
 mod errors;
 mod macros;
-mod spending_requirements;
+// mod spending_requirements;
 mod transactions;
 mod utxo;
 
