@@ -142,9 +142,7 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let target_txout = self
-            .ledger
-            .create_txout(amount, Some(address.script_pubkey()));
+        let target_txout = self.ledger.create_txout(amount, address.script_pubkey());
 
         let tx = self.ledger.create_transaction(vec![], vec![target_txout]);
 
@@ -171,7 +169,7 @@ impl RpcApi for Client {
         // Block reward is 1 BTC regardless of how many block is mined.
         let txout = self.ledger.create_txout(
             Amount::from_sat(100_000_000 * block_num),
-            Some(address.script_pubkey()),
+            address.script_pubkey(),
         );
         let tx = self.ledger.create_transaction(vec![], vec![txout]);
 
@@ -206,7 +204,7 @@ mod tests {
         // First, add some funds to user, for free.
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(100_000_000), Some(address.script_pubkey()));
+            .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
@@ -214,18 +212,16 @@ mod tests {
         let txin = rpc.ledger._create_txin(txid, 0);
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(0x45), Some(address.script_pubkey()));
+            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
         let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
         let txin = rpc.ledger._create_txin(inserted_tx1.compute_txid(), 0);
         let txout = rpc.ledger.create_txout(
             Amount::from_sat(0x45),
-            Some(
-                Ledger::generate_credential_from_witness()
-                    .address
-                    .script_pubkey(),
-            ),
+            Ledger::generate_credential_from_witness()
+                .address
+                .script_pubkey(),
         );
         let inserted_tx2 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&inserted_tx2).unwrap();
@@ -255,7 +251,7 @@ mod tests {
         // First, add some funds to user, for free.
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(100_000_000), Some(address.script_pubkey()));
+            .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
@@ -263,7 +259,7 @@ mod tests {
         let txin = rpc.ledger._create_txin(txid, 0);
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(0x1F), Some(address.script_pubkey()));
+            .create_txout(Amount::from_sat(0x1F), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         rpc.send_raw_transaction(&tx).unwrap();
 
@@ -346,7 +342,7 @@ mod tests {
         // Empty wallet should reject transaction.
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(1), Some(address.script_pubkey()));
+            .create_txout(Amount::from_sat(1), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         if let Ok(()) = rpc.ledger.check_transaction(&tx) {
             assert!(false);
@@ -366,7 +362,7 @@ mod tests {
         );
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(1), Some(address.script_pubkey()));
+            .create_txout(Amount::from_sat(1), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
         if let Err(e) = rpc.ledger.check_transaction(&tx) {
             assert!(false, "{:?}", e);
@@ -385,7 +381,7 @@ mod tests {
 
         let txout = rpc
             .ledger
-            .create_txout(Amount::from_sat(0x45), Some(address.script_pubkey()));
+            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
         rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 

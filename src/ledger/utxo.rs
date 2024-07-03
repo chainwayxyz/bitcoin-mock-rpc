@@ -65,7 +65,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::{add_item_to_vec, add_utxo_to_address, ledger::Ledger, remove_utxo_from_address};
-    use bitcoin::{Amount, OutPoint};
+    use bitcoin::{Amount, OutPoint, ScriptBuf};
 
     #[test]
     fn add_get_utxos() {
@@ -74,7 +74,7 @@ mod tests {
 
         assert_eq!(ledger.get_utxos(address.clone()).len(), 0);
 
-        let txout = ledger.create_txout(Amount::from_sat(0x45), Some(address.script_pubkey()));
+        let txout = ledger.create_txout(Amount::from_sat(0x45), address.script_pubkey());
         let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
 
@@ -108,7 +108,7 @@ mod tests {
 
         assert_eq!(ledger.get_user_utxos().len(), 0);
 
-        let txout = ledger.create_txout(Amount::from_sat(0x45), Some(address0.script_pubkey()));
+        let txout = ledger.create_txout(Amount::from_sat(0x45), address0.script_pubkey());
         let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
         let utxo = OutPoint { txid, vout: 0 };
@@ -175,22 +175,22 @@ mod tests {
 
         assert_eq!(ledger.calculate_balance().unwrap(), Amount::from_sat(0));
 
-        let txout = ledger.create_txout(Amount::from_sat(100 - 0x1F), None);
+        let txout = ledger.create_txout(Amount::from_sat(100 - 0x1F), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
         let utxo = OutPoint { txid, vout: 0 };
         add_utxo_to_address!(ledger.utxos, address.clone(), utxo);
         add_item_to_vec!(ledger.transactions, tx);
 
-        let txout = ledger.create_txout(Amount::from_sat(0x1F), None);
+        let txout = ledger.create_txout(Amount::from_sat(0x1F), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
         let txid = tx.compute_txid();
         let utxo = OutPoint { txid, vout: 0 };
         add_utxo_to_address!(ledger.utxos, address.clone(), utxo);
         add_item_to_vec!(ledger.transactions, tx);
 
-        let txout1 = ledger.create_txout(Amount::from_sat(100 - 0x1F), None);
-        let txout2 = ledger.create_txout(Amount::from_sat(0x1F), None);
+        let txout1 = ledger.create_txout(Amount::from_sat(100 - 0x1F), ScriptBuf::new());
+        let txout2 = ledger.create_txout(Amount::from_sat(0x1F), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout1, txout2]);
         let txid = tx.compute_txid();
         let utxo1 = OutPoint { txid, vout: 0 };
