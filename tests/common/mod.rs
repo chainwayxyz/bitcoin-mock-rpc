@@ -5,9 +5,14 @@ use bitcoin::{
     taproot::{LeafVersion, TaprootBuilder},
     Address, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness, WitnessProgram,
 };
+use bitcoin_mock_rpc::Client;
+use bitcoincore_rpc::RpcApi;
 use std::str::FromStr;
 
-#[allow(unused)]
+pub async fn send_raw_transaction_async(rpc: Client, tx: Transaction) {
+    rpc.send_raw_transaction(&tx).unwrap();
+}
+
 pub fn create_witness() -> (WitnessProgram, Witness) {
     let secp = bitcoin::secp256k1::Secp256k1::new();
     let internal_key = UntweakedPublicKey::from(
@@ -40,14 +45,12 @@ pub fn create_witness() -> (WitnessProgram, Witness) {
     (witness_program, witness)
 }
 
-#[allow(unused)]
 pub fn create_address_from_witness() -> Address {
     let witness_program = create_witness().0;
 
     Address::from_witness_program(witness_program, bitcoin::Network::Regtest)
 }
 
-#[allow(unused)]
 pub fn create_txin(txid: Txid, vout: u32) -> TxIn {
     TxIn {
         previous_output: OutPoint { txid, vout },
@@ -55,7 +58,6 @@ pub fn create_txin(txid: Txid, vout: u32) -> TxIn {
     }
 }
 
-#[allow(unused)]
 pub fn create_txout(value: Amount, script_pubkey: ScriptBuf) -> TxOut {
     TxOut {
         value,
@@ -63,7 +65,6 @@ pub fn create_txout(value: Amount, script_pubkey: ScriptBuf) -> TxOut {
     }
 }
 
-#[allow(unused)]
 pub fn create_transaction(tx_ins: Vec<TxIn>, tx_outs: Vec<TxOut>) -> Transaction {
     bitcoin::Transaction {
         version: bitcoin::transaction::Version(2),

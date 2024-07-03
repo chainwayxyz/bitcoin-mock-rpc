@@ -1,16 +1,13 @@
 //! Transaction related integration tests.
 
-use bitcoin::{Amount, OutPoint, Transaction, TxIn, TxOut};
+use bitcoin::{Amount, OutPoint, TxIn, TxOut};
 use bitcoin_mock_rpc::{Client, RpcApiWrapper};
 use bitcoincore_rpc::{Auth, RpcApi};
+use common::send_raw_transaction_async;
 use std::thread;
 use tokio::join;
 
 mod common;
-
-async fn send_raw_transaction_async(rpc: Client, tx: Transaction) {
-    rpc.send_raw_transaction(&tx).unwrap();
-}
 
 #[test]
 fn send_to_address_multi_threaded() {
