@@ -13,13 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Input output check
   - Address based UTXO management
 - Initial RpcApi trait implementation
-  - send_raw_transaction
-  - get_raw_transaction
-  - get_raw_transaction_info
-  - get_transaction
-  - send_to_address: Sends the amount to address, regardless of the balance
-  - get_new_address
-  - generate_to_address
-  - get_balance
+  - `send_raw_transaction`
+  - `get_raw_transaction`
+  - `get_raw_transaction_info`
+  - `get_transaction`
+  - `send_to_address`: Sends the amount to address, regardless of the balance
+  - `get_new_address`
+  - `generate_to_address`
+  - `get_balance`
 
 [unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc
