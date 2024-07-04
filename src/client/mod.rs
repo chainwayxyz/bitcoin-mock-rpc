@@ -46,12 +46,12 @@ impl RpcApiWrapper for Client {
 
 /// Dumps complete ledger to a string and returns it. This can help identify
 /// bugs as it draws the big picture of the mock blockchain.
-pub fn dump_ledger(rpc: Client) -> String {
-    dump_ledger_inner(rpc.ledger)
+pub fn dump_ledger(rpc: Client, pretty: bool) -> String {
+    dump_ledger_inner(rpc.ledger, pretty)
 }
 /// Parent of `dump_ledger`. This function accepts private `Ledger` struct. This
 /// useful for only crate tests.
-pub fn dump_ledger_inner(ledger: Ledger) -> String {
+pub fn dump_ledger_inner(ledger: Ledger, pretty: bool) -> String {
     let mut dump = String::new();
 
     const DELIMETER: &str = "\n-----\n";
@@ -60,20 +60,37 @@ pub fn dump_ledger_inner(ledger: Ledger) -> String {
     let transactions = ledger.get_transactions();
     let credentials = ledger.get_credentials();
 
-    dump += format!("UTXO's: {:?}", utxos).as_str();
-    dump += DELIMETER;
-    dump += format!("Transaction's: {:?}", transactions).as_str();
-    dump += DELIMETER;
-    dump += format!(
-        "Txid's: {:?}",
-        transactions
-            .iter()
-            .map(|tx| tx.compute_txid())
-            .collect::<Vec<Txid>>()
-    )
-    .as_str();
-    dump += DELIMETER;
-    dump += format!("Credentials's: {:?}", credentials).as_str();
+    if pretty {
+        dump += format!("UTXOs: {:#?}", utxos).as_str();
+        dump += DELIMETER;
+        dump += format!("Transactions: {:#?}", transactions).as_str();
+        dump += DELIMETER;
+        dump += format!(
+            "Txids: {:#?}",
+            transactions
+                .iter()
+                .map(|tx| tx.compute_txid())
+                .collect::<Vec<Txid>>()
+        )
+        .as_str();
+        dump += DELIMETER;
+        dump += format!("Credentials: {:#?}", credentials).as_str();
+    } else {
+        dump += format!("UTXOs: {:?}", utxos).as_str();
+        dump += DELIMETER;
+        dump += format!("Transactions: {:?}", transactions).as_str();
+        dump += DELIMETER;
+        dump += format!(
+            "Txids: {:?}",
+            transactions
+                .iter()
+                .map(|tx| tx.compute_txid())
+                .collect::<Vec<Txid>>()
+        )
+        .as_str();
+        dump += DELIMETER;
+        dump += format!("Credentials: {:?}", credentials).as_str();
+    }
 
     dump
 }
