@@ -128,8 +128,18 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
+        let utxos = self.get_user_utxos();
 
         for input in transaction.input {
+            // Check if input is in UTXO list.
+            if utxos.iter().all(|utxo| *utxo != input.previous_output) {
+                return Err(LedgerError::Transaction(format!(
+                    "Input {:?} not found in UTXO list",
+                    input.previous_output
+                )));
+            }
+
+            // Add valid input amount to total.
             amount += self
                 .get_transaction(input.previous_output.txid)?
                 .output
