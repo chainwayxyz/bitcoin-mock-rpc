@@ -3,6 +3,7 @@
 //! Client crate mocks the `Client` struct in `bitcoincore-rpc`.
 
 use crate::ledger::Ledger;
+use bitcoin::Txid;
 use bitcoincore_rpc::{Auth, RpcApi};
 
 mod rpc_api;
@@ -41,6 +42,35 @@ impl RpcApiWrapper for Client {
             ledger: Ledger::new(),
         })
     }
+}
+
+/// Dumps complete ledger to a string and returns it. This can help identify
+/// bugs as it draws a picture of the mock blockchain.
+pub fn dump_ledger(rpc: Client) -> String {
+    let mut dump = String::new();
+
+    const DELIMETER: &str = "\n-----\n";
+
+    let utxos = rpc.ledger.get_user_utxos();
+    let transactions = rpc.ledger.get_transactions();
+    let credentials = rpc.ledger.get_credentials();
+
+    dump += format!("UTXO's: {:?}", utxos).as_str();
+    dump += DELIMETER;
+    dump += format!("Transaction's: {:?}", transactions).as_str();
+    dump += DELIMETER;
+    dump += format!(
+        "Txid's: {:?}",
+        transactions
+            .iter()
+            .map(|tx| tx.compute_txid())
+            .collect::<Vec<Txid>>()
+    )
+    .as_str();
+    dump += DELIMETER;
+    dump += format!("Credentials's: {:?}", credentials).as_str();
+
+    dump
 }
 
 #[cfg(test)]
