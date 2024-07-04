@@ -5,10 +5,18 @@ use bitcoincore_rpc::{Auth, RpcApi};
 use std::thread;
 
 #[test]
+fn generate_to_address() {
+    let rpc = Client::new("", Auth::None).unwrap();
+    let address = rpc.get_new_address(None, None).unwrap().assume_checked();
+
+    let initial_balance = rpc.get_balance(None, None).unwrap();
+
+    rpc.generate_to_address(101, &address).unwrap();
+    assert!(rpc.get_balance(None, None).unwrap() > initial_balance);
+}
+
+#[test]
 fn generate_to_address_multi_threaded() {
-    // Bacause `thread::spawn` moves value to closure, cloning a new is needed. This is good,
-    // because cloning an rpc struct should have a persistent ledger even though there are more than
-    // one accessors.
     let rpc = Client::new("", Auth::None).unwrap();
     let cloned_rpc = rpc.clone();
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
