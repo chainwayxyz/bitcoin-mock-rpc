@@ -45,15 +45,20 @@ impl RpcApiWrapper for Client {
 }
 
 /// Dumps complete ledger to a string and returns it. This can help identify
-/// bugs as it draws a picture of the mock blockchain.
+/// bugs as it draws the big picture of the mock blockchain.
 pub fn dump_ledger(rpc: Client) -> String {
+    dump_ledger_inner(rpc.ledger)
+}
+/// Parent of `dump_ledger`. This function accepts private `Ledger` struct. This
+/// useful for only crate tests.
+pub fn dump_ledger_inner(ledger: Ledger) -> String {
     let mut dump = String::new();
 
     const DELIMETER: &str = "\n-----\n";
 
-    let utxos = rpc.ledger.get_user_utxos();
-    let transactions = rpc.ledger.get_transactions();
-    let credentials = rpc.ledger.get_credentials();
+    let utxos = ledger.get_user_utxos();
+    let transactions = ledger.get_transactions();
+    let credentials = ledger.get_credentials();
 
     dump += format!("UTXO's: {:?}", utxos).as_str();
     dump += DELIMETER;
