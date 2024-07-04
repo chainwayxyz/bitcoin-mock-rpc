@@ -203,7 +203,7 @@ fn send_raw_transaction_invalid_input() {
 
 #[test]
 #[should_panic]
-fn send_raw_transaction_unsufficient_funds() {
+fn send_raw_transaction_insufficient_funds() {
     let rpc = Client::new("", Auth::None).unwrap();
 
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
