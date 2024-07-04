@@ -22,7 +22,11 @@ impl Ledger {
         // Remove UTXO's that are being used used in this transaction.
         transaction.input.iter().for_each(|input| {
             if let Ok(tx) = self.get_transaction(input.previous_output.txid) {
-                let utxo = tx.output.get(0).unwrap().to_owned();
+                let utxo = tx
+                    .output
+                    .get(input.previous_output.vout as usize)
+                    .unwrap()
+                    .to_owned();
                 let script_pubkey = utxo.script_pubkey;
                 for i in 0..credentials.len() {
                     if credentials[i].address.script_pubkey() == script_pubkey {
@@ -35,19 +39,23 @@ impl Ledger {
         });
 
         // Add new UTXO's to address.
-        transaction.output.iter().for_each(|output| {
-            for i in 0..credentials.len() {
-                if credentials[i].address.script_pubkey() == output.script_pubkey {
-                    let utxo = OutPoint {
-                        txid,
-                        vout: i as u32,
-                    };
-                    self.add_utxo(credentials[i].address.clone(), utxo);
+        transaction
+            .output
+            .iter()
+            .enumerate()
+            .for_each(|(vout, output)| {
+                for i in 0..credentials.len() {
+                    if credentials[i].address.script_pubkey() == output.script_pubkey {
+                        let utxo = OutPoint {
+                            txid,
+                            vout: vout as u32,
+                        };
+                        self.add_utxo(credentials[i].address.clone(), utxo);
 
-                    break;
+                        break;
+                    }
                 }
-            }
-        });
+            });
 
         // Add transaction to blockchain.
         add_item_to_vec!(self.transactions, transaction.clone());
@@ -70,7 +78,7 @@ impl Ledger {
         Ok(tx)
     }
     /// Returns user's list of transactions.
-    pub fn _get_transactions(&self) -> Vec<Transaction> {
+    pub fn get_transactions(&self) -> Vec<Transaction> {
         return_vec_item!(self.transactions);
     }
 
@@ -120,8 +128,18 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
+        let utxos = self.get_user_utxos();
 
         for input in transaction.input {
+            // Check if input is in UTXO list.
+            if utxos.iter().all(|utxo| *utxo != input.previous_output) {
+                return Err(LedgerError::Transaction(format!(
+                    "Input {:?} not found in UTXO list",
+                    input.previous_output
+                )));
+            }
+
+            // Add valid input amount to total.
             amount += self
                 .get_transaction(input.previous_output.txid)?
                 .output
@@ -182,7 +200,7 @@ mod tests {
     fn transactions_without_checks() {
         let ledger = Ledger::new();
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
@@ -193,7 +211,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -211,7 +229,7 @@ mod tests {
         let credential = Ledger::generate_credential_from_witness();
         ledger.add_credential(credential.clone());
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
         let txout = ledger.create_txout(
@@ -241,7 +259,7 @@ mod tests {
         let txid = tx.compute_txid();
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 2);
 
         let read_tx = txs.get(1).unwrap().to_owned();

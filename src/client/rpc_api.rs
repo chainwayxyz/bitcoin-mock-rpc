@@ -18,14 +18,18 @@ use bitcoincore_rpc::{
 };
 
 impl RpcApi for Client {
+    /// TL;DR: If this function is called for `cmd`, it's corresponding mock is
+    /// not yet implemented. Please consider implementing it. Ellerinden oper
+    /// diyorum anlamadiysan.
+    ///
     /// This function normally talks with Bitcoin network. Therefore, other
     /// functions calls this to send requests. In a mock environment though,
     /// other functions won't be talking to a regulated interface. Rather will
-    /// talk with a temporary interfaces, like in-memory databases.
+    /// access a temporary in-memory database.
     ///
     /// This is the reason, this function will only throw errors in case of a
-    /// function is not -yet- implemented. Tester should implement corresponding
-    /// function in this impl block, if this function called for `cmd`.
+    /// function calls this. Tester should implement corresponding function in
+    /// this impl block.
     fn call<T: for<'a> serde::de::Deserialize<'a>>(
         &self,
         cmd: &str,
@@ -48,6 +52,8 @@ impl RpcApi for Client {
 
         Ok(tx.compute_txid())
     }
+    /// Because there are no blocks, this function works pretty much same as
+    /// `get_transaction`.
     fn get_raw_transaction(
         &self,
         txid: &bitcoin::Txid,
@@ -151,6 +157,8 @@ impl RpcApi for Client {
         Ok(self.ledger.add_transaction_unconditionally(tx)?)
     }
 
+    /// Creates a random secret/public key pair and generates a Bitcoin address
+    /// from witness program.
     fn get_new_address(
         &self,
         _label: Option<&str>,
@@ -162,7 +170,8 @@ impl RpcApi for Client {
         Ok(credential.address.as_unchecked().to_owned())
     }
 
-    /// Generates `block_num` amount of block rewards to user.
+    /// Generates `block_num` amount of block rewards to user. Block reward is
+    /// fixed to 1 BTC, regardless of which and how many blocks are generated.
     fn generate_to_address(
         &self,
         block_num: u64,
@@ -180,6 +189,8 @@ impl RpcApi for Client {
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }
 
+    /// Returns user's balance. Balance is calculated using addresses that are
+    /// generated with `get_new_address` rpc call.
     fn get_balance(
         &self,
         _minconf: Option<usize>,
@@ -355,11 +366,7 @@ mod tests {
 
         // Wallet has funds now. It should not be rejected.
         let txin = rpc.ledger._create_txin(
-            rpc.ledger
-                ._get_transactions()
-                .get(0)
-                .unwrap()
-                .compute_txid(),
+            rpc.ledger.get_transactions().get(0).unwrap().compute_txid(),
             0,
         );
         let txout = rpc
