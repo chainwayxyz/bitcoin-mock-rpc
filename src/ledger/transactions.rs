@@ -22,7 +22,11 @@ impl Ledger {
         // Remove UTXO's that are being used used in this transaction.
         transaction.input.iter().for_each(|input| {
             if let Ok(tx) = self.get_transaction(input.previous_output.txid) {
-                let utxo = tx.output.get(0).unwrap().to_owned();
+                let utxo = tx
+                    .output
+                    .get(input.previous_output.vout as usize)
+                    .unwrap()
+                    .to_owned();
                 let script_pubkey = utxo.script_pubkey;
                 for i in 0..credentials.len() {
                     if credentials[i].address.script_pubkey() == script_pubkey {
@@ -35,19 +39,23 @@ impl Ledger {
         });
 
         // Add new UTXO's to address.
-        transaction.output.iter().for_each(|output| {
-            for i in 0..credentials.len() {
-                if credentials[i].address.script_pubkey() == output.script_pubkey {
-                    let utxo = OutPoint {
-                        txid,
-                        vout: i as u32,
-                    };
-                    self.add_utxo(credentials[i].address.clone(), utxo);
+        transaction
+            .output
+            .iter()
+            .enumerate()
+            .for_each(|(vout, output)| {
+                for i in 0..credentials.len() {
+                    if credentials[i].address.script_pubkey() == output.script_pubkey {
+                        let utxo = OutPoint {
+                            txid,
+                            vout: vout as u32,
+                        };
+                        self.add_utxo(credentials[i].address.clone(), utxo);
 
-                    break;
+                        break;
+                    }
                 }
-            }
-        });
+            });
 
         // Add transaction to blockchain.
         add_item_to_vec!(self.transactions, transaction.clone());
