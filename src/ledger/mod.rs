@@ -31,6 +31,7 @@ impl Ledger {
     /// be run.
     pub fn new() -> Self {
         let database = Connection::open_in_memory().unwrap();
+        // let database = Connection::open("/tmp/tmp").unwrap();
 
         database
             .execute_batch(

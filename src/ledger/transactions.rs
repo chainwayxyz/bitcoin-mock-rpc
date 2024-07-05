@@ -41,22 +41,27 @@ impl Ledger {
     }
     /// Returns a transaction which matches the given txid.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
-        let tx = self
-            .database
-            .lock()
-            .unwrap()
-            .query_row(
-                "SELECT body FROM transactions WHERE txid = ?1",
-                params![txid.to_string()],
-                |row| {
-                    let body = row.get::<_, Vec<u8>>(0).unwrap();
+        let tx = self.database.lock().unwrap().query_row(
+            "SELECT body FROM transactions WHERE txid = ?1",
+            params![txid.to_string()],
+            |row| {
+                let body = row.get::<_, Vec<u8>>(0).unwrap();
 
-                    let tx = Transaction::consensus_decode(&mut body.as_slice()).unwrap();
+                let tx = Transaction::consensus_decode(&mut body.as_slice()).unwrap();
 
-                    Ok(tx)
-                },
-            )
-            .unwrap();
+                Ok(tx)
+            },
+        );
+        let tx = match tx {
+            Ok(tx) => tx,
+            Err(e) => {
+                return Err(LedgerError::Transaction(format!(
+                    "{}: {}",
+                    txid,
+                    e.to_string()
+                )))
+            }
+        };
 
         Ok(tx)
     }
