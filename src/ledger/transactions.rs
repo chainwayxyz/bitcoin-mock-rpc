@@ -198,49 +198,42 @@ mod tests {
     /// Tests transaction operations over ledger, with rule checks.
     #[test]
     fn transactions_with_checks() {
-        // let ledger = Ledger::new();
+        let ledger = Ledger::new();
 
-        // let credential = Ledger::generate_credential_from_witness();
-        // ledger.add_credential(credential.clone());
+        let address = Ledger::_generate_address_from_witness();
 
-        // assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
-        // // First, add some funds to user, for free.
-        // let txout = ledger.create_txout(
-        //     Amount::from_sat(0x45 * 0x45),
-        //     credential.address.script_pubkey(),
-        // );
-        // let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
-        // let txid = tx.compute_txid();
-        // assert_eq!(
-        //     txid,
-        //     ledger.add_transaction_unconditionally(tx.clone()).unwrap()
-        // );
+        // First, add some funds to user, for free.
+        let txout = ledger.create_txout(Amount::from_sat(0x45 * 0x45), address.script_pubkey());
+        let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
+        let txid = tx.compute_txid();
+        assert_eq!(
+            txid,
+            ledger.add_transaction_unconditionally(tx.clone()).unwrap()
+        );
 
-        // // Input amount is zero. Same transaction should not be accepted, if
-        // // checks are performed..
-        // if let Ok(_) = ledger.add_transaction(tx.clone()) {
-        //     assert!(false);
-        // };
+        // Input amount is zero. Same transaction should not be accepted, if
+        // checks are performed..
+        if let Ok(_) = ledger.add_transaction(tx.clone()) {
+            assert!(false);
+        };
 
-        // // Create a valid transaction. This should pass checks.
-        // let txin = ledger._create_txin(txid, 0);
-        // let txout = ledger.create_txout(
-        //     Amount::from_sat(0x44 * 0x45),
-        //     credential.address.script_pubkey(),
-        // );
-        // let tx = ledger.create_transaction(vec![txin], vec![txout]);
-        // let txid = tx.compute_txid();
-        // assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
+        // Create a valid transaction. This should pass checks.
+        let txin = ledger._create_txin(txid, 0);
+        let txout = ledger.create_txout(Amount::from_sat(0x44 * 0x45), address.script_pubkey());
+        let tx = ledger.create_transaction(vec![txin], vec![txout]);
+        let txid = tx.compute_txid();
+        assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        // let txs = ledger.get_transactions();
-        // assert_eq!(txs.len(), 2);
+        let txs = ledger._get_transactions();
+        assert_eq!(txs.len(), 2);
 
-        // let read_tx = txs.get(1).unwrap().to_owned();
-        // assert_eq!(tx, read_tx);
+        let read_tx = txs.get(1).unwrap().to_owned();
+        assert_eq!(tx, read_tx);
 
-        // let read_tx = ledger.get_transaction(txid).unwrap();
-        // assert_eq!(tx, read_tx);
+        let read_tx = ledger.get_transaction(txid).unwrap();
+        assert_eq!(tx, read_tx);
     }
 
     #[test]
