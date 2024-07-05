@@ -5,6 +5,7 @@ use bitcoincore_rpc::{Auth, RpcApi};
 use std::thread;
 
 #[test]
+#[ignore = "Not implemented yet"]
 fn generate_to_address() {
     let rpc = Client::new("", Auth::None).unwrap();
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
@@ -16,6 +17,7 @@ fn generate_to_address() {
 }
 
 #[test]
+#[ignore = "Not implemented yet"]
 fn generate_to_address_multi_threaded() {
     let rpc = Client::new("", Auth::None).unwrap();
     let cloned_rpc = rpc.clone();

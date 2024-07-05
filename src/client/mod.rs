@@ -3,7 +3,6 @@
 //! Client crate mocks the `Client` struct in `bitcoincore-rpc`.
 
 use crate::ledger::Ledger;
-use bitcoin::Txid;
 use bitcoincore_rpc::{Auth, RpcApi};
 
 mod rpc_api;

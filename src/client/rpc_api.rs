@@ -201,10 +201,6 @@ impl RpcApi for Client {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{ledger::Ledger, RpcApiWrapper};
-    use bitcoin::Amount;
-
     #[test]
     fn raw_transaction() {
         // let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();

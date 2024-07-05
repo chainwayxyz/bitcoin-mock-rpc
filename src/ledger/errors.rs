@@ -12,7 +12,7 @@ pub enum LedgerError {
     #[error("UTXO error: {0}")]
     Utxo(String),
     #[error("Anyhow error: {0}")]
-    AnyHow(anyhow::Error)
+    AnyHow(anyhow::Error),
 }
 
 impl From<LedgerError> for bitcoincore_rpc::Error {

@@ -1,7 +1,11 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use bitcoin::{absolute, consensus::{Decodable, Encodable}, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid};
+use bitcoin::{
+    absolute,
+    consensus::{Decodable, Encodable},
+    Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
+};
 use rusqlite::params;
 
 impl Ledger {
@@ -19,30 +23,40 @@ impl Ledger {
         let txid = transaction.compute_txid();
 
         let mut body = Vec::new();
-        let body = match transaction.consensus_encode(&mut body) {
-            Ok(body) => body,
+        match transaction.consensus_encode(&mut body) {
+            Ok(_) => (),
             Err(e) => return Err(LedgerError::Transaction(e.to_string())),
         };
 
-        self.database.lock().unwrap().execute(
-            "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
-            params![txid.to_string(), body],
-        ).unwrap();
+        self.database
+            .lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
+                params![txid.to_string(), body],
+            )
+            .unwrap();
 
         Ok(txid)
     }
     /// Returns a transaction which matches the given txid.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
-        let tx = self.database.lock().unwrap().query_row(
-            "SELECT body FROM transactions WHERE txid = ?1",
-            params![txid.to_string()],
-            |row| {
-            let body = row.get::<_, Vec<u8>>(0).unwrap();
+        let tx = self
+            .database
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT body FROM transactions WHERE txid = ?1",
+                params![txid.to_string()],
+                |row| {
+                    let body = row.get::<_, Vec<u8>>(0).unwrap();
 
-            let tx = Transaction::consensus_decode(&mut body.as_slice()).unwrap();
+                    let tx = Transaction::consensus_decode(&mut body.as_slice()).unwrap();
 
-            Ok(tx)
-    }).unwrap();
+                    Ok(tx)
+                },
+            )
+            .unwrap();
 
         Ok(tx)
     }
@@ -50,10 +64,12 @@ impl Ledger {
         let database = self.database.lock().unwrap();
 
         let mut stmt = database.prepare("SELECT body FROM transactions").unwrap();
-        let tx_iter = stmt.query_map([], |row| {
-            let body: Vec<u8> = row.get(0).unwrap();
-            Ok(Transaction::consensus_decode(&mut body.as_slice()).unwrap())
-        }).unwrap();
+        let tx_iter = stmt
+            .query_map([], |row| {
+                let body: Vec<u8> = row.get(0).unwrap();
+                Ok(Transaction::consensus_decode(&mut body.as_slice()).unwrap())
+            })
+            .unwrap();
 
         let txs: Vec<Transaction> = tx_iter.map(|tx| tx.unwrap()).collect();
 
