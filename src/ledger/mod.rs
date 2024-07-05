@@ -5,7 +5,6 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
-use bitcoin::TxOut;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -19,13 +18,8 @@ mod transactions;
 /// Mock Bitcoin ledger.
 #[derive(Clone)]
 pub struct Ledger {
+    /// Database connection.
     database: Arc<Mutex<Connection>>,
-    // /// User's keys and address.
-    // credentials: Box<Arc<Mutex<Cell<Vec<UserCredential>>>>>,
-    // /// Happened transactions.
-    // transactions: Box<Arc<Mutex<Cell<Vec<Transaction>>>>>,
-    // /// Unspent transaction outputs, for every addresses.
-    // utxos: Box<Arc<Mutex<Cell<HashMap<Address, Vec<OutPoint>>>>>>,
 }
 
 impl Ledger {
@@ -46,7 +40,6 @@ impl Ledger {
                 (
                     txid        TEXT    not null
                         constraint txid primary key,
-                    num_utxos   integer not null,
                     body        blob    not null
                 );
 
