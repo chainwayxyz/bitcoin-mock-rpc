@@ -122,18 +122,8 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
-        // let utxos = self.get_user_utxos();
 
         for input in transaction.input {
-            // Check if input is in UTXO list.
-            // if utxos.iter().all(|utxo| *utxo != input.previous_output) {
-            //     return Err(LedgerError::Transaction(format!(
-            //         "Input {:?} not found in UTXO list",
-            //         input.previous_output
-            //     )));
-            // }
-
-            // Add valid input amount to total.
             amount += self
                 .get_transaction(input.previous_output.txid)?
                 .output
@@ -151,18 +141,8 @@ impl Ledger {
 
     /// Creates a `TxIn` with some defaults.
     pub fn _create_txin(&self, txid: Txid, vout: u32) -> TxIn {
-        // get_item!(self.credentials, credentials);
-        // let witness = match credentials.last() {
-        //     Some(c) => match c.to_owned().witness {
-        //         Some(w) => w,
-        //         None => Witness::new(),
-        //     },
-        //     None => Witness::new(),
-        // };
-
         TxIn {
             previous_output: OutPoint { txid, vout },
-            // witness,
             ..Default::default()
         }
     }
@@ -194,7 +174,7 @@ mod tests {
     fn transactions_without_checks() {
         let ledger = Ledger::new();
 
-        // assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
@@ -205,11 +185,11 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        // let txs = ledger._get_transactions();
-        // assert_eq!(txs.len(), 1);
+        let txs = ledger._get_transactions();
+        assert_eq!(txs.len(), 1);
 
-        // let tx2 = txs.get(0).unwrap().to_owned();
-        // assert_eq!(tx, tx2);
+        let tx2 = txs.get(0).unwrap().to_owned();
+        assert_eq!(tx, tx2);
 
         let tx2 = ledger.get_transaction(txid).unwrap();
         assert_eq!(tx, tx2);
