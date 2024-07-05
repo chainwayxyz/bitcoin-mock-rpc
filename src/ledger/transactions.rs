@@ -245,32 +245,31 @@ mod tests {
 
     #[test]
     fn calculate_transaction_input_value() {
-        // let ledger = Ledger::new();
+        let ledger = Ledger::new();
 
-        // let credential = Ledger::generate_credential();
-        // ledger.add_credential(credential.clone());
+        let address = Ledger::_generate_address_from_witness();
 
-        // // Add some funds.
-        // let txout = ledger.create_txout(Amount::from_sat(0x45), credential.address.script_pubkey());
-        // let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
-        // let txid = tx.compute_txid();
-        // assert_eq!(
-        //     txid,
-        //     ledger.add_transaction_unconditionally(tx.clone()).unwrap()
-        // );
+        // Add some funds.
+        let txout = ledger.create_txout(Amount::from_sat(0x45), address.script_pubkey());
+        let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
+        let txid = tx.compute_txid();
+        assert_eq!(
+            txid,
+            ledger.add_transaction_unconditionally(tx.clone()).unwrap()
+        );
 
-        // // Without any inputs, this must return 0 Sats.
-        // assert_eq!(
-        //     ledger.calculate_transaction_input_value(tx).unwrap(),
-        //     Amount::from_sat(0)
-        // );
-        // // Valid input should be OK.
-        // let txin = ledger._create_txin(txid, 0);
-        // let tx = ledger.create_transaction(vec![txin], vec![txout]);
-        // assert_eq!(
-        //     ledger.calculate_transaction_input_value(tx).unwrap(),
-        //     Amount::from_sat(0x45)
-        // );
+        // Without any inputs, this must return 0 Sats.
+        assert_eq!(
+            ledger.calculate_transaction_input_value(tx).unwrap(),
+            Amount::from_sat(0)
+        );
+        // Valid input should be OK.
+        let txin = ledger._create_txin(txid, 0);
+        let tx = ledger.create_transaction(vec![txin], vec![txout]);
+        assert_eq!(
+            ledger.calculate_transaction_input_value(tx).unwrap(),
+            Amount::from_sat(0x45)
+        );
     }
 
     #[test]

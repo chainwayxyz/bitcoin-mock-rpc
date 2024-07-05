@@ -8,7 +8,7 @@
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
-// mod address;
+mod address;
 mod errors;
 mod macros;
 // mod spending_requirements;
