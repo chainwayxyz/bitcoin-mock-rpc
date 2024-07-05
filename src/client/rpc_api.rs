@@ -4,9 +4,10 @@
 //! `Client`.
 
 use super::Client;
+use crate::ledger::Ledger;
 use bitcoin::{
     address::NetworkChecked, consensus::encode, hashes::Hash, params::Params, Address, Amount,
-    SignedAmount, Transaction, Wtxid,
+    BlockHash, SignedAmount, Transaction, Wtxid,
 };
 use bitcoincore_rpc::{
     json::{
@@ -158,35 +159,34 @@ impl RpcApi for Client {
 
     // / Creates a random secret/public key pair and generates a Bitcoin address
     // / from witness program.
-    // fn get_new_address(
-    //     &self,
-    //     _label: Option<&str>,
-    //     _address_type: Option<json::AddressType>,
-    // ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
-    //     let credential = Ledger::generate_credential_from_witness();
-    //     self.ledger.add_credential(credential.clone());
+    fn get_new_address(
+        &self,
+        _label: Option<&str>,
+        _address_type: Option<json::AddressType>,
+    ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
+        let address = Ledger::generate_address_from_witness();
 
-    //     Ok(credential.address.as_unchecked().to_owned())
-    // }
+        Ok(address.as_unchecked().to_owned())
+    }
 
-    // / Generates `block_num` amount of block rewards to user. Block reward is
-    // / fixed to 1 BTC, regardless of which and how many blocks are generated.
-    // fn generate_to_address(
-    //     &self,
-    //     block_num: u64,
-    //     address: &Address<NetworkChecked>,
-    // ) -> bitcoincore_rpc::Result<Vec<bitcoin::BlockHash>> {
-    //     // Block reward is 1 BTC regardless of how many block is mined.
-    //     let txout = self.ledger.create_txout(
-    //         Amount::from_sat(100_000_000 * block_num),
-    //         address.script_pubkey(),
-    //     );
-    //     let tx = self.ledger.create_transaction(vec![], vec![txout]);
+    /// Generates `block_num` amount of block rewards to user. Block reward is
+    /// fixed to 1 BTC, regardless of which and how many blocks are generated.
+    fn generate_to_address(
+        &self,
+        block_num: u64,
+        address: &Address<NetworkChecked>,
+    ) -> bitcoincore_rpc::Result<Vec<bitcoin::BlockHash>> {
+        // Block reward is 1 BTC regardless of how many block is mined.
+        let txout = self.ledger.create_txout(
+            Amount::from_sat(100_000_000 * block_num),
+            address.script_pubkey(),
+        );
+        let tx = self.ledger.create_transaction(vec![], vec![txout]);
 
-    //     self.ledger.add_transaction_unconditionally(tx)?;
+        self.ledger.add_transaction_unconditionally(tx)?;
 
-    //     Ok(vec![BlockHash::all_zeros(); block_num as usize])
-    // }
+        Ok(vec![BlockHash::all_zeros(); block_num as usize])
+    }
 
     // / Returns user's balance. Balance is calculated using addresses that are
     // / generated with `get_new_address` rpc call.
