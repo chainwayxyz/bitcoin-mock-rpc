@@ -3,7 +3,6 @@
 //! This crate provides address related ledger interfaces.
 
 use super::Ledger;
-use crate::{add_item_to_vec, return_vec_item};
 use bitcoin::{
     opcodes::OP_TRUE,
     taproot::{LeafVersion, TaprootBuilder},
@@ -25,7 +24,7 @@ pub struct UserCredential {
 
 impl UserCredential {
     /// Creates a new `UserCredential` with random keys.
-    pub fn new() -> Self {
+    pub fn _new() -> Self {
         let secp = Secp256k1::new();
 
         let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
@@ -48,27 +47,16 @@ impl UserCredential {
 }
 
 impl Ledger {
-    /// Adds a new secret/public key + address for the user.
-    pub fn add_credential(&self, credential: UserCredential) -> UserCredential {
-        add_item_to_vec!(self.credentials, credential.clone());
-
-        credential
-    }
-    /// Returns secret/public key + address list of the user.
-    pub fn get_credentials(&self) -> Vec<UserCredential> {
-        return_vec_item!(self.credentials);
-    }
-
     /// Generates a random secret/public key pair and creates a new Bicoin
     /// address from them.
-    pub fn generate_credential() -> UserCredential {
-        UserCredential::new()
+    pub fn _generate_credential() -> UserCredential {
+        UserCredential::_new()
     }
-    /// Creates a Bitcoin address from a witness program.
-    pub fn generate_credential_from_witness() -> UserCredential {
-        let mut credential = Ledger::generate_credential();
+    /// Generates a Bitcoin credentials from a witness program.
+    pub fn _generate_credential_from_witness() -> UserCredential {
+        let mut credential = Ledger::_generate_credential();
 
-        Ledger::create_witness(&mut credential);
+        Ledger::_create_witness(&mut credential);
 
         credential.address = Address::from_witness_program(
             credential.witness_program.unwrap(),
@@ -78,8 +66,26 @@ impl Ledger {
         credential
     }
 
+    /// Generates a random Bicoin address.
+    pub fn _generate_address() -> Address {
+        UserCredential::_new().address
+    }
+    /// Generates a Bitcoin address from a witness program.
+    pub fn _generate_address_from_witness() -> Address {
+        let mut credential = Ledger::_generate_credential();
+
+        Ledger::_create_witness(&mut credential);
+
+        credential.address = Address::from_witness_program(
+            credential.witness_program.unwrap(),
+            bitcoin::Network::Regtest,
+        );
+
+        credential.address
+    }
+
     /// Creates a witness for the given secret/public key pair.
-    pub fn create_witness(credential: &mut UserCredential) {
+    pub fn _create_witness(credential: &mut UserCredential) {
         let mut script = ScriptBuf::new();
         script.push_instruction(bitcoin::script::Instruction::Op(OP_TRUE));
 
@@ -116,18 +122,8 @@ mod tests {
     use bitcoin::{key::TapTweak, AddressType};
 
     #[test]
-    fn add_generate_get_credentials() {
-        let ledger = Ledger::new();
-
-        assert_eq!(ledger.get_credentials().len(), 0);
-
-        let credential = Ledger::generate_credential();
-        ledger.add_credential(credential.clone());
-
-        let credentials = ledger.get_credentials();
-        assert_eq!(credentials.len(), 1);
-
-        assert_eq!(credential, credentials.get(0).unwrap().to_owned());
+    fn generate_credentials() {
+        let credential = Ledger::_generate_credential();
 
         assert_eq!(
             credential.address.address_type().unwrap(),
