@@ -5,6 +5,7 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
+use bitcoin::TxOut;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -36,29 +37,31 @@ impl Ledger {
     /// be run.
     pub fn new() -> Self {
         let database = Connection::open_in_memory().unwrap();
+
         database
             .execute_batch(
-                "DROP TABLE IF EXISTS outputs;
-                CREATE TABLE outputs
-                (
-                    tx_id          TEXT              not null,
-                    output_id      integer           not null,
-                    value          integer           not null,
-                    script_pub_key BLOB              not null,
-                    is_spent       INTEGER default 0 not null,
-                    constraint outputs_pk
-                        primary key (tx_id, output_id)
-                );
+                "
                 DROP TABLE IF EXISTS \"transactions\";
                 CREATE TABLE \"transactions\"
                 (
-                    tx_id       TEXT    not null
-                        constraint txid
-                            primary key,
-                    num_outputs integer not null,
+                    txid        TEXT    not null
+                        constraint txid primary key,
+                    num_utxos   integer not null,
                     body        blob    not null
                 );
-            ",
+
+                DROP TABLE IF EXISTS utxos;
+                CREATE TABLE utxos
+                (
+                    txid           TEXT              not null,
+                    vout           integer           not null,
+                    value          integer           not null,
+                    script_pubkey  BLOB              not null,
+                    is_spent       INTEGER default 0 not null,
+                    constraint utxos_pk
+                        primary key (txid, vout)
+                );
+                ",
             )
             .unwrap();
 
