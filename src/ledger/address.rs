@@ -24,7 +24,7 @@ pub struct UserCredential {
 
 impl UserCredential {
     /// Creates a new `UserCredential` with random keys.
-    pub fn _new() -> Self {
+    pub fn new() -> Self {
         let secp = Secp256k1::new();
 
         let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
@@ -49,14 +49,14 @@ impl UserCredential {
 impl Ledger {
     /// Generates a random secret/public key pair and creates a new Bicoin
     /// address from them.
-    pub fn _generate_credential() -> UserCredential {
-        UserCredential::_new()
+    pub fn generate_credential() -> UserCredential {
+        UserCredential::new()
     }
     /// Generates a Bitcoin credentials from a witness program.
-    pub fn _generate_credential_from_witness() -> UserCredential {
-        let mut credential = Ledger::_generate_credential();
+    pub fn generate_credential_from_witness() -> UserCredential {
+        let mut credential = Ledger::generate_credential();
 
-        Ledger::_create_witness(&mut credential);
+        Ledger::create_witness(&mut credential);
 
         credential.address = Address::from_witness_program(
             credential.witness_program.unwrap(),
@@ -68,24 +68,15 @@ impl Ledger {
 
     /// Generates a random Bicoin address.
     pub fn _generate_address() -> Address {
-        UserCredential::_new().address
+        UserCredential::new().address
     }
     /// Generates a Bitcoin address from a witness program.
-    pub fn _generate_address_from_witness() -> Address {
-        let mut credential = Ledger::_generate_credential();
-
-        Ledger::_create_witness(&mut credential);
-
-        credential.address = Address::from_witness_program(
-            credential.witness_program.unwrap(),
-            bitcoin::Network::Regtest,
-        );
-
-        credential.address
+    pub fn generate_address_from_witness() -> Address {
+        Ledger::generate_credential_from_witness().address
     }
 
     /// Creates a witness for the given secret/public key pair.
-    pub fn _create_witness(credential: &mut UserCredential) {
+    pub fn create_witness(credential: &mut UserCredential) {
         let mut script = ScriptBuf::new();
         script.push_instruction(bitcoin::script::Instruction::Op(OP_TRUE));
 
@@ -123,7 +114,7 @@ mod tests {
 
     #[test]
     fn generate_credentials() {
-        let credential = Ledger::_generate_credential();
+        let credential = Ledger::generate_credential();
 
         assert_eq!(
             credential.address.address_type().unwrap(),

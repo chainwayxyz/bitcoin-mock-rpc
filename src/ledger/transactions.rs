@@ -200,7 +200,7 @@ mod tests {
     fn transactions_with_checks() {
         let ledger = Ledger::new();
 
-        let address = Ledger::_generate_address_from_witness();
+        let address = Ledger::generate_address_from_witness();
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
@@ -240,7 +240,7 @@ mod tests {
     fn calculate_transaction_input_value() {
         let ledger = Ledger::new();
 
-        let address = Ledger::_generate_address_from_witness();
+        let address = Ledger::generate_address_from_witness();
 
         // Add some funds.
         let txout = ledger.create_txout(Amount::from_sat(0x45), address.script_pubkey());
