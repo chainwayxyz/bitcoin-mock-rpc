@@ -11,7 +11,9 @@ use bitcoin::{
 };
 use bitcoincore_rpc::{
     json::{
-        self, GetRawTransactionResult, GetRawTransactionResultVoutScriptPubKey, GetTransactionResult, GetTransactionResultDetail, GetTransactionResultDetailCategory, GetTxOutResult, WalletTxInfo
+        self, GetRawTransactionResult, GetRawTransactionResultVoutScriptPubKey,
+        GetTransactionResult, GetTransactionResultDetail, GetTransactionResultDetailCategory,
+        GetTxOutResult, WalletTxInfo,
     },
     RpcApi,
 };
@@ -189,27 +191,25 @@ impl RpcApi for Client {
 
     /// TODO: whole function
     fn get_tx_out(
-            &self,
-            _txid: &bitcoin::Txid,
-            _vout: u32,
-            _include_mempool: Option<bool>,
-        ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
-        Ok(Some(
-            GetTxOutResult {
-                bestblock: BlockHash::all_zeros(),
-                confirmations: u32::MAX,
-                value: Amount::from_sat(0x45),
-                script_pub_key: GetRawTransactionResultVoutScriptPubKey {
-                    asm: "asmwhat".to_string(),
-                    hex: Vec::new(),
-                    req_sigs: None,
-                    type_: None,
-                    addresses: Vec::new(),
-                    address: None,
-                },
-                coinbase: true,
-            }
-        ))
+        &self,
+        _txid: &bitcoin::Txid,
+        _vout: u32,
+        _include_mempool: Option<bool>,
+    ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
+        Ok(Some(GetTxOutResult {
+            bestblock: BlockHash::all_zeros(),
+            confirmations: u32::MAX,
+            value: Amount::from_sat(0x45),
+            script_pub_key: GetRawTransactionResultVoutScriptPubKey {
+                asm: "asmwhat".to_string(),
+                hex: Vec::new(),
+                req_sigs: None,
+                type_: None,
+                addresses: Vec::new(),
+                address: None,
+            },
+            coinbase: true,
+        }))
     }
 
     // / Returns user's balance. Balance is calculated using addresses that are
