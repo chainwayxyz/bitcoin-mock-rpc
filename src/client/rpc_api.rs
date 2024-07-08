@@ -187,14 +187,13 @@ impl RpcApi for Client {
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }
 
+    /// TODO: whole function
     fn get_tx_out(
             &self,
             _txid: &bitcoin::Txid,
             _vout: u32,
             _include_mempool: Option<bool>,
         ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
-        // TODO: whole function
-
         Ok(Some(
             GetTxOutResult {
                 bestblock: BlockHash::all_zeros(),
