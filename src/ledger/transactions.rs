@@ -177,7 +177,7 @@ mod tests {
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
     fn transactions_without_checks() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("transactions_without_checks");
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
@@ -203,7 +203,7 @@ mod tests {
     /// Tests transaction operations over ledger, with rule checks.
     #[test]
     fn transactions_with_checks() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("transactions_with_checks");
 
         let address = Ledger::generate_address_from_witness();
 
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn calculate_transaction_input_value() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("calculate_transaction_input_value");
 
         let address = Ledger::generate_address_from_witness();
 
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn calculate_transaction_output_value() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("calculate_transaction_output_value");
 
         let txout1 = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout1.clone()]);

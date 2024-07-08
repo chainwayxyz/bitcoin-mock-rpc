@@ -6,7 +6,10 @@
 //! immutable nature.
 
 use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 
 mod address;
 mod errors;
@@ -24,14 +27,20 @@ pub struct Ledger {
 
 impl Ledger {
     /// Creates a new empty ledger.
+    /// 
+    /// An SQLite database created at OS's temp directory. Database is named
+    /// `path`. This can be used to identify different databases created by
+    /// different tests.
     ///
     /// # Panics
     ///
     /// Panics if SQLite connection can't be established and initial query can't
     /// be run.
-    pub fn new() -> Self {
-        let database = Connection::open_in_memory().unwrap();
-        // let database = Connection::open("/tmp/tmp").unwrap();
+    pub fn new(path: &str) -> Self {
+        let temp_dir = env::temp_dir();
+        let path = temp_dir.to_str().unwrap().to_owned() + "/" + path;
+
+        let database = Connection::open(path).unwrap();
 
         database
             .execute_batch(
@@ -71,6 +80,6 @@ mod tests {
 
     #[test]
     fn new() {
-        let _should_not_panic = Ledger::new();
+        let _should_not_panic = Ledger::new("ledger_new");
     }
 }

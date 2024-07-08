@@ -10,7 +10,7 @@ mod common;
 
 #[test]
 fn send_get_raw_transaction_with_change() {
-    let rpc = Client::new("", Auth::None).unwrap();
+    let rpc = Client::new("send_get_raw_transaction_with_change", Auth::None).unwrap();
 
     let address = common::create_address_from_witness();
     let deposit_address = common::create_address_from_witness();
@@ -40,7 +40,7 @@ fn send_get_raw_transaction_with_change() {
 
 #[test]
 fn send_get_raw_transaction_without_change() {
-    let rpc = Client::new("", Auth::None).unwrap();
+    let rpc = Client::new("send_get_raw_transaction_without_change", Auth::None).unwrap();
 
     let address = common::create_address_from_witness();
     let deposit_address = common::create_address_from_witness();
@@ -72,7 +72,7 @@ fn send_get_raw_transaction_without_change() {
 #[tokio::test]
 #[ignore = "Creating a transaction with same amount results with same tx. Meaning txid collision"]
 async fn send_get_raw_transaction_async() {
-    let rpc = Client::new("", Auth::None).unwrap();
+    let rpc = Client::new("send_get_raw_transaction_async", Auth::None).unwrap();
 
     let address = common::create_address_from_witness();
     let deposit_address = common::create_address_from_witness();
@@ -167,7 +167,7 @@ async fn send_get_raw_transaction_async() {
 #[test]
 #[should_panic]
 fn send_raw_transaction_invalid_input() {
-    let rpc = Client::new("", Auth::None).unwrap();
+    let rpc = Client::new("send_raw_transaction_invalid_input", Auth::None).unwrap();
 
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
 
@@ -187,7 +187,7 @@ fn send_raw_transaction_invalid_input() {
 #[test]
 #[should_panic]
 fn send_raw_transaction_insufficient_funds() {
-    let rpc = Client::new("", Auth::None).unwrap();
+    let rpc = Client::new("send_raw_transaction_insufficient_funds", Auth::None).unwrap();
 
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
 

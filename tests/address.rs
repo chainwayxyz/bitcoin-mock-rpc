@@ -7,7 +7,7 @@ use std::thread;
 #[test]
 #[ignore = "Not implemented yet"]
 fn generate_to_address() {
-    let rpc = Client::new("", Auth::None).unwrap();
+    let rpc = Client::new("generate_to_address", Auth::None).unwrap();
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
 
     let initial_balance = rpc.get_balance(None, None).unwrap();
@@ -19,7 +19,7 @@ fn generate_to_address() {
 #[test]
 #[ignore = "Not implemented yet"]
 fn generate_to_address_multi_threaded() {
-    let rpc = Client::new("", Auth::None).unwrap();
+    let rpc = Client::new("generate_to_address_multi_threaded", Auth::None).unwrap();
     let cloned_rpc = rpc.clone();
     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
     let cloned_address = address.clone();
