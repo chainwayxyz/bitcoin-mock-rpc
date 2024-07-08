@@ -12,8 +12,10 @@ mod common;
 fn send_get_raw_transaction_with_change() {
     let rpc = Client::new("send_get_raw_transaction_with_change", Auth::None).unwrap();
 
-    let address = common::create_address_from_witness();
-    let deposit_address = common::create_address_from_witness();
+    let witness = common::create_witness();
+    let address = common::create_address_from_witness(witness.0);
+    let witness2 = common::create_witness();
+    let deposit_address = common::create_address_from_witness(witness2.0);
 
     // Generate funds to user.
     let txid = rpc
@@ -29,7 +31,11 @@ fn send_get_raw_transaction_with_change() {
         )
         .unwrap();
 
-    let txin = common::create_txin(txid, 0);
+    let txin = TxIn {
+        previous_output: OutPoint { txid, vout: 0 },
+        witness: witness.1,
+        ..Default::default()
+    };
     let txout0 = common::create_txout(Amount::from_sat(0x45), deposit_address.script_pubkey());
     let txout1 = common::create_txout(Amount::from_sat(0x45 * 0x44), address.script_pubkey());
     let tx = common::create_transaction(vec![txin], vec![txout0, txout1]);
@@ -42,8 +48,10 @@ fn send_get_raw_transaction_with_change() {
 fn send_get_raw_transaction_without_change() {
     let rpc = Client::new("send_get_raw_transaction_without_change", Auth::None).unwrap();
 
-    let address = common::create_address_from_witness();
-    let deposit_address = common::create_address_from_witness();
+    let witness = common::create_witness();
+    let address = common::create_address_from_witness(witness.0);
+    let witness2 = common::create_witness();
+    let deposit_address = common::create_address_from_witness(witness2.0);
 
     // Generate funds to user.
     let txid = rpc
@@ -59,7 +67,11 @@ fn send_get_raw_transaction_without_change() {
         )
         .unwrap();
 
-    let txin = common::create_txin(txid, 0);
+    let txin = TxIn {
+        previous_output: OutPoint { txid, vout: 0 },
+        witness: witness.1,
+        ..Default::default()
+    };
     let txout = common::create_txout(Amount::from_sat(0x45), deposit_address.script_pubkey());
     let tx = common::create_transaction(vec![txin], vec![txout]);
     let txid = rpc.send_raw_transaction(&tx).unwrap();
@@ -74,8 +86,10 @@ fn send_get_raw_transaction_without_change() {
 async fn send_get_raw_transaction_async() {
     let rpc = Client::new("send_get_raw_transaction_async", Auth::None).unwrap();
 
-    let address = common::create_address_from_witness();
-    let deposit_address = common::create_address_from_witness();
+    let witness = common::create_witness();
+    let address = common::create_address_from_witness(witness.0);
+    let witness2 = common::create_witness();
+    let deposit_address = common::create_address_from_witness(witness2.0);
 
     // Create some funds to user.
     let txid1 = rpc
@@ -121,6 +135,7 @@ async fn send_get_raw_transaction_async() {
             txid: txid2,
             vout: 0,
         },
+        witness: witness.1,
         ..Default::default()
     };
     let txout = TxOut {
@@ -189,7 +204,8 @@ fn send_raw_transaction_invalid_input() {
 fn send_raw_transaction_insufficient_funds() {
     let rpc = Client::new("send_raw_transaction_insufficient_funds", Auth::None).unwrap();
 
-    let address = rpc.get_new_address(None, None).unwrap().assume_checked();
+    let witness = common::create_witness();
+    let address = common::create_address_from_witness(witness.0);
 
     // Generate funds to user.
     let txid = rpc
@@ -209,7 +225,11 @@ fn send_raw_transaction_insufficient_funds() {
         Amount::from_sat(0x45 * 0x45)
     );
 
-    let txin = common::create_txin(txid, 0);
+    let txin = TxIn {
+        previous_output: OutPoint { txid, vout: 0 },
+        witness: witness.1,
+        ..Default::default()
+    };
     let txout = common::create_txout(
         Amount::from_sat(0x45 * 0x45 * 0x1F),
         address.script_pubkey(),

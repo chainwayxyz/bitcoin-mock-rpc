@@ -11,7 +11,8 @@ mod common;
 fn send_to_address_multi_threaded() {
     let rpc = Client::new("send_to_address_multi_threaded", Auth::None).unwrap();
     let cloned_rpc = rpc.clone();
-    let address = common::create_address_from_witness();
+    let witness = common::create_witness();
+    let address = common::create_address_from_witness(witness.0);
 
     thread::spawn(move || {
         cloned_rpc
@@ -44,8 +45,10 @@ fn send_to_address_multi_threaded() {
 fn use_utxo_from_send_to_address() {
     let rpc = Client::new("use_utxo_from_send_to_address", Auth::None).unwrap();
 
-    let address = rpc.get_new_address(None, None).unwrap().assume_checked();
-    let deposit_address = common::create_address_from_witness();
+    let witness = common::create_witness();
+    let address = common::create_address_from_witness(witness.0);
+    let witness2 = common::create_witness();
+    let deposit_address = common::create_address_from_witness(witness2.0);
 
     let deposit_value = Amount::from_sat(0x45);
 
