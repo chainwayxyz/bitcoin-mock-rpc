@@ -175,7 +175,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::{Amount, ScriptBuf};
+    use bitcoin::{Amount, OutPoint, ScriptBuf, TxIn};
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
@@ -208,7 +208,8 @@ mod tests {
     fn transactions_with_checks() {
         let ledger = Ledger::new("transactions_with_checks");
 
-        let address = Ledger::generate_address_from_witness();
+        let credentials = Ledger::generate_credential_from_witness();
+        let address = credentials.address;
 
         assert_eq!(ledger._get_transactions().len(), 0);
 
@@ -228,7 +229,11 @@ mod tests {
         };
 
         // Create a valid transaction. This should pass checks.
-        let txin = ledger._create_txin(txid, 0);
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            witness: credentials.witness.unwrap(),
+            ..Default::default()
+        };
         let txout = ledger.create_txout(Amount::from_sat(0x44 * 0x45), address.script_pubkey());
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
