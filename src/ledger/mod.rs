@@ -27,7 +27,7 @@ pub struct Ledger {
 
 impl Ledger {
     /// Creates a new empty ledger.
-    /// 
+    ///
     /// An SQLite database created at OS's temp directory. Database is named
     /// `path`. This can be used to identify different databases created by
     /// different tests.
@@ -42,10 +42,26 @@ impl Ledger {
 
         let database = Connection::open(path).unwrap();
 
-        database
-            .execute_batch(
-                "
-                DROP TABLE IF EXISTS \"transactions\";
+        Ledger::drop_databases(&database).unwrap();
+        Ledger::create_databases(&database).unwrap();
+
+        Self {
+            database: Arc::new(Mutex::new(database)),
+        }
+    }
+
+    pub fn drop_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+        database.execute_batch(
+            "
+                DROP TABLE IF EXISTS transactions;
+                DROP TABLE IF EXISTS utxos;
+                ",
+        )
+    }
+
+    pub fn create_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+        database.execute_batch(
+            "
                 CREATE TABLE \"transactions\"
                 (
                     txid        TEXT    not null
@@ -53,7 +69,6 @@ impl Ledger {
                     body        blob    not null
                 );
 
-                DROP TABLE IF EXISTS utxos;
                 CREATE TABLE utxos
                 (
                     txid           TEXT              not null,
@@ -65,12 +80,7 @@ impl Ledger {
                         primary key (txid, vout)
                 );
                 ",
-            )
-            .unwrap();
-
-        Self {
-            database: Arc::new(Mutex::new(database)),
-        }
+        )
     }
 }
 
