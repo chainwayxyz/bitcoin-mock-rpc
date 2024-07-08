@@ -16,7 +16,7 @@ pub struct P2WPKHChecker;
 impl P2WPKHChecker {
     pub fn check(tx: &Transaction, prevouts: &TxOut, input_idx: usize) -> Result<(), LedgerError> {
         if prevouts.script_pubkey.len() != 22 {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for P2WPKH.".to_owned(),
             ));
         }
@@ -25,11 +25,11 @@ impl P2WPKHChecker {
         let witness = &tx.input[input_idx].witness;
 
         if witness.len() != 2 {
-            return Err(LedgerError::General("The number of witness elements should be exactly two (the signature and the public key).".to_owned()));
+            return Err(LedgerError::SpendingRequirements("The number of witness elements should be exactly two (the signature and the public key).".to_owned()));
         }
 
         if witness_version != 0 || prevouts.script_pubkey.as_bytes()[1] != OP_PUSHBYTES_20.to_u8() {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for P2WPKH.".to_owned(),
             ));
         }
@@ -39,7 +39,7 @@ impl P2WPKHChecker {
         let wpkh = pk.wpubkey_hash();
 
         if !prevouts.script_pubkey.as_bytes()[2..22].eq(AsRef::<[u8]>::as_ref(&wpkh)) {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The script does not match the script public key.".to_owned(),
             ));
         }
@@ -71,7 +71,7 @@ impl P2WSHChecker {
         let witness_version = prevouts.script_pubkey.as_bytes()[0];
 
         if witness_version != 0 {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for P2WSH.".to_owned(),
             ));
         }
@@ -79,11 +79,11 @@ impl P2WSHChecker {
         let mut witness = tx.input[input_idx].witness.to_vec();
 
         if witness.len() < 2 {
-            return Err(LedgerError::General("The number of witness elements should be at least two (the empty placeholder and the script).".to_owned()));
+            return Err(LedgerError::SpendingRequirements("The number of witness elements should be at least two (the empty placeholder and the script).".to_owned()));
         }
 
         if !witness.remove(0).is_empty() {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The first witness element must be empty (aka, representing 0).".to_owned(),
             ));
         }
@@ -94,7 +94,7 @@ impl P2WSHChecker {
         let sig_pub_key_expected = ScriptBuf::new_witness_program(&witness_program);
 
         if *prevouts.script_pubkey != sig_pub_key_expected {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The script does not match the script public key.".to_owned(),
             ));
         }
@@ -113,7 +113,9 @@ impl P2WSHChecker {
             ScriptBuf::from_bytes(script.to_vec()),
             witness,
         )
-        .map_err(|e| LedgerError::General(format!("The script cannot be executed: {:?}", e)))
+        .map_err(|e| {
+            LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
+        })
         .unwrap();
         loop {
             if exec.exec_next().is_err() {
@@ -122,7 +124,7 @@ impl P2WSHChecker {
         }
         let res = exec.result().unwrap();
         if !res.success {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The script execution is not successful.".to_owned(),
             ));
         }
@@ -139,13 +141,13 @@ impl P2TRChecker {
 
         let witness_version = sig_pub_key_bytes[0];
         if witness_version != 0x51 {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for Taproot.".to_owned(),
             ));
         }
 
         if sig_pub_key_bytes.len() != 34 || sig_pub_key_bytes[1] != 0x20 {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey does not follow the Taproot format.".to_owned(),
             ));
         }
@@ -158,13 +160,13 @@ impl P2TRChecker {
         }
 
         if witness.len() == 1 {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The key path spending of Taproot is not implemented.".to_owned(),
             ));
         }
 
         if witness.len() < 2 {
-            return Err(LedgerError::General("The number of witness elements should be at least two (the script and the control block).".to_owned()));
+            return Err(LedgerError::SpendingRequirements("The number of witness elements should be at least two (the script and the control block).".to_owned()));
         }
 
         let secp = secp256k1::Secp256k1::new();
@@ -178,7 +180,7 @@ impl P2TRChecker {
 
         let res = control_block.verify_taproot_commitment(&secp, out_pk.to_inner(), script);
         if !res {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The taproot commitment does not match the Taproot public key.".to_owned(),
             ));
         }
@@ -200,7 +202,9 @@ impl P2TRChecker {
             ScriptBuf::from_bytes(script_buf),
             witness,
         )
-        .map_err(|e| LedgerError::General(format!("The script cannot be executed: {:?}", e)))
+        .map_err(|e| {
+            LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
+        })
         .unwrap();
         loop {
             if exec.exec_next().is_err() {
@@ -209,7 +213,7 @@ impl P2TRChecker {
         }
         let res = exec.result().unwrap();
         if !res.success {
-            return Err(LedgerError::General(
+            return Err(LedgerError::SpendingRequirements(
                 "The script execution is not successful.".to_owned(),
             ));
         }
@@ -240,10 +244,7 @@ mod test {
 
     #[test]
     fn p2wpkh() {
-        let ledger = Ledger::new();
-
         let credential = Ledger::generate_credential_from_witness();
-        ledger.add_credential(credential.clone());
 
         let wpkh = bitcoin::PublicKey::new(credential.public_key)
             .wpubkey_hash()

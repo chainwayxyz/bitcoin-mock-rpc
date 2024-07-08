@@ -1,6 +1,10 @@
 //! # Transaction Related Ledger Operations
 
-use super::{errors::LedgerError, Ledger};
+use super::{
+    errors::LedgerError,
+    spending_requirements::{P2TRChecker, P2WPKHChecker, P2WSHChecker},
+    Ledger,
+};
 use bitcoin::{
     absolute,
     consensus::{Decodable, Encodable},
@@ -93,26 +97,25 @@ impl Ledger {
             )));
         }
 
-        // TODO: Perform these checks.
-        // for input in transaction.input.iter() {
-        //     for input_idx in 0..transaction.input.len() {
-        //         let previous_output = self.get_transaction(input.previous_output.txid)?.output;
-        //         let previous_output = previous_output
-        //             .get(input.previous_output.vout as usize)
-        //             .unwrap()
-        //             .to_owned();
+        for input in transaction.input.iter() {
+            for input_idx in 0..transaction.input.len() {
+                let previous_output = self.get_transaction(input.previous_output.txid)?.output;
+                let previous_output = previous_output
+                    .get(input.previous_output.vout as usize)
+                    .unwrap()
+                    .to_owned();
 
-        //         let script_pubkey = previous_output.clone().script_pubkey;
+                let script_pubkey = previous_output.clone().script_pubkey;
 
-        //         if script_pubkey.is_p2wpkh() {
-        //             let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
-        //         } else if script_pubkey.is_p2wsh() {
-        //             let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
-        //         } else if script_pubkey.is_p2tr() {
-        //             let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
-        //         }
-        //     }
-        // }
+                if script_pubkey.is_p2wpkh() {
+                    P2WPKHChecker::check(&transaction, &previous_output, input_idx)?;
+                } else if script_pubkey.is_p2wsh() {
+                    P2WSHChecker::check(&transaction, &previous_output, input_idx)?;
+                } else if script_pubkey.is_p2tr() {
+                    P2TRChecker::check(&transaction, &previous_output, input_idx)?;
+                }
+            }
+        }
 
         Ok(())
     }

@@ -11,6 +11,8 @@ pub enum LedgerError {
     Transaction(String),
     #[error("UTXO error: {0}")]
     Utxo(String),
+    #[error("SpendingRequirements error: {0}")]
+    SpendingRequirements(String),
     #[error("Anyhow error: {0}")]
     AnyHow(anyhow::Error),
 }
