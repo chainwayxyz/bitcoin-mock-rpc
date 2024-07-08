@@ -1,19 +1,13 @@
-use super::errors::LedgerError;
-use bitcoin::ecdsa::Signature;
-use bitcoin::key::TweakedPublicKey;
-use bitcoin::opcodes::all::OP_PUSHBYTES_20;
-use bitcoin::secp256k1::Message;
-use bitcoin::sighash::SighashCache;
-use bitcoin::taproot::{ControlBlock, LeafVersion};
-use bitcoin::{
-    secp256k1, CompressedPublicKey, Script, ScriptBuf, TapLeafHash, Transaction, TxOut,
-    WitnessProgram, XOnlyPublicKey,
-};
-use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
+//! # Spending Requirements
 
-pub struct P2WPKHChecker;
+pub mod p2wpkh_checker {
+    use crate::ledger::errors::LedgerError;
+    use bitcoin::{
+        ecdsa::Signature, opcodes::all::OP_PUSHBYTES_20, sighash::SighashCache,
+        CompressedPublicKey, ScriptBuf, Transaction, TxOut,
+    };
+    use secp256k1::Message;
 
-impl P2WPKHChecker {
     pub fn check(tx: &Transaction, prevouts: &TxOut, input_idx: usize) -> Result<(), LedgerError> {
         if prevouts.script_pubkey.len() != 22 {
             return Err(LedgerError::SpendingRequirements(
@@ -64,9 +58,11 @@ impl P2WPKHChecker {
     }
 }
 
-pub struct P2WSHChecker;
+pub mod p2wsh_checker {
+    use crate::ledger::errors::LedgerError;
+    use bitcoin::{Script, ScriptBuf, Transaction, TxOut, WitnessProgram};
+    use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
 
-impl P2WSHChecker {
     pub fn check(tx: &Transaction, prevouts: &TxOut, input_idx: usize) -> Result<(), LedgerError> {
         let witness_version = prevouts.script_pubkey.as_bytes()[0];
 
@@ -133,9 +129,15 @@ impl P2WSHChecker {
     }
 }
 
-pub struct P2TRChecker;
+pub mod p2tr_checker {
+    use crate::ledger::errors::LedgerError;
+    use bitcoin::{
+        key::TweakedPublicKey,
+        taproot::{ControlBlock, LeafVersion},
+        Script, ScriptBuf, TapLeafHash, Transaction, TxOut, XOnlyPublicKey,
+    };
+    use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
 
-impl P2TRChecker {
     pub fn check(tx: &Transaction, prevouts: &TxOut, input_idx: usize) -> Result<(), LedgerError> {
         let sig_pub_key_bytes = prevouts.script_pubkey.as_bytes();
 
@@ -225,7 +227,7 @@ impl P2TRChecker {
 #[cfg(test)]
 mod test {
     define_pushable!();
-    use crate::ledger::spending_requirements::{P2TRChecker, P2WPKHChecker, P2WSHChecker};
+    use crate::ledger::spending_requirements::{p2tr_checker, p2wpkh_checker, p2wsh_checker};
     use crate::ledger::Ledger;
     use bitcoin::absolute::LockTime;
     use bitcoin::ecdsa::Signature;
@@ -295,7 +297,7 @@ mod test {
 
         tx2.input[0].witness = Witness::p2wpkh(&signature, &credential.public_key);
 
-        let res = P2WPKHChecker::check(&tx2, &output, 0);
+        let res = p2wpkh_checker::check(&tx2, &output, 0);
         assert!(res.is_ok());
     }
 
@@ -341,7 +343,7 @@ mod test {
             output: vec![],
         };
 
-        let res = P2WSHChecker::check(&tx2, &output, 0);
+        let res = p2wsh_checker::check(&tx2, &output, 0);
         assert!(res.is_ok());
     }
 
@@ -405,7 +407,7 @@ mod test {
             output: vec![],
         };
 
-        let res = P2TRChecker::check(&tx2, &output, 0);
+        let res = p2tr_checker::check(&tx2, &output, 0);
         assert!(res.is_ok());
     }
 }

@@ -2,7 +2,7 @@
 
 use super::{
     errors::LedgerError,
-    spending_requirements::{P2TRChecker, P2WPKHChecker, P2WSHChecker},
+    spending_requirements::{p2tr_checker, p2wpkh_checker, p2wsh_checker},
     Ledger,
 };
 use bitcoin::{
@@ -105,14 +105,14 @@ impl Ledger {
                     .unwrap()
                     .to_owned();
 
-                let script_pubkey = previous_output.clone().script_pubkey;
+                let script_pubkey = previous_output.script_pubkey.clone();
 
                 if script_pubkey.is_p2wpkh() {
-                    P2WPKHChecker::check(&transaction, &previous_output, input_idx)?;
+                    p2wpkh_checker::check(&transaction, &previous_output, input_idx)?;
                 } else if script_pubkey.is_p2wsh() {
-                    P2WSHChecker::check(&transaction, &previous_output, input_idx)?;
+                    p2wsh_checker::check(&transaction, &previous_output, input_idx)?;
                 } else if script_pubkey.is_p2tr() {
-                    P2TRChecker::check(&transaction, &previous_output, input_idx)?;
+                    p2tr_checker::check(&transaction, &previous_output, input_idx)?;
                 }
             }
         }
