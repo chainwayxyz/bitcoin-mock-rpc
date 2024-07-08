@@ -32,14 +32,12 @@ impl Ledger {
             Err(e) => return Err(LedgerError::Transaction(e.to_string())),
         };
 
-        self.database
-            .lock()
-            .unwrap()
-            .execute(
-                "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
-                params![txid.to_string(), body],
-            )
-            .unwrap();
+        if let Err(e) = self.database.lock().unwrap().execute(
+            "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
+            params![txid.to_string(), body],
+        ) {
+            return Err(LedgerError::AnyHow(e.into()));
+        };
 
         Ok(txid)
     }
