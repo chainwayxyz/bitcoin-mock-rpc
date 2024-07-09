@@ -94,24 +94,31 @@ impl Ledger {
                 input_value, output_value
             )));
         }
-
+        let mut prev_outs = vec![];
         for input in transaction.input.iter() {
-            for input_idx in 0..transaction.input.len() {
-                let previous_output = self.get_transaction(input.previous_output.txid)?.output;
-                let previous_output = previous_output
-                    .get(input.previous_output.vout as usize)
-                    .unwrap()
-                    .to_owned();
+            assert_eq!(
+                input.script_sig.len(),
+                0,
+                "Bitcoin simulator only verifies inputs that support segregated witness."
+            );
 
-                let script_pubkey = previous_output.script_pubkey.clone();
+            let prev_out = self
+                .get_transaction(input.previous_output.txid)?
+                .output
+                .get(input.previous_output.vout as usize)
+                .unwrap()
+                .to_owned();
 
-                if script_pubkey.is_p2wpkh() {
-                    p2wpkh_checker::check(&transaction, &previous_output, input_idx)?;
-                } else if script_pubkey.is_p2wsh() {
-                    p2wsh_checker::check(&transaction, &previous_output, input_idx)?;
-                } else if script_pubkey.is_p2tr() {
-                    p2tr_checker::check(&transaction, &previous_output, input_idx)?;
-                }
+            prev_outs.push(prev_out);
+        }
+
+        for input_idx in 0..transaction.input.len() {
+            if prev_outs[input_idx].script_pubkey.is_p2wpkh() {
+                p2wpkh_checker::check(&transaction, prev_outs.as_slice(), input_idx)?;
+            } else if prev_outs[input_idx].script_pubkey.is_p2wsh() {
+                p2wsh_checker::check(&transaction, &prev_outs, input_idx)?;
+            } else if prev_outs[input_idx].script_pubkey.is_p2tr() {
+                p2tr_checker::check(&transaction, &prev_outs, input_idx)?;
             }
         }
 

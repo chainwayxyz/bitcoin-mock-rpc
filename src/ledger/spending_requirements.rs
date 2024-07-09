@@ -8,21 +8,27 @@ pub mod p2wpkh_checker {
     };
     use secp256k1::Message;
 
-    pub fn check(tx: &Transaction, prevouts: &TxOut, input_idx: usize) -> Result<(), LedgerError> {
-        if prevouts.script_pubkey.len() != 22 {
+    pub fn check(
+        tx: &Transaction,
+        prevouts: &[TxOut],
+        input_idx: usize,
+    ) -> Result<(), LedgerError> {
+        if prevouts[input_idx].script_pubkey.len() != 22 {
             return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for P2WPKH.".to_owned(),
             ));
         }
 
-        let witness_version = prevouts.script_pubkey.as_bytes()[0];
+        let witness_version = prevouts[input_idx].script_pubkey.as_bytes()[0];
         let witness = &tx.input[input_idx].witness;
 
         if witness.len() != 2 {
             return Err(LedgerError::SpendingRequirements("The number of witness elements should be exactly two (the signature and the public key).".to_owned()));
         }
 
-        if witness_version != 0 || prevouts.script_pubkey.as_bytes()[1] != OP_PUSHBYTES_20.to_u8() {
+        if witness_version != 0
+            || prevouts[input_idx].script_pubkey.as_bytes()[1] != OP_PUSHBYTES_20.to_u8()
+        {
             return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for P2WPKH.".to_owned(),
             ));
@@ -32,7 +38,7 @@ pub mod p2wpkh_checker {
 
         let wpkh = pk.wpubkey_hash();
 
-        if !prevouts.script_pubkey.as_bytes()[2..22].eq(AsRef::<[u8]>::as_ref(&wpkh)) {
+        if !prevouts[input_idx].script_pubkey.as_bytes()[2..22].eq(AsRef::<[u8]>::as_ref(&wpkh)) {
             return Err(LedgerError::SpendingRequirements(
                 "The script does not match the script public key.".to_owned(),
             ));
@@ -45,7 +51,7 @@ pub mod p2wpkh_checker {
             .p2wpkh_signature_hash(
                 input_idx,
                 &ScriptBuf::new_p2wpkh(&wpkh),
-                prevouts.value,
+                prevouts[input_idx].value,
                 sig.sighash_type,
             )
             .unwrap();
@@ -63,8 +69,12 @@ pub mod p2wsh_checker {
     use bitcoin::{Script, ScriptBuf, Transaction, TxOut, WitnessProgram};
     use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
 
-    pub fn check(tx: &Transaction, prevouts: &TxOut, input_idx: usize) -> Result<(), LedgerError> {
-        let witness_version = prevouts.script_pubkey.as_bytes()[0];
+    pub fn check(
+        tx: &Transaction,
+        prevouts: &[TxOut],
+        input_idx: usize,
+    ) -> Result<(), LedgerError> {
+        let witness_version = prevouts[input_idx].script_pubkey.as_bytes()[0];
 
         if witness_version != 0 {
             return Err(LedgerError::SpendingRequirements(
@@ -89,7 +99,7 @@ pub mod p2wsh_checker {
         let witness_program = WitnessProgram::p2wsh(&Script::from_bytes(&script));
         let sig_pub_key_expected = ScriptBuf::new_witness_program(&witness_program);
 
-        if *prevouts.script_pubkey != sig_pub_key_expected {
+        if *prevouts[input_idx].script_pubkey != sig_pub_key_expected {
             return Err(LedgerError::SpendingRequirements(
                 "The script does not match the script public key.".to_owned(),
             ));
@@ -97,7 +107,7 @@ pub mod p2wsh_checker {
 
         let tx_template = TxTemplate {
             tx: tx.clone(),
-            prevouts: vec![prevouts.clone()],
+            prevouts: prevouts.to_vec(),
             input_idx,
             taproot_annex_scriptleaf: None,
         };
@@ -133,13 +143,21 @@ pub mod p2tr_checker {
     use crate::ledger::errors::LedgerError;
     use bitcoin::{
         key::TweakedPublicKey,
+        sighash::{Prevouts, SighashCache},
         taproot::{ControlBlock, LeafVersion},
         Script, ScriptBuf, TapLeafHash, Transaction, TxOut, XOnlyPublicKey,
     };
     use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
+    use secp256k1::Message;
 
-    pub fn check(tx: &Transaction, prevouts: &TxOut, input_idx: usize) -> Result<(), LedgerError> {
-        let sig_pub_key_bytes = prevouts.script_pubkey.as_bytes();
+    pub fn check(
+        tx: &Transaction,
+        prevouts: &[TxOut],
+        input_idx: usize,
+    ) -> Result<(), LedgerError> {
+        let secp = secp256k1::Secp256k1::new();
+
+        let sig_pub_key_bytes = prevouts[input_idx].script_pubkey.as_bytes();
 
         let witness_version = sig_pub_key_bytes[0];
         if witness_version != 0x51 {
@@ -157,21 +175,34 @@ pub mod p2tr_checker {
         let mut witness = tx.input[input_idx].witness.to_vec();
         let mut annex: Option<Vec<u8>> = None;
 
+        // Key path spend.
+        if witness.len() == 1 {
+            let signature = witness.pop().unwrap();
+            let signature = bitcoin::taproot::Signature::from_slice(&signature).unwrap();
+
+            let x_only_public_key = XOnlyPublicKey::from_slice(&sig_pub_key_bytes[2..]).unwrap();
+            let mut sighashcache = SighashCache::new(tx.clone());
+            let h = sighashcache
+                .taproot_key_spend_signature_hash(
+                    input_idx,
+                    &Prevouts::All(&tx.output),
+                    signature.sighash_type,
+                )
+                .unwrap();
+
+            let msg = Message::from(h);
+
+            return match x_only_public_key.verify(&secp, &msg, &signature.signature) {
+                Ok(()) => Ok(()),
+                Err(e) => Err(LedgerError::Transaction(e.to_string())),
+            };
+        }
+
         if witness.len() >= 2 && witness[witness.len() - 1][0] == 0x50 {
             annex = Some(witness.pop().unwrap());
-        }
-
-        if witness.len() == 1 {
-            return Err(LedgerError::SpendingRequirements(
-                "The key path spending of Taproot is not implemented.".to_owned(),
-            ));
-        }
-
-        if witness.len() < 2 {
+        } else if witness.len() < 2 {
             return Err(LedgerError::SpendingRequirements("The number of witness elements should be at least two (the script and the control block).".to_owned()));
         }
-
-        let secp = secp256k1::Secp256k1::new();
 
         let control_block = ControlBlock::decode(&witness.pop().unwrap()).unwrap();
         let script_buf = witness.pop().unwrap();
@@ -189,7 +220,7 @@ pub mod p2tr_checker {
 
         let tx_template = TxTemplate {
             tx: tx.clone(),
-            prevouts: vec![prevouts.clone()],
+            prevouts: prevouts.to_vec(),
             input_idx,
             taproot_annex_scriptleaf: Some((
                 TapLeafHash::from_script(script, LeafVersion::TapScript),
@@ -297,7 +328,7 @@ mod test {
 
         tx2.input[0].witness = Witness::p2wpkh(&signature, &credential.public_key);
 
-        let res = p2wpkh_checker::check(&tx2, &output, 0);
+        let res = p2wpkh_checker::check(&tx2, &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -343,7 +374,7 @@ mod test {
             output: vec![],
         };
 
-        let res = p2wsh_checker::check(&tx2, &output, 0);
+        let res = p2wsh_checker::check(&tx2, &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -407,7 +438,78 @@ mod test {
             output: vec![],
         };
 
-        let res = p2tr_checker::check(&tx2, &output, 0);
+        let res = p2tr_checker::check(&tx2, &[output], 0);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    #[ignore]
+    fn p2tr_key_path_spending() {
+        let credential = Ledger::generate_credential_from_key_path_spending_witness();
+
+        let output = TxOut {
+            value: Amount::from_sat(1_000_000_000),
+            script_pubkey: ScriptBuf::new_witness_program(&credential.witness_program.unwrap()),
+        };
+
+        let tx = bitcoin::Transaction {
+            version: Version::ONE,
+            lock_time: LockTime::ZERO,
+            input: vec![],
+            output: vec![output.clone()],
+        };
+
+        let tx_id = tx.compute_txid();
+
+        let input = TxIn {
+            previous_output: OutPoint::new(tx_id, 0),
+            script_sig: ScriptBuf::default(),
+            sequence: Sequence::MAX,
+            witness: credential.witness.unwrap(),
+        };
+
+        let tx2 = bitcoin::Transaction {
+            version: Version::ONE,
+            lock_time: LockTime::ZERO,
+            input: vec![input.clone()],
+            output: vec![],
+        };
+
+        p2tr_checker::check(&tx2, &[output], 0).unwrap();
+    }
+
+    #[test]
+    fn p2tr_custom() {
+        let credential = Ledger::generate_credential_from_witness();
+
+        let output = TxOut {
+            value: Amount::from_sat(1_000_000_000),
+            script_pubkey: ScriptBuf::new_witness_program(&credential.witness_program.unwrap()),
+        };
+
+        let tx = bitcoin::Transaction {
+            version: Version::ONE,
+            lock_time: LockTime::ZERO,
+            input: vec![],
+            output: vec![output.clone()],
+        };
+
+        let tx_id = tx.compute_txid();
+
+        let input = TxIn {
+            previous_output: OutPoint::new(tx_id, 0),
+            script_sig: ScriptBuf::default(),
+            sequence: Sequence::MAX,
+            witness: credential.witness.unwrap(),
+        };
+
+        let tx2 = bitcoin::Transaction {
+            version: Version::ONE,
+            lock_time: LockTime::ZERO,
+            input: vec![input.clone()],
+            output: vec![],
+        };
+
+        p2tr_checker::check(&tx2, &[output], 0).unwrap();
     }
 }
