@@ -121,8 +121,7 @@ pub mod p2wsh_checker {
         )
         .map_err(|e| {
             LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
-        })
-        .unwrap();
+        })?;
         loop {
             if exec.exec_next().is_err() {
                 break;
@@ -237,8 +236,7 @@ pub mod p2tr_checker {
         )
         .map_err(|e| {
             LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
-        })
-        .unwrap();
+        })?;
         loop {
             if exec.exec_next().is_err() {
                 break;
