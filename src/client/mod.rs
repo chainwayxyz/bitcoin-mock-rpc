@@ -35,11 +35,12 @@ impl RpcApiWrapper for Client {
     ///
     /// # Parameters
     ///
-    /// Parameters are just here to match `bitcoincore_rpc::Client::new()`. They
-    /// are not used and can be dummy values.
-    fn new(_url: &str, _auth: bitcoincore_rpc::Auth) -> bitcoincore_rpc::Result<Self> {
+    /// Parameters must match `bitcoincore_rpc::Client::new()`. Only the `url`
+    /// is used for database identification. Authorization struct is not used
+    /// and can be a dummy value.
+    fn new(url: &str, _auth: bitcoincore_rpc::Auth) -> bitcoincore_rpc::Result<Self> {
         Ok(Self {
-            ledger: Ledger::new(),
+            ledger: Ledger::new(url),
         })
     }
 }
@@ -56,12 +57,9 @@ pub fn dump_ledger_inner(ledger: Ledger, pretty: bool) -> String {
 
     const DELIMETER: &str = "\n-----\n";
 
-    let utxos = ledger.get_user_utxos();
-    let transactions = ledger.get_transactions();
-    let credentials = ledger.get_credentials();
+    let transactions = ledger._get_transactions();
 
     if pretty {
-        dump += format!("UTXOs: {:#?}", utxos).as_str();
         dump += DELIMETER;
         dump += format!("Transactions: {:#?}", transactions).as_str();
         dump += DELIMETER;
@@ -74,10 +72,7 @@ pub fn dump_ledger_inner(ledger: Ledger, pretty: bool) -> String {
         )
         .as_str();
         dump += DELIMETER;
-        dump += format!("Credentials: {:#?}", credentials).as_str();
     } else {
-        dump += format!("UTXOs: {:?}", utxos).as_str();
-        dump += DELIMETER;
         dump += format!("Transactions: {:?}", transactions).as_str();
         dump += DELIMETER;
         dump += format!(
@@ -89,7 +84,6 @@ pub fn dump_ledger_inner(ledger: Ledger, pretty: bool) -> String {
         )
         .as_str();
         dump += DELIMETER;
-        dump += format!("Credentials: {:?}", credentials).as_str();
     }
 
     dump
@@ -102,6 +96,6 @@ mod tests {
     /// Creating a new `Client` with dummy parameters should not panic.
     #[test]
     fn new() {
-        let _should_not_panic = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+        let _should_not_panic = Client::new("client_new", bitcoincore_rpc::Auth::None).unwrap();
     }
 }

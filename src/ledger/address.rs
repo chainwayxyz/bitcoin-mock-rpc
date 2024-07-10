@@ -3,7 +3,6 @@
 //! This crate provides address related ledger interfaces.
 
 use super::Ledger;
-use crate::{add_item_to_vec, return_vec_item};
 use bitcoin::{
     opcodes::OP_TRUE,
     taproot::{LeafVersion, TaprootBuilder},
@@ -48,23 +47,12 @@ impl UserCredential {
 }
 
 impl Ledger {
-    /// Adds a new secret/public key + address for the user.
-    pub fn add_credential(&self, credential: UserCredential) -> UserCredential {
-        add_item_to_vec!(self.credentials, credential.clone());
-
-        credential
-    }
-    /// Returns secret/public key + address list of the user.
-    pub fn get_credentials(&self) -> Vec<UserCredential> {
-        return_vec_item!(self.credentials);
-    }
-
     /// Generates a random secret/public key pair and creates a new Bicoin
     /// address from them.
     pub fn generate_credential() -> UserCredential {
         UserCredential::new()
     }
-    /// Creates a Bitcoin address from a witness program.
+    /// Generates a Bitcoin credentials from a witness program.
     pub fn generate_credential_from_witness() -> UserCredential {
         let mut credential = Ledger::generate_credential();
 
@@ -76,6 +64,15 @@ impl Ledger {
         );
 
         credential
+    }
+
+    /// Generates a random Bicoin address.
+    pub fn _generate_address() -> Address {
+        UserCredential::new().address
+    }
+    /// Generates a Bitcoin address from a witness program.
+    pub fn generate_address_from_witness() -> Address {
+        Ledger::generate_credential_from_witness().address
     }
 
     /// Creates a witness for the given secret/public key pair.
@@ -116,18 +113,8 @@ mod tests {
     use bitcoin::{key::TapTweak, AddressType};
 
     #[test]
-    fn add_generate_get_credentials() {
-        let ledger = Ledger::new();
-
-        assert_eq!(ledger.get_credentials().len(), 0);
-
+    fn generate_credentials() {
         let credential = Ledger::generate_credential();
-        ledger.add_credential(credential.clone());
-
-        let credentials = ledger.get_credentials();
-        assert_eq!(credentials.len(), 1);
-
-        assert_eq!(credential, credentials.get(0).unwrap().to_owned());
 
         assert_eq!(
             credential.address.address_type().unwrap(),

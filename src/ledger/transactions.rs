@@ -1,8 +1,16 @@
 //! # Transaction Related Ledger Operations
 
-use super::{errors::LedgerError, Ledger};
-use crate::{add_item_to_vec, get_item, return_vec_item};
-use bitcoin::{absolute, Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid, Witness};
+use super::{
+    errors::LedgerError,
+    spending_requirements::{p2tr_checker, p2wpkh_checker, p2wsh_checker},
+    Ledger,
+};
+use bitcoin::{
+    absolute,
+    consensus::{Decodable, Encodable},
+    Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
+};
+use rusqlite::params;
 
 impl Ledger {
     /// Adds transaction to blockchain, after verifying.
@@ -17,69 +25,62 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
-        let credentials = self.get_credentials();
 
-        // Remove UTXO's that are being used used in this transaction.
-        transaction.input.iter().for_each(|input| {
-            if let Ok(tx) = self.get_transaction(input.previous_output.txid) {
-                let utxo = tx
-                    .output
-                    .get(input.previous_output.vout as usize)
-                    .unwrap()
-                    .to_owned();
-                let script_pubkey = utxo.script_pubkey;
-                for i in 0..credentials.len() {
-                    if credentials[i].address.script_pubkey() == script_pubkey {
-                        self.remove_utxo(credentials[i].address.clone(), input.previous_output);
+        let mut body = Vec::new();
+        match transaction.consensus_encode(&mut body) {
+            Ok(_) => (),
+            Err(e) => return Err(LedgerError::Transaction(e.to_string())),
+        };
 
-                        break;
-                    }
-                }
-            };
-        });
-
-        // Add new UTXO's to address.
-        transaction
-            .output
-            .iter()
-            .enumerate()
-            .for_each(|(vout, output)| {
-                for i in 0..credentials.len() {
-                    if credentials[i].address.script_pubkey() == output.script_pubkey {
-                        let utxo = OutPoint {
-                            txid,
-                            vout: vout as u32,
-                        };
-                        self.add_utxo(credentials[i].address.clone(), utxo);
-
-                        break;
-                    }
-                }
-            });
-
-        // Add transaction to blockchain.
-        add_item_to_vec!(self.transactions, transaction.clone());
+        if let Err(e) = self.database.lock().unwrap().execute(
+            "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
+            params![txid.to_string(), body],
+        ) {
+            return Err(LedgerError::AnyHow(e.into()));
+        };
 
         Ok(txid)
     }
     /// Returns a transaction which matches the given txid.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
-        get_item!(self.transactions, txs);
+        let tx = self.database.lock().unwrap().query_row(
+            "SELECT body FROM transactions WHERE txid = ?1",
+            params![txid.to_string()],
+            |row| {
+                let body = row.get::<_, Vec<u8>>(0).unwrap();
 
-        let tx = txs
-            .iter()
-            .find(|tx| tx.compute_txid() == txid)
-            .ok_or(LedgerError::Transaction(format!(
-                "No transaction with txid {} found in ledger",
-                txid
-            )))?
-            .to_owned();
+                let tx = Transaction::consensus_decode(&mut body.as_slice()).unwrap();
+
+                Ok(tx)
+            },
+        );
+        let tx = match tx {
+            Ok(tx) => tx,
+            Err(e) => {
+                return Err(LedgerError::Transaction(format!(
+                    "{}: {}",
+                    txid,
+                    e.to_string()
+                )))
+            }
+        };
 
         Ok(tx)
     }
-    /// Returns user's list of transactions.
-    pub fn get_transactions(&self) -> Vec<Transaction> {
-        return_vec_item!(self.transactions);
+    pub fn _get_transactions(&self) -> Vec<Transaction> {
+        let database = self.database.lock().unwrap();
+
+        let mut stmt = database.prepare("SELECT body FROM transactions").unwrap();
+        let tx_iter = stmt
+            .query_map([], |row| {
+                let body: Vec<u8> = row.get(0).unwrap();
+                Ok(Transaction::consensus_decode(&mut body.as_slice()).unwrap())
+            })
+            .unwrap();
+
+        let txs: Vec<Transaction> = tx_iter.map(|tx| tx.unwrap()).collect();
+
+        txs
     }
 
     /// Checks if a transaction is valid or not.
@@ -93,27 +94,33 @@ impl Ledger {
                 input_value, output_value
             )));
         }
+        let mut prev_outs = vec![];
+        for input in transaction.input.iter() {
+            assert_eq!(
+                input.script_sig.len(),
+                0,
+                "Bitcoin simulator only verifies inputs that support segregated witness."
+            );
 
-        // TODO: Perform these checks.
-        // for input in transaction.input.iter() {
-        //     for input_idx in 0..transaction.input.len() {
-        //         let previous_output = self.get_transaction(input.previous_output.txid)?.output;
-        //         let previous_output = previous_output
-        //             .get(input.previous_output.vout as usize)
-        //             .unwrap()
-        //             .to_owned();
+            let prev_out = self
+                .get_transaction(input.previous_output.txid)?
+                .output
+                .get(input.previous_output.vout as usize)
+                .unwrap()
+                .to_owned();
 
-        //         let script_pubkey = previous_output.clone().script_pubkey;
+            prev_outs.push(prev_out);
+        }
 
-        //         if script_pubkey.is_p2wpkh() {
-        //             let _ = P2WPKHChecker::check(&transaction, &previous_output, input_idx);
-        //         } else if script_pubkey.is_p2wsh() {
-        //             let _ = P2WSHChecker::check(&transaction, &previous_output, input_idx);
-        //         } else if script_pubkey.is_p2tr() {
-        //             let _ = P2TRChecker::check(&transaction, &previous_output, input_idx);
-        //         }
-        //     }
-        // }
+        for input_idx in 0..transaction.input.len() {
+            if prev_outs[input_idx].script_pubkey.is_p2wpkh() {
+                p2wpkh_checker::check(&transaction, prev_outs.as_slice(), input_idx)?;
+            } else if prev_outs[input_idx].script_pubkey.is_p2wsh() {
+                p2wsh_checker::check(&transaction, &prev_outs, input_idx)?;
+            } else if prev_outs[input_idx].script_pubkey.is_p2tr() {
+                p2tr_checker::check(&transaction, &prev_outs, input_idx)?;
+            }
+        }
 
         Ok(())
     }
@@ -128,18 +135,8 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
-        let utxos = self.get_user_utxos();
 
         for input in transaction.input {
-            // Check if input is in UTXO list.
-            if utxos.iter().all(|utxo| *utxo != input.previous_output) {
-                return Err(LedgerError::Transaction(format!(
-                    "Input {:?} not found in UTXO list",
-                    input.previous_output
-                )));
-            }
-
-            // Add valid input amount to total.
             amount += self
                 .get_transaction(input.previous_output.txid)?
                 .output
@@ -156,19 +153,9 @@ impl Ledger {
     }
 
     /// Creates a `TxIn` with some defaults.
-    pub fn _create_txin(&self, txid: Txid, vout: u32) -> TxIn {
-        get_item!(self.credentials, credentials);
-        let witness = match credentials.last() {
-            Some(c) => match c.to_owned().witness {
-                Some(w) => w,
-                None => Witness::new(),
-            },
-            None => Witness::new(),
-        };
-
+    pub fn create_txin(&self, txid: Txid, vout: u32) -> TxIn {
         TxIn {
             previous_output: OutPoint { txid, vout },
-            witness,
             ..Default::default()
         }
     }
@@ -193,14 +180,14 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::{Amount, ScriptBuf};
+    use bitcoin::{Amount, OutPoint, ScriptBuf, TxIn};
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
     fn transactions_without_checks() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("transactions_without_checks");
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
@@ -211,7 +198,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -224,18 +211,15 @@ mod tests {
     /// Tests transaction operations over ledger, with rule checks.
     #[test]
     fn transactions_with_checks() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("transactions_with_checks");
 
-        let credential = Ledger::generate_credential_from_witness();
-        ledger.add_credential(credential.clone());
+        let credentials = Ledger::generate_credential_from_witness();
+        let address = credentials.address;
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
-        let txout = ledger.create_txout(
-            Amount::from_sat(0x45 * 0x45),
-            credential.address.script_pubkey(),
-        );
+        let txout = ledger.create_txout(Amount::from_sat(0x45 * 0x45), address.script_pubkey());
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
         assert_eq!(
@@ -250,16 +234,17 @@ mod tests {
         };
 
         // Create a valid transaction. This should pass checks.
-        let txin = ledger._create_txin(txid, 0);
-        let txout = ledger.create_txout(
-            Amount::from_sat(0x44 * 0x45),
-            credential.address.script_pubkey(),
-        );
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            witness: credentials.witness.unwrap(),
+            ..Default::default()
+        };
+        let txout = ledger.create_txout(Amount::from_sat(0x44 * 0x45), address.script_pubkey());
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         let txid = tx.compute_txid();
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 2);
 
         let read_tx = txs.get(1).unwrap().to_owned();
@@ -271,13 +256,12 @@ mod tests {
 
     #[test]
     fn calculate_transaction_input_value() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("calculate_transaction_input_value");
 
-        let credential = Ledger::generate_credential();
-        ledger.add_credential(credential.clone());
+        let address = Ledger::generate_address_from_witness();
 
         // Add some funds.
-        let txout = ledger.create_txout(Amount::from_sat(0x45), credential.address.script_pubkey());
+        let txout = ledger.create_txout(Amount::from_sat(0x45), address.script_pubkey());
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = tx.compute_txid();
         assert_eq!(
@@ -291,7 +275,7 @@ mod tests {
             Amount::from_sat(0)
         );
         // Valid input should be OK.
-        let txin = ledger._create_txin(txid, 0);
+        let txin = ledger.create_txin(txid, 0);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         assert_eq!(
             ledger.calculate_transaction_input_value(tx).unwrap(),
@@ -301,7 +285,7 @@ mod tests {
 
     #[test]
     fn calculate_transaction_output_value() {
-        let ledger = Ledger::new();
+        let ledger = Ledger::new("calculate_transaction_output_value");
 
         let txout1 = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout1.clone()]);

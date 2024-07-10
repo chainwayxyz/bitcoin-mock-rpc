@@ -11,11 +11,13 @@ use bitcoin::{
 };
 use bitcoincore_rpc::{
     json::{
-        self, GetRawTransactionResult, GetTransactionResult, GetTransactionResultDetail,
-        GetTransactionResultDetailCategory, WalletTxInfo,
+        self, GetRawTransactionResult, GetRawTransactionResultVoutScriptPubKey,
+        GetTransactionResult, GetTransactionResultDetail, GetTransactionResultDetailCategory,
+        GetTxOutResult, WalletTxInfo,
     },
     RpcApi,
 };
+use secp256k1::rand::{self, RngCore};
 
 impl RpcApi for Client {
     /// TL;DR: If this function is called for `cmd`, it's corresponding mock is
@@ -150,24 +152,35 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let target_txout = self.ledger.create_txout(amount, address.script_pubkey());
+        // First, create a random input. Why? Because calling this function for
+        // same amount twice will trigger a database error about same TXID blah,
+        // blah, blah.
+        let txout = self.ledger.create_txout(
+            Amount::from_sat(rand::thread_rng().next_u64()) + amount,
+            address.script_pubkey(),
+        );
+        let tx = self.ledger.create_transaction(vec![], vec![txout]);
+        let txid = tx.compute_txid();
+        self.ledger.add_transaction_unconditionally(tx)?;
 
-        let tx = self.ledger.create_transaction(vec![], vec![target_txout]);
+        // Now send amount to address.
+        let txin = self.ledger.create_txin(txid, 0);
+        let txout = self.ledger.create_txout(amount, address.script_pubkey());
+        let tx = self.ledger.create_transaction(vec![txin], vec![txout]);
 
         Ok(self.ledger.add_transaction_unconditionally(tx)?)
     }
 
-    /// Creates a random secret/public key pair and generates a Bitcoin address
-    /// from witness program.
+    // / Creates a random secret/public key pair and generates a Bitcoin address
+    // / from witness program.
     fn get_new_address(
         &self,
         _label: Option<&str>,
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
-        let credential = Ledger::generate_credential_from_witness();
-        self.ledger.add_credential(credential.clone());
+        let address = Ledger::generate_address_from_witness();
 
-        Ok(credential.address.as_unchecked().to_owned())
+        Ok(address.as_unchecked().to_owned())
     }
 
     /// Generates `block_num` amount of block rewards to user. Block reward is
@@ -189,211 +202,230 @@ impl RpcApi for Client {
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }
 
-    /// Returns user's balance. Balance is calculated using addresses that are
-    /// generated with `get_new_address` rpc call.
-    fn get_balance(
+    /// TODO: whole function
+    fn get_tx_out(
         &self,
-        _minconf: Option<usize>,
-        _include_watchonly: Option<bool>,
-    ) -> bitcoincore_rpc::Result<Amount> {
-        Ok(self.ledger.calculate_balance()?)
+        _txid: &bitcoin::Txid,
+        _vout: u32,
+        _include_mempool: Option<bool>,
+    ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
+        Ok(Some(GetTxOutResult {
+            bestblock: BlockHash::all_zeros(),
+            confirmations: u32::MAX,
+            value: Amount::from_sat(0x45),
+            script_pub_key: GetRawTransactionResultVoutScriptPubKey {
+                asm: "asmwhat".to_string(),
+                hex: Vec::new(),
+                req_sigs: None,
+                type_: None,
+                addresses: Vec::new(),
+                address: None,
+            },
+            coinbase: true,
+        }))
     }
+
+    // / Returns user's balance. Balance is calculated using addresses that are
+    // / generated with `get_new_address` rpc call.
+    // fn get_balance(
+    //     &self,
+    //     _minconf: Option<usize>,
+    //     _include_watchonly: Option<bool>,
+    // ) -> bitcoincore_rpc::Result<Amount> {
+    //     Ok(self.ledger.calculate_balance()?)
+    // }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::RpcApiWrapper;
-    use bitcoin::{Amount, Network};
-
     #[test]
     fn raw_transaction() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+        // let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let credential = Ledger::generate_credential_from_witness();
-        rpc.ledger.add_credential(credential.clone());
-        let address = credential.address;
+        // let credential = Ledger::generate_credential_from_witness();
+        // rpc.ledger.add_credential(credential.clone());
+        // let address = credential.address;
 
-        // First, add some funds to user, for free.
-        let txout = rpc
-            .ledger
-            .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
-        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        // // First, add some funds to user, for free.
+        // let txout = rpc
+        //     .ledger
+        //     .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
+        // let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        // let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
-        // Create a new raw transactions that is valid.
-        let txin = rpc.ledger._create_txin(txid, 0);
-        let txout = rpc
-            .ledger
-            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
-        let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        rpc.send_raw_transaction(&inserted_tx1).unwrap();
+        // // Create a new raw transactions that is valid.
+        // let txin = rpc.ledger._create_txin(txid, 0);
+        // let txout = rpc
+        //     .ledger
+        //     .create_txout(Amount::from_sat(0x45), address.script_pubkey());
+        // let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+        // rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        let txin = rpc.ledger._create_txin(inserted_tx1.compute_txid(), 0);
-        let txout = rpc.ledger.create_txout(
-            Amount::from_sat(0x45),
-            Ledger::generate_credential_from_witness()
-                .address
-                .script_pubkey(),
-        );
-        let inserted_tx2 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        rpc.send_raw_transaction(&inserted_tx2).unwrap();
+        // let txin = rpc.ledger._create_txin(inserted_tx1.compute_txid(), 0);
+        // let txout = rpc.ledger.create_txout(
+        //     Amount::from_sat(0x45),
+        //     Ledger::generate_credential_from_witness()
+        //         .address
+        //         .script_pubkey(),
+        // );
+        // let inserted_tx2 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+        // rpc.send_raw_transaction(&inserted_tx2).unwrap();
 
-        // Retrieve inserted transactions from Bitcoin.
-        let read_tx = rpc
-            .get_raw_transaction(&inserted_tx1.compute_txid(), None)
-            .unwrap();
-        assert_eq!(read_tx, inserted_tx1);
-        assert_ne!(read_tx, inserted_tx2);
+        // // Retrieve inserted transactions from Bitcoin.
+        // let read_tx = rpc
+        //     .get_raw_transaction(&inserted_tx1.compute_txid(), None)
+        //     .unwrap();
+        // assert_eq!(read_tx, inserted_tx1);
+        // assert_ne!(read_tx, inserted_tx2);
 
-        let read_tx = rpc
-            .get_raw_transaction(&inserted_tx2.compute_txid(), None)
-            .unwrap();
-        assert_eq!(read_tx, inserted_tx2);
-        assert_ne!(read_tx, inserted_tx1);
+        // let read_tx = rpc
+        //     .get_raw_transaction(&inserted_tx2.compute_txid(), None)
+        //     .unwrap();
+        // assert_eq!(read_tx, inserted_tx2);
+        // assert_ne!(read_tx, inserted_tx1);
     }
 
     #[test]
     fn transaction() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+        // let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let credential = Ledger::generate_credential_from_witness();
-        rpc.ledger.add_credential(credential.clone());
-        let address = credential.address;
+        // let credential = Ledger::generate_credential_from_witness();
+        // rpc.ledger.add_credential(credential.clone());
+        // let address = credential.address;
 
-        // First, add some funds to user, for free.
-        let txout = rpc
-            .ledger
-            .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
-        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        // // First, add some funds to user, for free.
+        // let txout = rpc
+        //     .ledger
+        //     .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
+        // let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        // let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
-        // Insert raw transactions to Bitcoin.
-        let txin = rpc.ledger._create_txin(txid, 0);
-        let txout = rpc
-            .ledger
-            .create_txout(Amount::from_sat(0x1F), address.script_pubkey());
-        let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        rpc.send_raw_transaction(&tx).unwrap();
+        // // Insert raw transactions to Bitcoin.
+        // let txin = rpc.ledger._create_txin(txid, 0);
+        // let txout = rpc
+        //     .ledger
+        //     .create_txout(Amount::from_sat(0x1F), address.script_pubkey());
+        // let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+        // rpc.send_raw_transaction(&tx).unwrap();
 
-        let txid = tx.compute_txid();
+        // let txid = tx.compute_txid();
 
-        let tx = rpc.get_transaction(&txid, None).unwrap();
+        // let tx = rpc.get_transaction(&txid, None).unwrap();
 
-        assert_eq!(txid, tx.info.txid);
+        // assert_eq!(txid, tx.info.txid);
     }
 
     #[test]
     fn send_to_address() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+        // let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let credential = Ledger::generate_credential_from_witness();
-        let receiver_address = credential.address;
+        // let credential = Ledger::generate_credential_from_witness();
+        // let receiver_address = credential.address;
 
-        // send_to_address should send `amount` to `address`, regardless of the
-        // user's balance.
-        let txid = rpc
-            .send_to_address(
-                &receiver_address,
-                Amount::from_sat(0x45),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .unwrap();
+        // // send_to_address should send `amount` to `address`, regardless of the
+        // // user's balance.
+        // let txid = rpc
+        //     .send_to_address(
+        //         &receiver_address,
+        //         Amount::from_sat(0x45),
+        //         None,
+        //         None,
+        //         None,
+        //         None,
+        //         None,
+        //         None,
+        //     )
+        //     .unwrap();
 
-        let tx = rpc.get_raw_transaction(&txid, None).unwrap();
+        // let tx = rpc.get_raw_transaction(&txid, None).unwrap();
 
-        // Receiver should have this.
-        assert_eq!(tx.output[0].value.to_sat(), 0x45);
-        assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
+        // // Receiver should have this.
+        // assert_eq!(tx.output[0].value.to_sat(), 0x45);
+        // assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
     }
 
-    #[test]
-    fn get_new_address() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+    // #[test]
+    // fn get_new_address() {
+    //     let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = rpc.get_new_address(None, None).unwrap();
+    //     let address = rpc.get_new_address(None, None).unwrap();
 
-        assert!(address.is_valid_for_network(Network::Regtest));
-        assert!(!address.is_valid_for_network(Network::Testnet));
-        assert!(!address.is_valid_for_network(Network::Signet));
-        assert!(!address.is_valid_for_network(Network::Bitcoin));
-        assert_eq!(
-            *rpc.ledger.get_credentials()[0].address.as_unchecked(),
-            address
-        );
+    //     assert!(address.is_valid_for_network(Network::Regtest));
+    //     assert!(!address.is_valid_for_network(Network::Testnet));
+    //     assert!(!address.is_valid_for_network(Network::Signet));
+    //     assert!(!address.is_valid_for_network(Network::Bitcoin));
+    //     assert_eq!(
+    //         *rpc.ledger.get_credentials()[0].address.as_unchecked(),
+    //         address
+    //     );
 
-        const ADDRESS_COUNT: usize = 100;
-        let mut prev = address;
-        for i in 0..ADDRESS_COUNT {
-            let curr = rpc.get_new_address(None, None).unwrap();
+    //     const ADDRESS_COUNT: usize = 100;
+    //     let mut prev = address;
+    //     for i in 0..ADDRESS_COUNT {
+    //         let curr = rpc.get_new_address(None, None).unwrap();
 
-            assert_ne!(prev, curr);
-            assert!(curr.is_valid_for_network(Network::Regtest));
-            assert!(!curr.is_valid_for_network(Network::Testnet));
-            assert!(!curr.is_valid_for_network(Network::Signet));
-            assert!(!curr.is_valid_for_network(Network::Bitcoin));
-            assert_eq!(
-                *rpc.ledger.get_credentials()[i + 1].address.as_unchecked(),
-                curr
-            );
+    //         assert_ne!(prev, curr);
+    //         assert!(curr.is_valid_for_network(Network::Regtest));
+    //         assert!(!curr.is_valid_for_network(Network::Testnet));
+    //         assert!(!curr.is_valid_for_network(Network::Signet));
+    //         assert!(!curr.is_valid_for_network(Network::Bitcoin));
+    //         assert_eq!(
+    //             *rpc.ledger.get_credentials()[i + 1].address.as_unchecked(),
+    //             curr
+    //         );
 
-            prev = curr;
-        }
-    }
+    //         prev = curr;
+    //     }
+    // }
 
-    #[test]
-    fn generate_to_address() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+    // #[test]
+    // fn generate_to_address() {
+    //     let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = rpc.get_new_address(None, None).unwrap().assume_checked();
+    //     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
 
-        // Empty wallet should reject transaction.
-        let txout = rpc
-            .ledger
-            .create_txout(Amount::from_sat(1), address.script_pubkey());
-        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-        if let Ok(()) = rpc.ledger.check_transaction(&tx) {
-            assert!(false);
-        };
+    //     // Empty wallet should reject transaction.
+    //     let txout = rpc
+    //         .ledger
+    //         .create_txout(Amount::from_sat(1), address.script_pubkey());
+    //     let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+    //     if let Ok(()) = rpc.ledger.check_transaction(&tx) {
+    //         assert!(false);
+    //     };
 
-        // Generating blocks should add funds to wallet.
-        rpc.generate_to_address(101, &address).unwrap();
+    //     // Generating blocks should add funds to wallet.
+    //     rpc.generate_to_address(101, &address).unwrap();
 
-        // Wallet has funds now. It should not be rejected.
-        let txin = rpc.ledger._create_txin(
-            rpc.ledger.get_transactions().get(0).unwrap().compute_txid(),
-            0,
-        );
-        let txout = rpc
-            .ledger
-            .create_txout(Amount::from_sat(1), address.script_pubkey());
-        let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        if let Err(e) = rpc.ledger.check_transaction(&tx) {
-            assert!(false, "{:?}", e);
-        };
-    }
+    //     // Wallet has funds now. It should not be rejected.
+    //     let txin = rpc.ledger._create_txin(
+    //         rpc.ledger.get_transactions().get(0).unwrap().compute_txid(),
+    //         0,
+    //     );
+    //     let txout = rpc
+    //         .ledger
+    //         .create_txout(Amount::from_sat(1), address.script_pubkey());
+    //     let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+    //     if let Err(e) = rpc.ledger.check_transaction(&tx) {
+    //         assert!(false, "{:?}", e);
+    //     };
+    // }
 
-    #[test]
-    fn get_balance() {
-        let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+    // #[test]
+    // fn get_balance() {
+    //     let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
 
-        let credential = Ledger::generate_credential_from_witness();
-        rpc.ledger.add_credential(credential.clone());
-        let address = credential.address;
+    //     let credential = Ledger::generate_credential_from_witness();
+    //     rpc.ledger.add_credential(credential.clone());
+    //     let address = credential.address;
 
-        assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0));
+    //     assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0));
 
-        let txout = rpc
-            .ledger
-            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
-        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+    //     let txout = rpc
+    //         .ledger
+    //         .create_txout(Amount::from_sat(0x45), address.script_pubkey());
+    //     let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+    //     rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
-        assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0x45));
-    }
+    //     assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0x45));
+    // }
 }

@@ -5,40 +5,82 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
-use address::UserCredential;
-use bitcoin::{Address, OutPoint, Transaction};
+use rusqlite::Connection;
 use std::{
-    cell::Cell,
-    collections::HashMap,
+    env,
     sync::{Arc, Mutex},
 };
 
 mod address;
 mod errors;
 mod macros;
-// mod spending_requirements;
+mod spending_requirements;
 mod transactions;
-mod utxo;
+// mod utxo;
 
 /// Mock Bitcoin ledger.
 #[derive(Clone)]
 pub struct Ledger {
-    /// User's keys and address.
-    credentials: Box<Arc<Mutex<Cell<Vec<UserCredential>>>>>,
-    /// Happened transactions.
-    transactions: Box<Arc<Mutex<Cell<Vec<Transaction>>>>>,
-    /// Unspent transaction outputs, for every addresses.
-    utxos: Box<Arc<Mutex<Cell<HashMap<Address, Vec<OutPoint>>>>>>,
+    /// Database connection.
+    database: Arc<Mutex<Connection>>,
 }
 
 impl Ledger {
     /// Creates a new empty ledger.
-    pub fn new() -> Self {
+    ///
+    /// An SQLite database created at OS's temp directory. Database is named
+    /// `path`. This can be used to identify different databases created by
+    /// different tests.
+    ///
+    /// # Panics
+    ///
+    /// Panics if SQLite connection can't be established and initial query can't
+    /// be run.
+    pub fn new(path: &str) -> Self {
+        let temp_dir = env::temp_dir();
+        let path = temp_dir.to_str().unwrap().to_owned() + "/" + path;
+
+        let database = Connection::open(path).unwrap();
+
+        Ledger::drop_databases(&database).unwrap();
+        Ledger::create_databases(&database).unwrap();
+
         Self {
-            credentials: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
-            transactions: Box::new(Arc::new(Mutex::new(Cell::new(Vec::new())))),
-            utxos: Box::new(Arc::new(Mutex::new(Cell::new(HashMap::new())))),
+            database: Arc::new(Mutex::new(database)),
         }
+    }
+
+    pub fn drop_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+        database.execute_batch(
+            "
+                DROP TABLE IF EXISTS transactions;
+                DROP TABLE IF EXISTS utxos;
+                ",
+        )
+    }
+
+    pub fn create_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+        database.execute_batch(
+            "
+                CREATE TABLE \"transactions\"
+                (
+                    txid        TEXT    not null
+                        constraint txid primary key,
+                    body        blob    not null
+                );
+
+                CREATE TABLE utxos
+                (
+                    txid           TEXT              not null,
+                    vout           integer           not null,
+                    value          integer           not null,
+                    script_pubkey  BLOB              not null,
+                    is_spent       INTEGER default 0 not null,
+                    constraint utxos_pk
+                        primary key (txid, vout)
+                );
+                ",
+        )
     }
 }
 
@@ -48,6 +90,6 @@ mod tests {
 
     #[test]
     fn new() {
-        let _should_not_panic = Ledger::new();
+        let _should_not_panic = Ledger::new("ledger_new");
     }
 }

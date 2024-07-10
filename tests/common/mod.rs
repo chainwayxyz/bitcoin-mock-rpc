@@ -48,9 +48,7 @@ pub fn create_witness() -> (WitnessProgram, Witness) {
 }
 
 #[allow(unused)]
-pub fn create_address_from_witness() -> Address {
-    let witness_program = create_witness().0;
-
+pub fn create_address_from_witness(witness_program: WitnessProgram) -> Address {
     Address::from_witness_program(witness_program, bitcoin::Network::Regtest)
 }
 
