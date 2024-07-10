@@ -65,19 +65,6 @@ impl Ledger {
 
         credential
     }
-    /// Generates a Bitcoin credentials from a key path spending witness program.
-    pub fn generate_credential_from_key_path_spending_witness() -> UserCredential {
-        let mut credential = Ledger::generate_credential();
-
-        Ledger::create_key_path_spending_witness(&mut credential);
-
-        credential.address = Address::from_witness_program(
-            credential.witness_program.unwrap(),
-            bitcoin::Network::Regtest,
-        );
-
-        credential
-    }
 
     /// Generates a random Bicoin address.
     pub fn _generate_address() -> Address {
@@ -86,10 +73,6 @@ impl Ledger {
     /// Generates a Bitcoin address from a witness program.
     pub fn generate_address_from_witness() -> Address {
         Ledger::generate_credential_from_witness().address
-    }
-    /// Generates a Bitcoin address from a key path spending witness program.
-    pub fn generate_address_from_key_path_spending_witness() -> Address {
-        Ledger::generate_credential_from_key_path_spending_witness().address
     }
 
     /// Creates a witness for the given secret/public key pair.
@@ -118,29 +101,6 @@ impl Ledger {
         let mut witness = Witness::new();
         witness.push(script.to_bytes());
         witness.push(control_block_bytes);
-
-        credential.witness = Some(witness);
-        credential.witness_program = Some(witness_program);
-    }
-
-    /// Creates a witness for taproot key path spending outputs.
-    pub fn create_key_path_spending_witness(credential: &mut UserCredential) {
-        let mut script = ScriptBuf::new();
-        script.push_instruction(bitcoin::script::Instruction::Op(OP_TRUE));
-
-        let taproot_builder = TaprootBuilder::new().add_leaf(0, script.clone()).unwrap();
-        let taproot_spend_info = taproot_builder
-            .finalize(&credential.secp, credential.x_only_public_key)
-            .unwrap();
-
-        let witness_program = WitnessProgram::p2tr(
-            &credential.secp,
-            credential.x_only_public_key,
-            taproot_spend_info.merkle_root(),
-        );
-
-        let mut witness = Witness::new();
-        witness.push(script.to_bytes());
 
         credential.witness = Some(witness);
         credential.witness_program = Some(witness_program);

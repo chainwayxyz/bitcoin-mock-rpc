@@ -443,43 +443,7 @@ mod test {
     }
 
     #[test]
-    #[ignore]
-    fn p2tr_key_path_spending() {
-        let credential = Ledger::generate_credential_from_key_path_spending_witness();
-
-        let output = TxOut {
-            value: Amount::from_sat(1_000_000_000),
-            script_pubkey: ScriptBuf::new_witness_program(&credential.witness_program.unwrap()),
-        };
-
-        let tx = bitcoin::Transaction {
-            version: Version::ONE,
-            lock_time: LockTime::ZERO,
-            input: vec![],
-            output: vec![output.clone()],
-        };
-
-        let tx_id = tx.compute_txid();
-
-        let input = TxIn {
-            previous_output: OutPoint::new(tx_id, 0),
-            script_sig: ScriptBuf::default(),
-            sequence: Sequence::MAX,
-            witness: credential.witness.unwrap(),
-        };
-
-        let tx2 = bitcoin::Transaction {
-            version: Version::ONE,
-            lock_time: LockTime::ZERO,
-            input: vec![input.clone()],
-            output: vec![],
-        };
-
-        p2tr_checker::check(&tx2, &[output], 0).unwrap();
-    }
-
-    #[test]
-    fn p2tr_custom() {
+    fn p2tr_random_witness() {
         let credential = Ledger::generate_credential_from_witness();
 
         let output = TxOut {
