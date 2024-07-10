@@ -2,7 +2,7 @@
 
 use super::{
     errors::LedgerError,
-    spending_requirements::{P2TRChecker, P2WPKHChecker, P2WSHChecker},
+    spending_requirements::{p2tr_checker, p2wpkh_checker, p2wsh_checker},
     Ledger,
 };
 use bitcoin::{
@@ -32,14 +32,12 @@ impl Ledger {
             Err(e) => return Err(LedgerError::Transaction(e.to_string())),
         };
 
-        self.database
-            .lock()
-            .unwrap()
-            .execute(
-                "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
-                params![txid.to_string(), body],
-            )
-            .unwrap();
+        if let Err(e) = self.database.lock().unwrap().execute(
+            "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
+            params![txid.to_string(), body],
+        ) {
+            return Err(LedgerError::AnyHow(e.into()));
+        };
 
         Ok(txid)
     }
@@ -96,24 +94,31 @@ impl Ledger {
                 input_value, output_value
             )));
         }
-
+        let mut prev_outs = vec![];
         for input in transaction.input.iter() {
-            for input_idx in 0..transaction.input.len() {
-                let previous_output = self.get_transaction(input.previous_output.txid)?.output;
-                let previous_output = previous_output
-                    .get(input.previous_output.vout as usize)
-                    .unwrap()
-                    .to_owned();
+            assert_eq!(
+                input.script_sig.len(),
+                0,
+                "Bitcoin simulator only verifies inputs that support segregated witness."
+            );
 
-                let script_pubkey = previous_output.clone().script_pubkey;
+            let prev_out = self
+                .get_transaction(input.previous_output.txid)?
+                .output
+                .get(input.previous_output.vout as usize)
+                .unwrap()
+                .to_owned();
 
-                if script_pubkey.is_p2wpkh() {
-                    P2WPKHChecker::check(&transaction, &previous_output, input_idx)?;
-                } else if script_pubkey.is_p2wsh() {
-                    P2WSHChecker::check(&transaction, &previous_output, input_idx)?;
-                } else if script_pubkey.is_p2tr() {
-                    P2TRChecker::check(&transaction, &previous_output, input_idx)?;
-                }
+            prev_outs.push(prev_out);
+        }
+
+        for input_idx in 0..transaction.input.len() {
+            if prev_outs[input_idx].script_pubkey.is_p2wpkh() {
+                p2wpkh_checker::check(&transaction, prev_outs.as_slice(), input_idx)?;
+            } else if prev_outs[input_idx].script_pubkey.is_p2wsh() {
+                p2wsh_checker::check(&transaction, &prev_outs, input_idx)?;
+            } else if prev_outs[input_idx].script_pubkey.is_p2tr() {
+                p2tr_checker::check(&transaction, &prev_outs, input_idx)?;
             }
         }
 
@@ -148,7 +153,7 @@ impl Ledger {
     }
 
     /// Creates a `TxIn` with some defaults.
-    pub fn _create_txin(&self, txid: Txid, vout: u32) -> TxIn {
+    pub fn create_txin(&self, txid: Txid, vout: u32) -> TxIn {
         TxIn {
             previous_output: OutPoint { txid, vout },
             ..Default::default()
@@ -270,7 +275,7 @@ mod tests {
             Amount::from_sat(0)
         );
         // Valid input should be OK.
-        let txin = ledger._create_txin(txid, 0);
+        let txin = ledger.create_txin(txid, 0);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         assert_eq!(
             ledger.calculate_transaction_input_value(tx).unwrap(),

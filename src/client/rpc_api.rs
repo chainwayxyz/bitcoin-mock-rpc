@@ -17,6 +17,7 @@ use bitcoincore_rpc::{
     },
     RpcApi,
 };
+use secp256k1::rand::{self, RngCore};
 
 impl RpcApi for Client {
     /// TL;DR: If this function is called for `cmd`, it's corresponding mock is
@@ -151,9 +152,21 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let target_txout = self.ledger.create_txout(amount, address.script_pubkey());
+        // First, create a random input. Why? Because calling this function for
+        // same amount twice will trigger a database error about same TXID blah,
+        // blah, blah.
+        let txout = self.ledger.create_txout(
+            Amount::from_sat(rand::thread_rng().next_u64()) + amount,
+            address.script_pubkey(),
+        );
+        let tx = self.ledger.create_transaction(vec![], vec![txout]);
+        let txid = tx.compute_txid();
+        self.ledger.add_transaction_unconditionally(tx)?;
 
-        let tx = self.ledger.create_transaction(vec![], vec![target_txout]);
+        // Now send amount to address.
+        let txin = self.ledger.create_txin(txid, 0);
+        let txout = self.ledger.create_txout(amount, address.script_pubkey());
+        let tx = self.ledger.create_transaction(vec![txin], vec![txout]);
 
         Ok(self.ledger.add_transaction_unconditionally(tx)?)
     }
