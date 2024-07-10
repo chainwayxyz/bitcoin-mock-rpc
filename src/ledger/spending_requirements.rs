@@ -185,7 +185,7 @@ pub mod p2tr_checker {
             let h = sighashcache
                 .taproot_key_spend_signature_hash(
                     input_idx,
-                    &Prevouts::All(&tx.output),
+                    &Prevouts::All(&prevouts),
                     signature.sighash_type,
                 )
                 .unwrap();
