@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Taproot key path spending check added
+- Commented out spending requirements are re-added
+
 ### Changed
 
+- Ledger holds data in a SQLite database, not in memory
 - Tag name in changelog fixed
+
+### Removed
+
+- UTXO management is removed, because it's not needed and can cause problems with other parts
 
 ## [0.0.1] - 2024-07-04
 
