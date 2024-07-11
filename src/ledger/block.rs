@@ -10,7 +10,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if cannot get height from database.
-    pub fn get_block_height(&self) -> Result<usize, LedgerError> {
+    pub fn get_block_height(&self) -> Result<u64, LedgerError> {
         Ok(self
             .database
             .lock()
@@ -18,7 +18,7 @@ impl Ledger {
             .query_row("SELECT height FROM blocks", params![], |row| {
                 let body = row.get::<_, i64>(0)?;
 
-                Ok(body as usize)
+                Ok(body as u64)
             })
             .unwrap())
     }
@@ -28,7 +28,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if cannot set height to database.
-    pub fn set_block_height(&self, height: usize) {
+    pub fn set_block_height(&self, height: u64) {
         self.database
             .lock()
             .unwrap()
