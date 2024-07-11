@@ -1,8 +1,7 @@
 //! # Block Related Ledger Operations
 
-use rusqlite::params;
-
 use super::{errors::LedgerError, Ledger};
+use rusqlite::params;
 
 impl Ledger {
     /// Returns current block height.

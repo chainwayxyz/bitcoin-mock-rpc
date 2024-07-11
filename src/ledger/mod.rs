@@ -15,6 +15,7 @@ mod address;
 mod block;
 mod errors;
 mod macros;
+mod script;
 mod spending_requirements;
 mod transactions;
 // mod utxo;

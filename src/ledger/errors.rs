@@ -13,6 +13,8 @@ pub enum LedgerError {
     Utxo(String),
     #[error("SpendingRequirements error: {0}")]
     SpendingRequirements(String),
+    #[error("Script error: {0}")]
+    Script(String),
     #[error("Anyhow error: {0}")]
     AnyHow(anyhow::Error),
 }

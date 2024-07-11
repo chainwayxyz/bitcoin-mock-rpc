@@ -65,9 +65,9 @@ pub mod p2wpkh_checker {
 }
 
 pub mod p2wsh_checker {
-    use crate::ledger::errors::LedgerError;
+    use crate::ledger::{errors::LedgerError, Ledger};
     use bitcoin::{Script, ScriptBuf, Transaction, TxOut, WitnessProgram};
-    use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
+    use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 
     pub fn check(
         tx: &Transaction,
@@ -112,41 +112,26 @@ pub mod p2wsh_checker {
             taproot_annex_scriptleaf: None,
         };
 
-        let mut exec = Exec::new(
+        Ledger::run_script(
             ExecCtx::SegwitV0,
-            Options::default(),
             tx_template,
             ScriptBuf::from_bytes(script.to_vec()),
             witness,
-        )
-        .map_err(|e| {
-            LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
-        })?;
-        loop {
-            if exec.exec_next().is_err() {
-                break;
-            }
-        }
-        let res = exec.result().unwrap();
-        if !res.success {
-            return Err(LedgerError::SpendingRequirements(
-                "The script execution is not successful.".to_owned(),
-            ));
-        }
+        )?;
 
         Ok(())
     }
 }
 
 pub mod p2tr_checker {
-    use crate::ledger::errors::LedgerError;
+    use crate::ledger::{errors::LedgerError, Ledger};
     use bitcoin::{
         key::TweakedPublicKey,
         sighash::{Prevouts, SighashCache},
         taproot::{ControlBlock, LeafVersion},
         Script, ScriptBuf, TapLeafHash, Transaction, TxOut, XOnlyPublicKey,
     };
-    use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
+    use bitcoin_scriptexec::{ExecCtx, TxTemplate};
     use secp256k1::Message;
 
     pub fn check(
@@ -154,6 +139,7 @@ pub mod p2tr_checker {
         prevouts: &[TxOut],
         input_idx: usize,
     ) -> Result<(), LedgerError> {
+        println!("--- checc {:#?}", tx);
         let secp = secp256k1::Secp256k1::new();
 
         let sig_pub_key_bytes = prevouts[input_idx].script_pubkey.as_bytes();
@@ -227,27 +213,12 @@ pub mod p2tr_checker {
             )),
         };
 
-        let mut exec = Exec::new(
+        Ledger::run_script(
             ExecCtx::Tapscript,
-            Options::default(),
             tx_template,
             ScriptBuf::from_bytes(script_buf),
             witness,
-        )
-        .map_err(|e| {
-            LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
-        })?;
-        loop {
-            if exec.exec_next().is_err() {
-                break;
-            }
-        }
-        let res = exec.result().unwrap();
-        if !res.success {
-            return Err(LedgerError::SpendingRequirements(
-                "The script execution is not successful.".to_owned(),
-            ));
-        }
+        )?;
 
         Ok(())
     }
