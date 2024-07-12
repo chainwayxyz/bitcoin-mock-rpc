@@ -1,6 +1,7 @@
 //! # Block Related Ledger Operations
 
 use super::Ledger;
+use bitcoin::Txid;
 use rusqlite::params;
 
 impl Ledger {
@@ -18,6 +19,27 @@ impl Ledger {
 
                 Ok(body as u64)
             })
+            .unwrap()
+    }
+
+    /// Returns specified transaction's block height.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if cannot get height from database.
+    pub fn get_tx_block_height(&self, txid: Txid) -> u64 {
+        self.database
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT (block_height) FROM transactions WHERE txid = ?1",
+                params![txid.to_string()],
+                |row| {
+                    let body = row.get::<_, i64>(0).unwrap();
+
+                    Ok(body as u64)
+                },
+            )
             .unwrap()
     }
 
