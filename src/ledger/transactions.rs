@@ -1,10 +1,6 @@
 //! # Transaction Related Ledger Operations
 
-use super::{
-    errors::LedgerError,
-    spending_requirements::{p2tr_checker, p2wpkh_checker, p2wsh_checker},
-    Ledger,
-};
+use super::{errors::LedgerError, Ledger};
 use bitcoin::{
     absolute,
     consensus::{Decodable, Encodable},
@@ -25,6 +21,7 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
+        let current_block_height = self.get_block_height();
 
         let mut body = Vec::new();
         match transaction.consensus_encode(&mut body) {
@@ -33,8 +30,8 @@ impl Ledger {
         };
 
         if let Err(e) = self.database.lock().unwrap().execute(
-            "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
-            params![txid.to_string(), body],
+            "INSERT INTO \"transactions\" (txid, block_height, body) VALUES (?1, ?2, ?3)",
+            params![txid.to_string(), current_block_height, body],
         ) {
             return Err(LedgerError::AnyHow(e.into()));
         };
@@ -94,6 +91,8 @@ impl Ledger {
                 input_value, output_value
             )));
         }
+
+        let mut block_heights = vec![];
         let mut prev_outs = vec![];
         for input in transaction.input.iter() {
             assert_eq!(
@@ -102,23 +101,25 @@ impl Ledger {
                 "Bitcoin simulator only verifies inputs that support segregated witness."
             );
 
-            let prev_out = self
-                .get_transaction(input.previous_output.txid)?
+            let tx = self.get_transaction(input.previous_output.txid)?;
+            let prev_out = tx
                 .output
                 .get(input.previous_output.vout as usize)
                 .unwrap()
                 .to_owned();
+            let block_height = self.get_tx_block_height(tx.compute_txid());
 
             prev_outs.push(prev_out);
+            block_heights.push(block_height);
         }
 
         for input_idx in 0..transaction.input.len() {
             if prev_outs[input_idx].script_pubkey.is_p2wpkh() {
-                p2wpkh_checker::check(&transaction, prev_outs.as_slice(), input_idx)?;
+                self.p2wpkh_check(&transaction, prev_outs.as_slice(), input_idx)?;
             } else if prev_outs[input_idx].script_pubkey.is_p2wsh() {
-                p2wsh_checker::check(&transaction, &prev_outs, input_idx)?;
+                self.p2wsh_check(&transaction, &prev_outs, input_idx, &block_heights)?;
             } else if prev_outs[input_idx].script_pubkey.is_p2tr() {
-                p2tr_checker::check(&transaction, &prev_outs, input_idx)?;
+                self.p2tr_check(&transaction, &prev_outs, input_idx, &block_heights)?;
             }
         }
 

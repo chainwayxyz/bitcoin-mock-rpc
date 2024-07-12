@@ -12,8 +12,10 @@ use std::{
 };
 
 mod address;
+mod block;
 mod errors;
 mod macros;
+mod script;
 mod spending_requirements;
 mod transactions;
 // mod utxo;
@@ -53,6 +55,7 @@ impl Ledger {
     pub fn drop_databases(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
+                DROP TABLE IF EXISTS blocks;
                 DROP TABLE IF EXISTS transactions;
                 DROP TABLE IF EXISTS utxos;
                 ",
@@ -61,12 +64,18 @@ impl Ledger {
 
     pub fn create_databases(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
-            "
-                CREATE TABLE \"transactions\"
+            "CREATE TABLE blocks
                 (
-                    txid        TEXT    not null
+                    height         integer           not null
+                );
+                INSERT INTO blocks (height) VALUES (0);
+
+                CREATE TABLE transactions
+                (
+                    txid          TEXT    not null
                         constraint txid primary key,
-                    body        blob    not null
+                    block_height  integer not null,
+                    body          blob    not null
                 );
 
                 CREATE TABLE utxos

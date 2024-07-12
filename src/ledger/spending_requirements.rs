@@ -1,14 +1,24 @@
 //! # Spending Requirements
 
-pub mod p2wpkh_checker {
-    use crate::ledger::errors::LedgerError;
-    use bitcoin::{
-        ecdsa::Signature, opcodes::all::OP_PUSHBYTES_20, sighash::SighashCache,
-        CompressedPublicKey, ScriptBuf, Transaction, TxOut,
-    };
-    use secp256k1::Message;
+use super::Ledger;
+use crate::ledger::errors::LedgerError;
+use bitcoin::{
+    ecdsa::Signature, opcodes::all::OP_PUSHBYTES_20, sighash::SighashCache, CompressedPublicKey,
+    ScriptBuf, Transaction, TxOut,
+};
+use bitcoin::{
+    key::TweakedPublicKey,
+    sighash::Prevouts,
+    taproot::{ControlBlock, LeafVersion},
+    TapLeafHash, XOnlyPublicKey,
+};
+use bitcoin::{Script, WitnessProgram};
+use bitcoin_scriptexec::{ExecCtx, TxTemplate};
+use secp256k1::Message;
 
-    pub fn check(
+impl Ledger {
+    pub fn p2wpkh_check(
+        &self,
         tx: &Transaction,
         prevouts: &[TxOut],
         input_idx: usize,
@@ -62,17 +72,13 @@ pub mod p2wpkh_checker {
 
         Ok(())
     }
-}
 
-pub mod p2wsh_checker {
-    use crate::ledger::errors::LedgerError;
-    use bitcoin::{Script, ScriptBuf, Transaction, TxOut, WitnessProgram};
-    use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
-
-    pub fn check(
+    pub fn p2wsh_check(
+        &self,
         tx: &Transaction,
         prevouts: &[TxOut],
         input_idx: usize,
+        input_block_heights: &Vec<u64>,
     ) -> Result<(), LedgerError> {
         let witness_version = prevouts[input_idx].script_pubkey.as_bytes()[0];
 
@@ -112,48 +118,23 @@ pub mod p2wsh_checker {
             taproot_annex_scriptleaf: None,
         };
 
-        let mut exec = Exec::new(
+        self.run_script(
             ExecCtx::SegwitV0,
-            Options::default(),
             tx_template,
             ScriptBuf::from_bytes(script.to_vec()),
             witness,
-        )
-        .map_err(|e| {
-            LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
-        })
-        .unwrap();
-        loop {
-            if exec.exec_next().is_err() {
-                break;
-            }
-        }
-        let res = exec.result().unwrap();
-        if !res.success {
-            return Err(LedgerError::SpendingRequirements(
-                "The script execution is not successful.".to_owned(),
-            ));
-        }
+            input_block_heights,
+        )?;
 
         Ok(())
     }
-}
 
-pub mod p2tr_checker {
-    use crate::ledger::errors::LedgerError;
-    use bitcoin::{
-        key::TweakedPublicKey,
-        sighash::{Prevouts, SighashCache},
-        taproot::{ControlBlock, LeafVersion},
-        Script, ScriptBuf, TapLeafHash, Transaction, TxOut, XOnlyPublicKey,
-    };
-    use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
-    use secp256k1::Message;
-
-    pub fn check(
+    pub fn p2tr_check(
+        &self,
         tx: &Transaction,
         prevouts: &[TxOut],
         input_idx: usize,
+        input_block_heights: &Vec<u64>,
     ) -> Result<(), LedgerError> {
         let secp = secp256k1::Secp256k1::new();
 
@@ -228,28 +209,13 @@ pub mod p2tr_checker {
             )),
         };
 
-        let mut exec = Exec::new(
+        self.run_script(
             ExecCtx::Tapscript,
-            Options::default(),
             tx_template,
             ScriptBuf::from_bytes(script_buf),
             witness,
-        )
-        .map_err(|e| {
-            LedgerError::SpendingRequirements(format!("The script cannot be executed: {:?}", e))
-        })
-        .unwrap();
-        loop {
-            if exec.exec_next().is_err() {
-                break;
-            }
-        }
-        let res = exec.result().unwrap();
-        if !res.success {
-            return Err(LedgerError::SpendingRequirements(
-                "The script execution is not successful.".to_owned(),
-            ));
-        }
+            input_block_heights,
+        )?;
 
         Ok(())
     }
@@ -258,7 +224,6 @@ pub mod p2tr_checker {
 #[cfg(test)]
 mod test {
     define_pushable!();
-    use crate::ledger::spending_requirements::{p2tr_checker, p2wpkh_checker, p2wsh_checker};
     use crate::ledger::Ledger;
     use bitcoin::absolute::LockTime;
     use bitcoin::ecdsa::Signature;
@@ -277,6 +242,7 @@ mod test {
 
     #[test]
     fn p2wpkh() {
+        let ledger = Ledger::new("p2wpkh");
         let credential = Ledger::generate_credential_from_witness();
 
         let wpkh = bitcoin::PublicKey::new(credential.public_key)
@@ -328,12 +294,13 @@ mod test {
 
         tx2.input[0].witness = Witness::p2wpkh(&signature, &credential.public_key);
 
-        let res = p2wpkh_checker::check(&tx2, &[output], 0);
+        let res = ledger.p2wpkh_check(&tx2, &[output], 0);
         assert!(res.is_ok());
     }
 
     #[test]
     fn p2wsh() {
+        let ledger = Ledger::new("p2wsh");
         let witness_program = WitnessProgram::p2wsh(Script::from_bytes(
             &script! {
                 { 1234 } OP_EQUAL
@@ -374,12 +341,13 @@ mod test {
             output: vec![],
         };
 
-        let res = p2wsh_checker::check(&tx2, &[output], 0);
+        let res = ledger.p2wsh_check(&tx2, &[output], 0, &vec![]);
         assert!(res.is_ok());
     }
 
     #[test]
     fn p2tr() {
+        let ledger = Ledger::new("p2tr");
         let secp = bitcoin::secp256k1::Secp256k1::new();
         let internal_key = UntweakedPublicKey::from(
             bitcoin::secp256k1::PublicKey::from_str(
@@ -438,12 +406,13 @@ mod test {
             output: vec![],
         };
 
-        let res = p2tr_checker::check(&tx2, &[output], 0);
+        let res = ledger.p2tr_check(&tx2, &[output], 0, &vec![]);
         assert!(res.is_ok());
     }
 
     #[test]
     fn p2tr_random_witness() {
+        let ledger = Ledger::new("p2tr_random_witness");
         let credential = Ledger::generate_credential_from_witness();
 
         let output = TxOut {
@@ -474,6 +443,6 @@ mod test {
             output: vec![],
         };
 
-        p2tr_checker::check(&tx2, &[output], 0).unwrap();
+        ledger.p2tr_check(&tx2, &[output], 0, &vec![]).unwrap();
     }
 }
