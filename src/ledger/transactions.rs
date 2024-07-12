@@ -35,6 +35,12 @@ impl Ledger {
         ) {
             return Err(LedgerError::AnyHow(e.into()));
         };
+        if let Err(e) = self.database.lock().unwrap().execute(
+            "INSERT INTO \"mempool\" (txid) VALUES (?1)",
+            params![txid.to_string()],
+        ) {
+            return Err(LedgerError::AnyHow(e.into()));
+        };
 
         Ok(txid)
     }

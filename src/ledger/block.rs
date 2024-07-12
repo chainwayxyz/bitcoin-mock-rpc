@@ -66,6 +66,20 @@ impl Ledger {
         let current_height = self.get_block_height();
         self.set_block_height(current_height + 1);
     }
+
+    /// Cleans up mempool. This should only be called when transactions are
+    /// mined.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    pub fn clean_mempool(&self) {
+        self.database
+            .lock()
+            .unwrap()
+            .execute("DELETE FROM mempool", params![])
+            .unwrap();
+    }
 }
 
 #[cfg(test)]

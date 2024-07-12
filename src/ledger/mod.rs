@@ -56,7 +56,9 @@ impl Ledger {
         database.execute_batch(
             "
                 DROP TABLE IF EXISTS blocks;
+                DROP TABLE IF EXISTS mempool;
                 DROP TABLE IF EXISTS transactions;
+                DROP TABLE IF EXISTS mempool;
                 DROP TABLE IF EXISTS utxos;
                 ",
         )
@@ -69,6 +71,12 @@ impl Ledger {
                     height         integer           not null
                 );
                 INSERT INTO blocks (height) VALUES (0);
+
+                CREATE TABLE mempool
+                (
+                    txid          TEXT    not null
+                        constraint txid primary key
+                );
 
                 CREATE TABLE transactions
                 (

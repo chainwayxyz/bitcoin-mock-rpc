@@ -264,6 +264,8 @@ impl RpcApi for Client {
 
         self.ledger.add_transaction_unconditionally(tx)?;
 
+        self.ledger.clean_mempool();
+
         // Finally, increase the block height.
         let current_height = self.ledger.get_block_height();
         self.ledger.set_block_height(current_height + block_num);
