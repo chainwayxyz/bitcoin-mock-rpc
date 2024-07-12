@@ -3,18 +3,18 @@
 use super::Ledger;
 use crate::ledger::errors::LedgerError;
 use bitcoin::{
-    ecdsa::Signature, opcodes::all::OP_PUSHBYTES_20, sighash::SighashCache,
-    CompressedPublicKey, ScriptBuf, Transaction, TxOut,
+    ecdsa::Signature, opcodes::all::OP_PUSHBYTES_20, sighash::SighashCache, CompressedPublicKey,
+    ScriptBuf, Transaction, TxOut,
 };
-use secp256k1::Message;
-use bitcoin::{Script, WitnessProgram};
-use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use bitcoin::{
     key::TweakedPublicKey,
     sighash::Prevouts,
-    taproot::{ControlBlock, LeafVersion}, TapLeafHash, XOnlyPublicKey,
+    taproot::{ControlBlock, LeafVersion},
+    TapLeafHash, XOnlyPublicKey,
 };
-
+use bitcoin::{Script, WitnessProgram};
+use bitcoin_scriptexec::{ExecCtx, TxTemplate};
+use secp256k1::Message;
 
 impl Ledger {
     pub fn p2wpkh_check(

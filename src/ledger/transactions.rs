@@ -1,9 +1,6 @@
 //! # Transaction Related Ledger Operations
 
-use super::{
-    errors::LedgerError,
-    Ledger,
-};
+use super::{errors::LedgerError, Ledger};
 use bitcoin::{
     absolute,
     consensus::{Decodable, Encodable},
@@ -24,6 +21,7 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
+        let current_block_height = self.get_block_height();
 
         let mut body = Vec::new();
         match transaction.consensus_encode(&mut body) {
@@ -32,8 +30,8 @@ impl Ledger {
         };
 
         if let Err(e) = self.database.lock().unwrap().execute(
-            "INSERT INTO \"transactions\" (txid, body) VALUES (?1, ?2)",
-            params![txid.to_string(), body],
+            "INSERT INTO \"transactions\" (txid, block_height, body) VALUES (?1, ?2, ?3)",
+            params![txid.to_string(), current_block_height, body],
         ) {
             return Err(LedgerError::AnyHow(e.into()));
         };

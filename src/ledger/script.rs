@@ -1,7 +1,10 @@
 //! # Script Related Ledger Operations
 
 use super::{errors::LedgerError, Ledger};
-use bitcoin::{opcodes::all::{OP_CSV, OP_PUSHNUM_1}, script, ScriptBuf};
+use bitcoin::{
+    opcodes::all::{OP_CSV, OP_PUSHNUM_1},
+    script, ScriptBuf,
+};
 use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
 
 impl Ledger {
@@ -35,9 +38,12 @@ impl Ledger {
                     let height = op1.opcode().unwrap().to_u8();
                     let height = height - (OP_PUSHNUM_1.to_u8() - 1);
 
-                    let current_height = self.get_block_height().unwrap();
+                    let current_height = self.get_block_height();
 
-                    println!("-- {:?}, {:?}, {:?}, {:?}, ", op1, op2, height, current_height);
+                    println!(
+                        "-- {:?}, {:?}, {:?}, {:?}, ",
+                        op1, op2, height, current_height
+                    );
                 }
             }
 

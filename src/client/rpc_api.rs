@@ -200,7 +200,7 @@ impl RpcApi for Client {
         self.ledger.add_transaction_unconditionally(tx)?;
 
         // Finally, increase the block height.
-        let current_height = self.ledger.get_block_height()?;
+        let current_height = self.ledger.get_block_height();
         self.ledger.set_block_height(current_height + block_num);
 
         Ok(vec![BlockHash::all_zeros(); block_num as usize])

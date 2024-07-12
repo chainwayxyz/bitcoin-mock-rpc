@@ -72,9 +72,10 @@ impl Ledger {
 
                 CREATE TABLE transactions
                 (
-                    txid        TEXT    not null
+                    txid          TEXT    not null
                         constraint txid primary key,
-                    body        blob    not null
+                    block_height  integer not null,
+                    body          blob    not null
                 );
 
                 CREATE TABLE utxos
