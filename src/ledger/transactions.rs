@@ -2,7 +2,6 @@
 
 use super::{
     errors::LedgerError,
-    spending_requirements::{p2tr_checker, p2wpkh_checker, p2wsh_checker},
     Ledger,
 };
 use bitcoin::{
@@ -114,11 +113,11 @@ impl Ledger {
 
         for input_idx in 0..transaction.input.len() {
             if prev_outs[input_idx].script_pubkey.is_p2wpkh() {
-                p2wpkh_checker::check(&transaction, prev_outs.as_slice(), input_idx)?;
+                self.p2wpkh_check(&transaction, prev_outs.as_slice(), input_idx)?;
             } else if prev_outs[input_idx].script_pubkey.is_p2wsh() {
-                p2wsh_checker::check(&transaction, &prev_outs, input_idx)?;
+                self.p2wsh_check(&transaction, &prev_outs, input_idx)?;
             } else if prev_outs[input_idx].script_pubkey.is_p2tr() {
-                p2tr_checker::check(&transaction, &prev_outs, input_idx)?;
+                self.p2tr_check(&transaction, &prev_outs, input_idx)?;
             }
         }
 
