@@ -14,9 +14,10 @@ impl Ledger {
         tx_template: TxTemplate,
         script_buf: ScriptBuf,
         script_witness: Vec<Vec<u8>>,
+        input_block_heights: &Vec<u64>,
     ) -> Result<(), LedgerError> {
         let _prev_outs = tx_template.prevouts.clone();
-        let _input_idx = tx_template.input_idx.clone();
+        let input_idx = tx_template.input_idx.clone();
 
         let mut exec = Exec::new(
             ctx,
@@ -27,8 +28,9 @@ impl Ledger {
         )
         .map_err(|e| LedgerError::SpendingRequirements(format!("Script format error: {:?}", e)))?;
 
-        // Check for CSV
+        // Check for CSV.
         if {
+            let mut ret = true;
             let mut instructions = script_buf.instructions();
             let op1 = instructions.next();
             let op2 = instructions.next();
@@ -40,14 +42,13 @@ impl Ledger {
 
                     let current_height = self.get_block_height();
 
-                    println!(
-                        "-- {:?}, {:?}, {:?}, {:?}, ",
-                        op1, op2, height, current_height
-                    );
+                    if current_height - input_block_heights[input_idx] < height as u64 {
+                        ret = false;
+                    }
                 }
             }
 
-            true
+            ret
         } == false
         {
             return Err(LedgerError::Script(format!(
