@@ -132,6 +132,10 @@ impl RpcApi for Client {
 
         let current_block_height = self.ledger.get_block_height();
         let tx_block_height = self.ledger.get_tx_block_height(tx.compute_txid());
+        let confirmations = match self.ledger.get_mempool_transaction(*txid) {
+            Some(_) => None,
+            None => Some((current_block_height - tx_block_height) as u32),
+        };
 
         Ok(GetRawTransactionResult {
             in_active_chain: Some(true),
@@ -145,7 +149,7 @@ impl RpcApi for Client {
             vin,
             vout,
             blockhash: None,
-            confirmations: Some((current_block_height - tx_block_height) as u32),
+            confirmations,
             time: None,
             blocktime: None,
         })
