@@ -6,14 +6,18 @@
 use super::Client;
 use crate::ledger::Ledger;
 use bitcoin::{
-    address::NetworkChecked, consensus::encode, hashes::Hash, params::Params, Address, Amount,
-    BlockHash, SignedAmount, Transaction, Wtxid,
+    address::NetworkChecked,
+    consensus::{encode, Encodable},
+    hashes::Hash,
+    params::Params,
+    Address, Amount, BlockHash, SignedAmount, Transaction, Txid,
 };
 use bitcoincore_rpc::{
     json::{
-        self, GetRawTransactionResult, GetRawTransactionResultVoutScriptPubKey,
-        GetTransactionResult, GetTransactionResultDetail, GetTransactionResultDetailCategory,
-        GetTxOutResult, WalletTxInfo,
+        self, GetRawTransactionResult, GetRawTransactionResultVin,
+        GetRawTransactionResultVinScriptSig, GetRawTransactionResultVout,
+        GetRawTransactionResultVoutScriptPubKey, GetTransactionResult, GetTransactionResultDetail,
+        GetTransactionResultDetailCategory, GetTxOutResult, WalletTxInfo,
     },
     RpcApi,
 };
@@ -68,19 +72,84 @@ impl RpcApi for Client {
         txid: &bitcoin::Txid,
         _block_hash: Option<&bitcoin::BlockHash>,
     ) -> bitcoincore_rpc::Result<json::GetRawTransactionResult> {
+        let tx = self.get_raw_transaction(txid, _block_hash)?;
+
+        let mut hex: Vec<u8> = Vec::new();
+        if let Err(_) = tx.consensus_encode(&mut hex) {
+            hex = vec![];
+        };
+
+        let vin: Vec<GetRawTransactionResultVin> = tx
+            .input
+            .iter()
+            .map(|input| {
+                let mut txid: Option<Txid> = None;
+                let mut sequence = 0;
+                let mut vout: Option<u32> = None;
+                let mut script_sig: Option<GetRawTransactionResultVinScriptSig> = None;
+                let mut txinwitness: Option<Vec<Vec<u8>>> = None;
+
+                if let Ok(input_tx) = self.ledger.get_transaction(input.previous_output.txid) {
+                    txid = Some(input_tx.compute_txid());
+                    sequence = 0;
+                    vout = Some(0);
+                    script_sig = None;
+                    txinwitness = None;
+                };
+
+                GetRawTransactionResultVin {
+                    sequence,
+                    coinbase: None,
+                    txid,
+                    vout,
+                    script_sig,
+                    txinwitness,
+                }
+            })
+            .collect();
+
+        let vout: Vec<GetRawTransactionResultVout> = tx
+            .output
+            .iter()
+            .enumerate()
+            .map(|(idx, output)| {
+                let script_pub_key = GetRawTransactionResultVoutScriptPubKey {
+                    asm: "".to_string(),
+                    hex: vec![],
+                    req_sigs: None,
+                    type_: None,
+                    addresses: vec![],
+                    address: None,
+                };
+
+                GetRawTransactionResultVout {
+                    value: output.value,
+                    n: idx as u32,
+                    script_pub_key,
+                }
+            })
+            .collect();
+
+        let current_block_height = self.ledger.get_block_height();
+        let tx_block_height = self.ledger.get_tx_block_height(tx.compute_txid());
+        let confirmations = match self.ledger.get_mempool_transaction(*txid) {
+            Some(_) => None,
+            None => Some((current_block_height - tx_block_height) as u32),
+        };
+
         Ok(GetRawTransactionResult {
-            in_active_chain: None,
-            hex: vec![],
+            in_active_chain: Some(true),
+            hex,
             txid: *txid,
-            hash: Wtxid::hash(&[0]),
-            size: 0,
-            vsize: 0,
-            version: 0,
+            hash: tx.compute_wtxid(),
+            size: tx.base_size(),
+            vsize: tx.vsize(),
+            version: tx.version.0 as u32,
             locktime: 0,
-            vin: vec![],
-            vout: vec![],
+            vin,
+            vout,
             blockhash: None,
-            confirmations: Some(10),
+            confirmations,
             time: None,
             blocktime: None,
         })
@@ -198,6 +267,8 @@ impl RpcApi for Client {
         let tx = self.ledger.create_transaction(vec![], vec![txout]);
 
         self.ledger.add_transaction_unconditionally(tx)?;
+
+        self.ledger.clean_mempool();
 
         // Finally, increase the block height.
         let current_height = self.ledger.get_block_height();

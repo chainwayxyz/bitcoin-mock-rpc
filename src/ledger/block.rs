@@ -1,8 +1,9 @@
 //! # Block Related Ledger Operations
 
 use super::Ledger;
-use bitcoin::Txid;
+use bitcoin::{Transaction, Txid};
 use rusqlite::params;
+use std::str::FromStr;
 
 impl Ledger {
     /// Returns current block height.
@@ -65,6 +66,68 @@ impl Ledger {
     pub fn increment_block_height(&self) {
         let current_height = self.get_block_height();
         self.set_block_height(current_height + 1);
+    }
+
+    /// Gets all the transactions that are in the mempool.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    pub fn get_mempool_transactions(&self) -> Vec<Transaction> {
+        // If `txids` is not calculated in a separate scope, there will be a
+        // deadlock. Because `get_transaction()` will also try to lock the
+        // mutex. So, we do this operation first and unlock mutex for the next
+        // call.
+        let txids: Vec<Txid> = {
+            let db = self.database.lock().unwrap();
+            let mut stmt = db.prepare("SELECT (txid) FROM mempool").unwrap();
+            let tx_iter = stmt
+                .query_map([], |row| {
+                    let body: String = row.get(0).unwrap();
+                    Ok(Txid::from_str(&body).unwrap())
+                })
+                .unwrap();
+            tx_iter.map(|txid| txid.unwrap()).collect()
+        };
+
+        txids
+            .iter()
+            .map(|txid| self.get_transaction(*txid).unwrap())
+            .collect::<Vec<Transaction>>()
+    }
+
+    /// Gets a mempool transaction, if it's in the mempool.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    pub fn get_mempool_transaction(&self, txid: Txid) -> Option<Transaction> {
+        let mempool_txs = self.get_mempool_transactions();
+
+        mempool_txs
+            .iter()
+            .find(|tx| {
+                if tx.compute_txid() == txid {
+                    true
+                } else {
+                    false
+                }
+            })
+            .cloned()
+    }
+
+    /// Cleans up mempool. This should only be called when transactions are
+    /// mined.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    pub fn clean_mempool(&self) {
+        self.database
+            .lock()
+            .unwrap()
+            .execute("DELETE FROM mempool", params![])
+            .unwrap();
     }
 }
 
