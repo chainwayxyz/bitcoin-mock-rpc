@@ -28,33 +28,7 @@ impl Ledger {
         )
         .map_err(|e| LedgerError::SpendingRequirements(format!("Script format error: {:?}", e)))?;
 
-        // Check for CSV.
-        if {
-            let mut ret = true;
-            let mut instructions = script_buf.instructions();
-            let op1 = instructions.next();
-            let op2 = instructions.next();
-
-            if let (Some(Ok(op1)), Some(Ok(op2))) = (op1, op2) {
-                if op2 == script::Instruction::Op(OP_CSV) {
-                    let height = op1.opcode().unwrap().to_u8();
-                    let height = height - (OP_PUSHNUM_1.to_u8() - 1);
-
-                    let current_height = self.get_block_height();
-
-                    if current_height - input_block_heights[input_idx] < height as u64 {
-                        ret = false;
-                    }
-                }
-            }
-
-            ret
-        } == false
-        {
-            return Err(LedgerError::Script(format!(
-                "TX is locked for the block height: "
-            )));
-        }
+        self.check_csv(script_buf, input_block_heights, input_idx)?;
 
         loop {
             let res = exec.exec_next();
@@ -69,6 +43,35 @@ impl Ledger {
                 "The script execution is not successful: {:?}",
                 res
             )));
+        }
+
+        Ok(())
+    }
+
+    /// Checks if script is a CSV and it satisfies conditions.
+    fn check_csv(
+        &self,
+        script_buf: ScriptBuf,
+        input_block_heights: &Vec<u64>,
+        input_idx: usize,
+    ) -> Result<(), LedgerError> {
+        let mut instructions = script_buf.instructions();
+        let op1 = instructions.next();
+        let op2 = instructions.next();
+
+        if let (Some(Ok(op1)), Some(Ok(op2))) = (op1, op2) {
+            if op2 == script::Instruction::Op(OP_CSV) {
+                let height = op1.opcode().unwrap().to_u8();
+                let height = height - (OP_PUSHNUM_1.to_u8() - 1);
+
+                let current_height = self.get_block_height();
+
+                if current_height - input_block_heights[input_idx] < height as u64 {
+                    return Err(LedgerError::Script(format!(
+                        "UTXO is locked for the block height: {height}; Current block height: {current_height}"
+                    )));
+                }
+            }
         }
 
         Ok(())
