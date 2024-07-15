@@ -58,7 +58,6 @@ impl Ledger {
                 DROP TABLE IF EXISTS blocks;
                 DROP TABLE IF EXISTS mempool;
                 DROP TABLE IF EXISTS transactions;
-                DROP TABLE IF EXISTS mempool;
                 DROP TABLE IF EXISTS utxos;
                 ",
         )
