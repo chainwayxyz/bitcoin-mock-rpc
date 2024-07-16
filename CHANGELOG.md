@@ -5,7 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.3] - 2024-07-16
+
+### Added
+
+- Initial block implemenatation
+  - Only block height is held in ledger
+- Mempool implementation
+  - Blocks can be mined using `generate_to_address()` call
+- CSV block height check in ledger level
+
+### Changed
+
+- Script execution has it's own module and scripts aren't directly executed in spending reqirements
 
 ## [0.0.2] - 2024-07-10
 
@@ -40,6 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generate_to_address`
   - `get_balance`
 
-[Unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.2...HEAD
+[0.0.3]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/0.0.1...v0.0.2
 [0.0.1]: https://github.com/chainwayxyz/bitcoin-mock-rpc/releases/tag/0.0.1
