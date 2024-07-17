@@ -1,5 +1,6 @@
 //! # Block Related Ledger Operations
 
+use super::errors::LedgerError;
 use super::Ledger;
 use bitcoin::{Transaction, Txid};
 use rusqlite::params;
@@ -80,18 +81,11 @@ impl Ledger {
             // time of 10 minute before than the last block.
             (duration - Duration::from_secs(60 * 10)).as_secs()
         } else {
-            self.get_last_block_time()
+            self.get_block_time(last_block_height).unwrap()
         };
         let current_block_time = last_block_time + (60 * 10);
 
-        self.database
-            .lock()
-            .unwrap()
-            .execute(
-                "INSERT INTO block_times (block_height, unix_time) VALUES (?1, ?2)",
-                params![current_block_height, current_block_time],
-            )
-            .unwrap();
+        self.set_block_time(current_block_height, current_block_time);
 
         self.set_block_height(current_block_height);
     }
@@ -158,27 +152,40 @@ impl Ledger {
             .unwrap();
     }
 
-    /// Gets block time of the current height. Time is in standard UNIX format.
+    /// Gets `block_height`'th block time, in UNIX format.
     ///
     /// # Panics
     ///
     /// Will panic if there is a problem with database.
-    pub fn get_last_block_time(&self) -> u64 {
-        let height = self.get_block_height();
-
+    fn get_block_time(&self, block_height: u64) -> Result<u64, LedgerError> {
         if let Ok(time) = self.database.lock().unwrap().query_row(
             "SELECT unix_time FROM block_times WHERE block_height = ?1",
-            params![height],
+            params![block_height],
             |row| {
                 let body = row.get::<_, i64>(0).unwrap();
 
                 Ok(body as u64)
             },
         ) {
-            return time;
+            return Ok(time);
         };
 
-        0
+        Err(LedgerError::BlockInMempool(block_height))
+    }
+    /// Sets specified blocks time.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    fn set_block_time(&self, block_height: u64, time: u64) {
+        self.database
+            .lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO block_times (block_height, unix_time) VALUES (?1, ?2)",
+                params![block_height, time],
+            )
+            .unwrap();
     }
 }
 
@@ -194,10 +201,12 @@ mod tests {
         assert_eq!(current_height, 0);
 
         ledger.set_block_height(0x45);
+        ledger.set_block_time(0x45, 0);
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 0x45);
 
         ledger.set_block_height(0x1F);
+        ledger.set_block_time(0x1F, 0);
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 0x1F);
     }
@@ -213,23 +222,16 @@ mod tests {
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 1);
 
+        // Because we aren't mining blocks rn, we must add block times.
+        ledger.set_block_time(0x44, 0);
         ledger.set_block_height(0x45);
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 0x45);
 
+        // Because we aren't mining blocks rn, we must add block times.
+        ledger.set_block_time(0x45, 0);
         ledger.increment_block_height();
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 0x46);
-    }
-
-    #[test]
-    fn get_last_block_time() {
-        let ledger = Ledger::new("get_last_block_time");
-
-        assert_eq!(ledger.get_last_block_time(), 0);
-
-        ledger.increment_block_height();
-        ledger.get_block_height();
-        assert_ne!(ledger.get_last_block_time(), 0);
     }
 }
