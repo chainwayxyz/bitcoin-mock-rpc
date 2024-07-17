@@ -4,6 +4,7 @@ use super::Ledger;
 use bitcoin::{Transaction, Txid};
 use rusqlite::params;
 use std::str::FromStr;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 impl Ledger {
     /// Returns current block height.
@@ -49,7 +50,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if cannot set height to database.
-    pub fn set_block_height(&self, height: u64) {
+    fn set_block_height(&self, height: u64) {
         self.database
             .lock()
             .unwrap()
@@ -57,15 +58,42 @@ impl Ledger {
             .unwrap();
     }
 
-    /// Increments block height by 1.
+    /// Increments block height by 1 and sets block time of the next block 10
+    /// minutes after the previous block time.
     ///
     /// # Panics
     ///
     /// Will panic if either [`get_block_height`] or [`set_block_height`]
     /// panics.
     pub fn increment_block_height(&self) {
-        let current_height = self.get_block_height();
-        self.set_block_height(current_height + 1);
+        let last_block_height = self.get_block_height();
+        let current_block_height = last_block_height + 1;
+
+        let last_block_time = if last_block_height == 0 {
+            // This is genesis block. Use current time.
+            let start = SystemTime::now();
+            let duration = start
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards");
+
+            // Return 10 minute before current time. Because new block will have
+            // time of 10 minute before than the last block.
+            (duration - Duration::from_secs(60 * 10)).as_secs()
+        } else {
+            self.get_last_block_time()
+        };
+        let current_block_time = last_block_time + (60 * 10);
+
+        self.database
+            .lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO block_times (block_height, unix_time) VALUES (?1, ?2)",
+                params![current_block_height, current_block_time],
+            )
+            .unwrap();
+
+        self.set_block_height(current_block_height);
     }
 
     /// Gets all the transactions that are in the mempool.
@@ -129,6 +157,29 @@ impl Ledger {
             .execute("DELETE FROM mempool", params![])
             .unwrap();
     }
+
+    /// Gets block time of the current height. Time is in standard UNIX format.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    pub fn get_last_block_time(&self) -> u64 {
+        let height = self.get_block_height();
+
+        if let Ok(time) = self.database.lock().unwrap().query_row(
+            "SELECT unix_time FROM block_times WHERE block_height = ?1",
+            params![height],
+            |row| {
+                let body = row.get::<_, i64>(0).unwrap();
+
+                Ok(body as u64)
+            },
+        ) {
+            return time;
+        };
+
+        0
+    }
 }
 
 #[cfg(test)]
@@ -169,5 +220,16 @@ mod tests {
         ledger.increment_block_height();
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 0x46);
+    }
+
+    #[test]
+    fn get_last_block_time() {
+        let ledger = Ledger::new("get_last_block_time");
+
+        assert_eq!(ledger.get_last_block_time(), 0);
+
+        ledger.increment_block_height();
+        ledger.get_block_height();
+        assert_ne!(ledger.get_last_block_time(), 0);
     }
 }
