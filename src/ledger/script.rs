@@ -15,8 +15,10 @@ impl Ledger {
         tx_template: TxTemplate,
         script_buf: ScriptBuf,
         script_witness: Vec<Vec<u8>>,
+        input_block_heights: &Vec<u64>,
     ) -> Result<(), LedgerError> {
         let _prev_outs = tx_template.prevouts.clone();
+        let input_idx = tx_template.input_idx.clone();
 
         let mut exec = Exec::new(
             ctx,
@@ -27,7 +29,7 @@ impl Ledger {
         )
         .map_err(|e| LedgerError::SpendingRequirements(format!("Script format error: {:?}", e)))?;
 
-        self.check_csv(script_buf)?;
+        self.check_csv(script_buf, input_block_heights, input_idx)?;
 
         loop {
             let res = exec.exec_next();
@@ -48,7 +50,12 @@ impl Ledger {
     }
 
     /// Checks if script is a CSV and it satisfies conditions.
-    fn check_csv(&self, script_buf: ScriptBuf) -> Result<(), LedgerError> {
+    fn check_csv(
+        &self,
+        script_buf: ScriptBuf,
+        _input_block_heights: &Vec<u64>,
+        _input_idx: usize,
+    ) -> Result<(), LedgerError> {
         let mut instructions = script_buf.instructions();
         let op1 = instructions.next();
         let op2 = instructions.next();
@@ -101,6 +108,7 @@ mod tests {
     fn check_csv_with_block_height() {
         let ledger = Ledger::new("check_csv");
         let xonly_pk = ledger::Ledger::generate_credential_from_witness().x_only_public_key;
+        let mut input_block_heights: Vec<u64> = Vec::new();
 
         let script = Builder::new()
             .push_int(0x1 as i64)
@@ -109,12 +117,13 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_csv(script) {
+        if let Ok(_) = ledger.check_csv(script, &input_block_heights, 0) {
             assert!(false);
         };
 
-        for _ in 0..2 {
+        for i in 0..2 {
             ledger.increment_block_height();
+            input_block_heights.push(i);
         }
 
         let script = Builder::new()
@@ -124,10 +133,11 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_csv(script).unwrap();
+        ledger.check_csv(script, &input_block_heights, 0).unwrap();
 
-        for _ in 2..0x46 {
+        for i in 2..0x46 {
             ledger.increment_block_height();
+            input_block_heights.push(i);
         }
 
         let script = Builder::new()
@@ -137,7 +147,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_csv(script).unwrap();
+        ledger.check_csv(script, &input_block_heights, 0).unwrap();
 
         let script = Builder::new()
             .push_int(0x100 as i64)
@@ -146,7 +156,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_csv(script) {
+        if let Ok(_) = ledger.check_csv(script, &input_block_heights, 0) {
             assert!(false);
         };
     }
