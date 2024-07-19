@@ -157,7 +157,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if there is a problem with database.
-    fn get_block_time(&self, block_height: u64) -> Result<u64, LedgerError> {
+    pub fn get_block_time(&self, block_height: u64) -> Result<u64, LedgerError> {
         if let Ok(time) = self.database.lock().unwrap().query_row(
             "SELECT unix_time FROM block_times WHERE block_height = ?1",
             params![block_height],
