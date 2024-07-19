@@ -78,7 +78,6 @@ impl Ledger {
         tx: &Transaction,
         prevouts: &[TxOut],
         input_idx: usize,
-        input_block_heights: &Vec<u64>,
     ) -> Result<(), LedgerError> {
         let witness_version = prevouts[input_idx].script_pubkey.as_bytes()[0];
 
@@ -123,7 +122,6 @@ impl Ledger {
             tx_template,
             ScriptBuf::from_bytes(script.to_vec()),
             witness,
-            input_block_heights,
         )?;
 
         Ok(())
@@ -134,7 +132,6 @@ impl Ledger {
         tx: &Transaction,
         prevouts: &[TxOut],
         input_idx: usize,
-        input_block_heights: &Vec<u64>,
     ) -> Result<(), LedgerError> {
         let secp = secp256k1::Secp256k1::new();
 
@@ -214,7 +211,6 @@ impl Ledger {
             tx_template,
             ScriptBuf::from_bytes(script_buf),
             witness,
-            input_block_heights,
         )?;
 
         Ok(())
@@ -341,7 +337,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2wsh_check(&tx2, &[output], 0, &vec![]);
+        let res = ledger.p2wsh_check(&tx2, &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -406,7 +402,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2tr_check(&tx2, &[output], 0, &vec![]);
+        let res = ledger.p2tr_check(&tx2, &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -443,6 +439,6 @@ mod test {
             output: vec![],
         };
 
-        ledger.p2tr_check(&tx2, &[output], 0, &vec![]).unwrap();
+        ledger.p2tr_check(&tx2, &[output], 0).unwrap();
     }
 }
