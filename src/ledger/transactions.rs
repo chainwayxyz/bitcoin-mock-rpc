@@ -37,6 +37,7 @@ impl Ledger {
             return Err(LedgerError::AnyHow(e.into()));
         };
 
+        // TODO: This can be a function in block crate.
         if let Err(e) = self.database.lock().unwrap().execute(
             "INSERT INTO \"mempool\" (txid) VALUES (?1)",
             params![txid.to_string()],
@@ -44,9 +45,6 @@ impl Ledger {
             return Err(LedgerError::AnyHow(e.into()));
         };
 
-        for input in transaction.input {
-            self.add_utxo(input.previous_output, input.sequence.0);
-        }
 
         Ok(txid)
     }
@@ -136,9 +134,9 @@ impl Ledger {
             if txouts[input_idx].script_pubkey.is_p2wpkh() {
                 self.p2wpkh_check(&transaction, txouts.as_slice(), input_idx)?;
             } else if txouts[input_idx].script_pubkey.is_p2wsh() {
-                self.p2wsh_check(&transaction, &prev_outs, &txouts, input_idx)?;
+                self.p2wsh_check(&transaction, &txouts, input_idx)?;
             } else if txouts[input_idx].script_pubkey.is_p2tr() {
-                self.p2tr_check(&transaction, &prev_outs, &txouts, input_idx)?;
+                self.p2tr_check(&transaction, &txouts, input_idx)?;
             }
         }
 

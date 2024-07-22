@@ -4,9 +4,10 @@ use super::{errors::LedgerError, Ledger};
 use bitcoin::{
     opcodes::all::{OP_CSV, OP_PUSHNUM_1},
     relative::{self, Height, Time},
-    script, OutPoint, ScriptBuf, Sequence,
+    script, ScriptBuf, Sequence, TxIn,
 };
 use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 impl Ledger {
     pub fn run_script(
@@ -15,14 +16,8 @@ impl Ledger {
         tx_template: TxTemplate,
         script_buf: ScriptBuf,
         script_witness: Vec<Vec<u8>>,
-        prevouts: &[OutPoint],
     ) -> Result<(), LedgerError> {
-        let prev_outs = tx_template.prevouts.clone();
-
-        // Chech if inputs satisfies their locks.
-        for prevout in prevouts {
-            self.check_csv(prevout.clone(), prev_outs[0].script_pubkey.clone())?;
-        }
+        self.check_csv(script_buf.clone())?;
 
         let mut exec = Exec::new(
             ctx,
@@ -51,8 +46,37 @@ impl Ledger {
         Ok(())
     }
 
-    /// Checks if script is a CSV and it satisfies conditions.
-    fn check_csv(&self, utxo: OutPoint, script_buf: ScriptBuf) -> Result<(), LedgerError> {
+    /// Checks if given inputs are now spendable.
+    fn _check_input_locks(&self, inputs: &[TxIn]) -> Result<(), LedgerError> {
+        let current_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let current_block_height = self.get_block_height();
+
+        for input in inputs {
+            if let Some(tl) = self.get_utxo_timelock(input.previous_output) {
+                let tl = Ledger::sequence_to_timelock(tl)?;
+
+                let satisfied = if tl.is_block_height() {
+                    tl.is_satisfied_by_height(Height::from_height(current_block_height as u16))
+                        .is_ok()
+                } else {
+                    tl.is_satisfied_by_time(Time::from_seconds_ceil(current_time as u32).unwrap())
+                        .is_ok()
+                };
+
+                if !satisfied {
+                    return Err(LedgerError::Script("Input still locked until".to_string()));
+                }
+            };
+        }
+
+        Ok(())
+    }
+
+    /// Checks if a script is a CSV script. If it is, returns lock time.
+    fn is_csv(script_buf: ScriptBuf) -> Option<relative::LockTime> {
         let mut instructions = script_buf.instructions();
         let op1 = instructions.next();
         let op2 = instructions.next();
@@ -71,38 +95,47 @@ impl Ledger {
                     op1_data = data as i64;
                 };
 
-                let lock_time = match relative::LockTime::from_sequence(Sequence::from_consensus(
-                    op1_data as u32,
-                )) {
-                    Ok(lt) => lt,
-                    Err(e) => return Err(LedgerError::Script(e.to_string())),
-                };
+                return Some(Ledger::sequence_to_timelock(op1_data as u32).unwrap());
+            }
+        }
 
-                // When this UTXO added to the blockchain?
-                // TODO: Not exactly block_time. Maybe change naming?
-                // let block_time = self.get_utxo_timelock()
+        None
+    }
 
-                if lock_time.is_block_height() {
-                    let current_height = self.get_block_height();
-                    let target_height = Height::from_height(current_height as u16);
+    #[inline]
+    fn sequence_to_timelock(sequence: u32) -> Result<relative::LockTime, LedgerError> {
+        match relative::LockTime::from_sequence(Sequence::from_consensus(sequence)) {
+            Ok(lt) => return Ok(lt),
+            Err(e) => return Err(LedgerError::AnyHow(e.into())),
+        };
+    }
 
-                    if let false = lock_time.is_satisfied_by_height(target_height).unwrap() {
-                        return Err(LedgerError::Script(format!(
-                            "UTXO is locked for the block height: {target_height}; Current block height: {current_height}"
-                        )));
-                    }
-                } else {
-                    let current_height = self.get_block_height();
-                    let current_time = self.get_block_time(current_height).unwrap();
+    /// Checks if script is a CSV and it satisfies conditions.
+    fn check_csv(&self, script_buf: ScriptBuf) -> Result<(), LedgerError> {
+        let lock_time = match Ledger::is_csv(script_buf) {
+            Some(data) => data,
+            None => return Ok(()),
+        };
 
-                    let target_time = Time::from_seconds_floor(current_time as u32).unwrap();
+        if lock_time.is_block_height() {
+            let current_height = self.get_block_height();
+            let target_height = Height::from_height(current_height as u16);
 
-                    if let false = lock_time.is_satisfied_by_time(target_time).unwrap() {
-                        return Err(LedgerError::Script(format!(
-                            "UTXO is locked for the block time: {target_time}; Current block time: {current_time}"
-                        )));
-                    }
-                }
+            if let false = lock_time.is_satisfied_by_height(target_height).unwrap() {
+                return Err(LedgerError::Script(format!(
+                    "UTXO is locked for the block height: {target_height}; Current block height: {current_height}"
+                )));
+            }
+        } else {
+            let current_height = self.get_block_height();
+            let current_time = self.get_block_time(current_height).unwrap();
+
+            let target_time = Time::from_seconds_floor(current_time as u32).unwrap();
+
+            if let false = lock_time.is_satisfied_by_time(target_time).unwrap() {
+                return Err(LedgerError::Script(format!(
+                    "UTXO is locked for the block time: {target_time}; Current block time: {current_time}"
+                )));
             }
         }
 
@@ -113,10 +146,9 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::{self, Ledger};
-    use bitcoin::hashes::Hash;
     use bitcoin::opcodes::all::*;
     use bitcoin::script::Builder;
-    use bitcoin::{OutPoint, Sequence, Txid};
+    use bitcoin::Sequence;
 
     #[test]
     fn check_csv_with_block_height() {
@@ -130,13 +162,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_csv(
-            OutPoint {
-                txid: Txid::all_zeros(),
-                vout: 0,
-            },
-            script,
-        ) {
+        if let Ok(_) = ledger.check_csv(script) {
             assert!(false);
         };
 
@@ -150,15 +176,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger
-            .check_csv(
-                OutPoint {
-                    txid: Txid::all_zeros(),
-                    vout: 0,
-                },
-                script,
-            )
-            .unwrap();
+        ledger.check_csv(script).unwrap();
 
         for _ in 2..0x46 {
             ledger.increment_block_height();
@@ -170,15 +188,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger
-            .check_csv(
-                OutPoint {
-                    txid: Txid::all_zeros(),
-                    vout: 0,
-                },
-                script,
-            )
-            .unwrap();
+        ledger.check_csv(script).unwrap();
 
         let script = Builder::new()
             .push_int(0x100 as i64)
@@ -187,13 +197,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_csv(
-            OutPoint {
-                txid: Txid::all_zeros(),
-                vout: 0,
-            },
-            script,
-        ) {
+        if let Ok(_) = ledger.check_csv(script) {
             assert!(false);
         };
     }
@@ -213,13 +217,7 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         println!("Script: {}", script);
-        if let Ok(_) = ledger.check_csv(
-            OutPoint {
-                txid: Txid::all_zeros(),
-                vout: 0,
-            },
-            script,
-        ) {
+        if let Ok(_) = ledger.check_csv(script) {
             assert!(false);
         };
 
@@ -235,14 +233,6 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         println!("Script: {}", script);
-        ledger
-            .check_csv(
-                OutPoint {
-                    txid: Txid::all_zeros(),
-                    vout: 0,
-                },
-                script,
-            )
-            .unwrap();
+        ledger.check_csv(script).unwrap();
     }
 }

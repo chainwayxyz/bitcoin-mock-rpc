@@ -12,7 +12,7 @@ use bitcoin::{
     taproot::{ControlBlock, LeafVersion},
     TapLeafHash, XOnlyPublicKey,
 };
-use bitcoin::{OutPoint, Script, WitnessProgram};
+use bitcoin::{Script, WitnessProgram};
 use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use secp256k1::Message;
 
@@ -76,7 +76,6 @@ impl Ledger {
     pub fn p2wsh_check(
         &self,
         tx: &Transaction,
-        prevouts: &[OutPoint],
         txouts: &[TxOut],
         input_idx: usize,
     ) -> Result<(), LedgerError> {
@@ -123,7 +122,6 @@ impl Ledger {
             tx_template,
             ScriptBuf::from_bytes(script.to_vec()),
             witness,
-            prevouts,
         )?;
 
         Ok(())
@@ -132,7 +130,6 @@ impl Ledger {
     pub fn p2tr_check(
         &self,
         tx: &Transaction,
-        prevouts: &[OutPoint],
         txouts: &[TxOut],
         input_idx: usize,
     ) -> Result<(), LedgerError> {
@@ -214,7 +211,6 @@ impl Ledger {
             tx_template,
             ScriptBuf::from_bytes(script_buf),
             witness,
-            prevouts,
         )?;
 
         Ok(())
@@ -341,7 +337,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2wsh_check(&tx2, &[], &[output], 0);
+        let res = ledger.p2wsh_check(&tx2, &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -406,7 +402,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2tr_check(&tx2, &[], &[output], 0);
+        let res = ledger.p2tr_check(&tx2, &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -443,6 +439,6 @@ mod test {
             output: vec![],
         };
 
-        ledger.p2tr_check(&tx2, &[], &[output], 0).unwrap();
+        ledger.p2tr_check(&tx2, &[output], 0).unwrap();
     }
 }
