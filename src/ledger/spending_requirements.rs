@@ -227,8 +227,8 @@ mod test {
     use std::str::FromStr;
 
     #[test]
-    fn p2wpkh() {
-        let ledger = Ledger::new("p2wpkh");
+    fn p2wpkh_check() {
+        let ledger = Ledger::new("p2wpkh_check");
         let credential = Ledger::generate_credential_from_witness();
 
         let wpkh = bitcoin::PublicKey::new(credential.public_key)
@@ -280,13 +280,12 @@ mod test {
 
         tx2.input[0].witness = Witness::p2wpkh(&signature, &credential.public_key);
 
-        let res = ledger.p2wpkh_check(&tx2, &[output], 0);
-        assert!(res.is_ok());
+        ledger.p2wpkh_check(&tx2, &[output], 0).unwrap();
     }
 
     #[test]
-    fn p2wsh() {
-        let ledger = Ledger::new("p2wsh");
+    fn p2wsh_check() {
+        let ledger = Ledger::new("p2wsh_check");
         let witness_program = WitnessProgram::p2wsh(Script::from_bytes(
             &script! {
                 { 1234 } OP_EQUAL
@@ -327,13 +326,12 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2wsh_check(&tx2, &[output], 0);
-        assert!(res.is_ok());
+        ledger.p2wsh_check(&tx2, &[output], 0).unwrap();
     }
 
     #[test]
-    fn p2tr() {
-        let ledger = Ledger::new("p2tr");
+    fn p2tr_check() {
+        let ledger = Ledger::new("p2tr_check");
         let secp = bitcoin::secp256k1::Secp256k1::new();
         let internal_key = UntweakedPublicKey::from(
             bitcoin::secp256k1::PublicKey::from_str(
@@ -392,8 +390,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2tr_check(&tx2, &[output], 0);
-        assert!(res.is_ok());
+        ledger.p2tr_check(&tx2, &[output], 0).unwrap();
     }
 
     #[test]
