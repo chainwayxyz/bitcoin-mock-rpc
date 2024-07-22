@@ -44,15 +44,15 @@ impl Ledger {
 
         let database = Connection::open(path).unwrap();
 
-        Ledger::drop_databases(&database).unwrap();
-        Ledger::create_databases(&database).unwrap();
+        Ledger::drop_tables(&database).unwrap();
+        Ledger::create_tables(&database).unwrap();
 
         Self {
             database: Arc::new(Mutex::new(database)),
         }
     }
 
-    pub fn drop_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+    pub fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
                 DROP TABLE IF EXISTS blocks;
@@ -64,7 +64,11 @@ impl Ledger {
         )
     }
 
-    pub fn create_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+    /// This is where all the ledger data is kept. Note that it is not aimed to
+    /// hold all kind of information about the blockchain. Just holds enough
+    /// data to provide a persistent storage for the limited features that the
+    /// library provides.
+    pub fn create_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "CREATE TABLE blocks
                 (
