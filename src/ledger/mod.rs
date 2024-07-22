@@ -14,7 +14,6 @@ use std::{
 mod address;
 mod block;
 mod errors;
-mod macros;
 mod script;
 mod spending_requirements;
 mod transactions;
@@ -99,11 +98,8 @@ impl Ledger {
 
             CREATE TABLE utxos
             (
-                txid           TEXT              not null,
-                vout           INTEGER           not null,
-                value          INTEGER           not null,
-                script_pubkey  BLOB              not null,
-                is_spent       INTEGER default 0 not null,
+                txid           TEXT                       not null,
+                vout           INTEGER                    not null,
                 time_lock      INTEGER default 2147483648 not null,
                 constraint utxos_pk
                     primary key (txid, vout)
