@@ -15,6 +15,8 @@ pub enum LedgerError {
     SpendingRequirements(String),
     #[error("Script error: {0}")]
     Script(String),
+    #[error("Requested block is in mempool; Block height: {0}")]
+    BlockInMempool(u64),
     #[error("Anyhow error: {0}")]
     AnyHow(anyhow::Error),
 }

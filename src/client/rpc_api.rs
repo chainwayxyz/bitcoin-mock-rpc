@@ -270,9 +270,10 @@ impl RpcApi for Client {
 
         self.ledger.clean_mempool();
 
-        // Finally, increase the block height.
-        let current_height = self.ledger.get_block_height();
-        self.ledger.set_block_height(current_height + block_num);
+        // Finally, increase the block height, one by one.
+        for _ in 0..block_num {
+            self.ledger.increment_block_height();
+        }
 
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }

@@ -98,7 +98,6 @@ impl Ledger {
             )));
         }
 
-        let mut block_heights = vec![];
         let mut prev_outs = vec![];
         for input in transaction.input.iter() {
             assert_eq!(
@@ -113,19 +112,17 @@ impl Ledger {
                 .get(input.previous_output.vout as usize)
                 .unwrap()
                 .to_owned();
-            let block_height = self.get_tx_block_height(tx.compute_txid());
 
             prev_outs.push(prev_out);
-            block_heights.push(block_height);
         }
 
         for input_idx in 0..transaction.input.len() {
             if prev_outs[input_idx].script_pubkey.is_p2wpkh() {
                 self.p2wpkh_check(&transaction, prev_outs.as_slice(), input_idx)?;
             } else if prev_outs[input_idx].script_pubkey.is_p2wsh() {
-                self.p2wsh_check(&transaction, &prev_outs, input_idx, &block_heights)?;
+                self.p2wsh_check(&transaction, &prev_outs, input_idx)?;
             } else if prev_outs[input_idx].script_pubkey.is_p2tr() {
-                self.p2tr_check(&transaction, &prev_outs, input_idx, &block_heights)?;
+                self.p2tr_check(&transaction, &prev_outs, input_idx)?;
             }
         }
 
