@@ -15,6 +15,7 @@ impl Ledger {
 
         self.add_transaction_unconditionally(transaction)
     }
+
     /// Adds transaction to blockchain, without verifying.
     pub fn add_transaction_unconditionally(
         &self,
@@ -44,6 +45,7 @@ impl Ledger {
 
         Ok(txid)
     }
+
     /// Returns a transaction which matches the given txid.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
         let tx = self.database.lock().unwrap().query_row(
@@ -70,6 +72,7 @@ impl Ledger {
 
         Ok(tx)
     }
+
     pub fn _get_transactions(&self) -> Vec<Transaction> {
         let database = self.database.lock().unwrap();
 
@@ -86,7 +89,13 @@ impl Ledger {
         txs
     }
 
-    /// Checks if a transaction is valid or not.
+    /// Checks if a transaction is valid or not. Steps:
+    ///
+    /// 1. Is input value is larger than the output value?
+    /// 2. Is satisfies it's spending requirements?
+    /// 3. Is script execution successful?
+    ///
+    /// No checks for if that UTXO is spendable or not.
     pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
         let input_value = self.calculate_transaction_input_value(transaction.clone())?;
         let output_value = self.calculate_transaction_output_value(transaction.clone());
@@ -151,6 +160,7 @@ impl Ledger {
 
         Ok(amount)
     }
+
     /// Calculates a transaction's total output value.
     pub fn calculate_transaction_output_value(&self, transaction: Transaction) -> Amount {
         transaction.output.iter().map(|output| output.value).sum()
@@ -163,6 +173,7 @@ impl Ledger {
             ..Default::default()
         }
     }
+
     /// Creates a `TxOut` with some defaults.
     pub fn create_txout(&self, value: Amount, script_pubkey: ScriptBuf) -> TxOut {
         TxOut {
@@ -170,6 +181,7 @@ impl Ledger {
             script_pubkey,
         }
     }
+
     /// Creates a `Transaction` with some defaults.
     pub fn create_transaction(&self, tx_ins: Vec<TxIn>, tx_outs: Vec<TxOut>) -> Transaction {
         bitcoin::Transaction {
