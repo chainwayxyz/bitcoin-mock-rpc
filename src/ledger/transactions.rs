@@ -36,12 +36,17 @@ impl Ledger {
         ) {
             return Err(LedgerError::AnyHow(e.into()));
         };
+
         if let Err(e) = self.database.lock().unwrap().execute(
             "INSERT INTO \"mempool\" (txid) VALUES (?1)",
             params![txid.to_string()],
         ) {
             return Err(LedgerError::AnyHow(e.into()));
         };
+
+        for input in transaction.input {
+            self.add_utxo(input.previous_output, input.sequence.0);
+        }
 
         Ok(txid)
     }
@@ -73,7 +78,7 @@ impl Ledger {
         Ok(tx)
     }
 
-    pub fn _get_transactions(&self) -> Vec<Transaction> {
+    pub fn get_transactions(&self) -> Vec<Transaction> {
         let database = self.database.lock().unwrap();
 
         let mut stmt = database.prepare("SELECT body FROM transactions").unwrap();
@@ -108,6 +113,7 @@ impl Ledger {
         }
 
         let mut prev_outs = vec![];
+        let mut txouts = vec![];
         for input in transaction.input.iter() {
             assert_eq!(
                 input.script_sig.len(),
@@ -116,22 +122,23 @@ impl Ledger {
             );
 
             let tx = self.get_transaction(input.previous_output.txid)?;
-            let prev_out = tx
+            let txout = tx
                 .output
                 .get(input.previous_output.vout as usize)
                 .unwrap()
                 .to_owned();
 
-            prev_outs.push(prev_out);
+            txouts.push(txout);
+            prev_outs.push(input.previous_output);
         }
 
         for input_idx in 0..transaction.input.len() {
-            if prev_outs[input_idx].script_pubkey.is_p2wpkh() {
-                self.p2wpkh_check(&transaction, prev_outs.as_slice(), input_idx)?;
-            } else if prev_outs[input_idx].script_pubkey.is_p2wsh() {
-                self.p2wsh_check(&transaction, &prev_outs, input_idx)?;
-            } else if prev_outs[input_idx].script_pubkey.is_p2tr() {
-                self.p2tr_check(&transaction, &prev_outs, input_idx)?;
+            if txouts[input_idx].script_pubkey.is_p2wpkh() {
+                self.p2wpkh_check(&transaction, txouts.as_slice(), input_idx)?;
+            } else if txouts[input_idx].script_pubkey.is_p2wsh() {
+                self.p2wsh_check(&transaction, &prev_outs, &txouts, input_idx)?;
+            } else if txouts[input_idx].script_pubkey.is_p2tr() {
+                self.p2tr_check(&transaction, &prev_outs, &txouts, input_idx)?;
             }
         }
 
@@ -203,7 +210,7 @@ mod tests {
     fn transactions_without_checks() {
         let ledger = Ledger::new("transactions_without_checks");
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
@@ -214,7 +221,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -232,7 +239,7 @@ mod tests {
         let credentials = Ledger::generate_credential_from_witness();
         let address = credentials.address;
 
-        assert_eq!(ledger._get_transactions().len(), 0);
+        assert_eq!(ledger.get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
         let txout = ledger.create_txout(Amount::from_sat(0x45 * 0x45), address.script_pubkey());
@@ -260,7 +267,7 @@ mod tests {
         let txid = tx.compute_txid();
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger._get_transactions();
+        let txs = ledger.get_transactions();
         assert_eq!(txs.len(), 2);
 
         let read_tx = txs.get(1).unwrap().to_owned();

@@ -34,7 +34,7 @@ impl Ledger {
         None
     }
 
-    /// Removes an UTXO from user's UTXO's.
+    /// Removes an UTXO.
     pub fn remove_utxo(&self, _utxo: OutPoint) {
         unimplemented!()
     }

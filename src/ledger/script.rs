@@ -4,7 +4,7 @@ use super::{errors::LedgerError, Ledger};
 use bitcoin::{
     opcodes::all::{OP_CSV, OP_PUSHNUM_1},
     relative::{self, Height, Time},
-    script, ScriptBuf, Sequence,
+    script, OutPoint, ScriptBuf, Sequence,
 };
 use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
 
@@ -15,8 +15,14 @@ impl Ledger {
         tx_template: TxTemplate,
         script_buf: ScriptBuf,
         script_witness: Vec<Vec<u8>>,
+        prevouts: &[OutPoint],
     ) -> Result<(), LedgerError> {
-        let _prev_outs = tx_template.prevouts.clone();
+        let prev_outs = tx_template.prevouts.clone();
+
+        // Chech if inputs satisfies their locks.
+        for prevout in prevouts {
+            self.check_csv(prevout.clone(), prev_outs[0].script_pubkey.clone())?;
+        }
 
         let mut exec = Exec::new(
             ctx,
@@ -26,8 +32,6 @@ impl Ledger {
             script_witness,
         )
         .map_err(|e| LedgerError::SpendingRequirements(format!("Script format error: {:?}", e)))?;
-
-        self.check_csv(script_buf)?;
 
         loop {
             let res = exec.exec_next();
@@ -48,7 +52,7 @@ impl Ledger {
     }
 
     /// Checks if script is a CSV and it satisfies conditions.
-    fn check_csv(&self, script_buf: ScriptBuf) -> Result<(), LedgerError> {
+    fn check_csv(&self, utxo: OutPoint, script_buf: ScriptBuf) -> Result<(), LedgerError> {
         let mut instructions = script_buf.instructions();
         let op1 = instructions.next();
         let op2 = instructions.next();
@@ -73,6 +77,10 @@ impl Ledger {
                     Ok(lt) => lt,
                     Err(e) => return Err(LedgerError::Script(e.to_string())),
                 };
+
+                // When this UTXO added to the blockchain?
+                // TODO: Not exactly block_time. Maybe change naming?
+                // let block_time = self.get_utxo_timelock()
 
                 if lock_time.is_block_height() {
                     let current_height = self.get_block_height();
@@ -105,9 +113,10 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::{self, Ledger};
+    use bitcoin::hashes::Hash;
     use bitcoin::opcodes::all::*;
     use bitcoin::script::Builder;
-    use bitcoin::Sequence;
+    use bitcoin::{OutPoint, Sequence, Txid};
 
     #[test]
     fn check_csv_with_block_height() {
@@ -121,7 +130,13 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_csv(script) {
+        if let Ok(_) = ledger.check_csv(
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: 0,
+            },
+            script,
+        ) {
             assert!(false);
         };
 
@@ -135,7 +150,15 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_csv(script).unwrap();
+        ledger
+            .check_csv(
+                OutPoint {
+                    txid: Txid::all_zeros(),
+                    vout: 0,
+                },
+                script,
+            )
+            .unwrap();
 
         for _ in 2..0x46 {
             ledger.increment_block_height();
@@ -147,7 +170,15 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_csv(script).unwrap();
+        ledger
+            .check_csv(
+                OutPoint {
+                    txid: Txid::all_zeros(),
+                    vout: 0,
+                },
+                script,
+            )
+            .unwrap();
 
         let script = Builder::new()
             .push_int(0x100 as i64)
@@ -156,7 +187,13 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_csv(script) {
+        if let Ok(_) = ledger.check_csv(
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: 0,
+            },
+            script,
+        ) {
             assert!(false);
         };
     }
@@ -176,7 +213,13 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         println!("Script: {}", script);
-        if let Ok(_) = ledger.check_csv(script) {
+        if let Ok(_) = ledger.check_csv(
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: 0,
+            },
+            script,
+        ) {
             assert!(false);
         };
 
@@ -192,6 +235,14 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         println!("Script: {}", script);
-        ledger.check_csv(script).unwrap();
+        ledger
+            .check_csv(
+                OutPoint {
+                    txid: Txid::all_zeros(),
+                    vout: 0,
+                },
+                script,
+            )
+            .unwrap();
     }
 }

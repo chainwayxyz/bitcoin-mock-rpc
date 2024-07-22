@@ -12,7 +12,7 @@ use bitcoin::{
     taproot::{ControlBlock, LeafVersion},
     TapLeafHash, XOnlyPublicKey,
 };
-use bitcoin::{Script, WitnessProgram};
+use bitcoin::{OutPoint, Script, WitnessProgram};
 use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use secp256k1::Message;
 
@@ -20,16 +20,16 @@ impl Ledger {
     pub fn p2wpkh_check(
         &self,
         tx: &Transaction,
-        prevouts: &[TxOut],
+        txouts: &[TxOut],
         input_idx: usize,
     ) -> Result<(), LedgerError> {
-        if prevouts[input_idx].script_pubkey.len() != 22 {
+        if txouts[input_idx].script_pubkey.len() != 22 {
             return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for P2WPKH.".to_owned(),
             ));
         }
 
-        let witness_version = prevouts[input_idx].script_pubkey.as_bytes()[0];
+        let witness_version = txouts[input_idx].script_pubkey.as_bytes()[0];
         let witness = &tx.input[input_idx].witness;
 
         if witness.len() != 2 {
@@ -37,7 +37,7 @@ impl Ledger {
         }
 
         if witness_version != 0
-            || prevouts[input_idx].script_pubkey.as_bytes()[1] != OP_PUSHBYTES_20.to_u8()
+            || txouts[input_idx].script_pubkey.as_bytes()[1] != OP_PUSHBYTES_20.to_u8()
         {
             return Err(LedgerError::SpendingRequirements(
                 "The ScriptPubKey is not for P2WPKH.".to_owned(),
@@ -48,7 +48,7 @@ impl Ledger {
 
         let wpkh = pk.wpubkey_hash();
 
-        if !prevouts[input_idx].script_pubkey.as_bytes()[2..22].eq(AsRef::<[u8]>::as_ref(&wpkh)) {
+        if !txouts[input_idx].script_pubkey.as_bytes()[2..22].eq(AsRef::<[u8]>::as_ref(&wpkh)) {
             return Err(LedgerError::SpendingRequirements(
                 "The script does not match the script public key.".to_owned(),
             ));
@@ -61,7 +61,7 @@ impl Ledger {
             .p2wpkh_signature_hash(
                 input_idx,
                 &ScriptBuf::new_p2wpkh(&wpkh),
-                prevouts[input_idx].value,
+                txouts[input_idx].value,
                 sig.sighash_type,
             )
             .unwrap();
@@ -76,10 +76,11 @@ impl Ledger {
     pub fn p2wsh_check(
         &self,
         tx: &Transaction,
-        prevouts: &[TxOut],
+        prevouts: &[OutPoint],
+        txouts: &[TxOut],
         input_idx: usize,
     ) -> Result<(), LedgerError> {
-        let witness_version = prevouts[input_idx].script_pubkey.as_bytes()[0];
+        let witness_version = txouts[input_idx].script_pubkey.as_bytes()[0];
 
         if witness_version != 0 {
             return Err(LedgerError::SpendingRequirements(
@@ -104,7 +105,7 @@ impl Ledger {
         let witness_program = WitnessProgram::p2wsh(&Script::from_bytes(&script));
         let sig_pub_key_expected = ScriptBuf::new_witness_program(&witness_program);
 
-        if *prevouts[input_idx].script_pubkey != sig_pub_key_expected {
+        if *txouts[input_idx].script_pubkey != sig_pub_key_expected {
             return Err(LedgerError::SpendingRequirements(
                 "The script does not match the script public key.".to_owned(),
             ));
@@ -112,7 +113,7 @@ impl Ledger {
 
         let tx_template = TxTemplate {
             tx: tx.clone(),
-            prevouts: prevouts.to_vec(),
+            prevouts: txouts.to_vec(),
             input_idx,
             taproot_annex_scriptleaf: None,
         };
@@ -122,6 +123,7 @@ impl Ledger {
             tx_template,
             ScriptBuf::from_bytes(script.to_vec()),
             witness,
+            prevouts,
         )?;
 
         Ok(())
@@ -130,12 +132,13 @@ impl Ledger {
     pub fn p2tr_check(
         &self,
         tx: &Transaction,
-        prevouts: &[TxOut],
+        prevouts: &[OutPoint],
+        txouts: &[TxOut],
         input_idx: usize,
     ) -> Result<(), LedgerError> {
         let secp = secp256k1::Secp256k1::new();
 
-        let sig_pub_key_bytes = prevouts[input_idx].script_pubkey.as_bytes();
+        let sig_pub_key_bytes = txouts[input_idx].script_pubkey.as_bytes();
 
         let witness_version = sig_pub_key_bytes[0];
         if witness_version != 0x51 {
@@ -163,7 +166,7 @@ impl Ledger {
             let h = sighashcache
                 .taproot_key_spend_signature_hash(
                     input_idx,
-                    &Prevouts::All(&prevouts),
+                    &Prevouts::All(&txouts),
                     signature.sighash_type,
                 )
                 .unwrap();
@@ -198,7 +201,7 @@ impl Ledger {
 
         let tx_template = TxTemplate {
             tx: tx.clone(),
-            prevouts: prevouts.to_vec(),
+            prevouts: txouts.to_vec(),
             input_idx,
             taproot_annex_scriptleaf: Some((
                 TapLeafHash::from_script(script, LeafVersion::TapScript),
@@ -211,6 +214,7 @@ impl Ledger {
             tx_template,
             ScriptBuf::from_bytes(script_buf),
             witness,
+            prevouts,
         )?;
 
         Ok(())
@@ -337,7 +341,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2wsh_check(&tx2, &[output], 0);
+        let res = ledger.p2wsh_check(&tx2, &[], &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -402,7 +406,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2tr_check(&tx2, &[output], 0);
+        let res = ledger.p2tr_check(&tx2, &[], &[output], 0);
         assert!(res.is_ok());
     }
 
@@ -439,6 +443,6 @@ mod test {
             output: vec![],
         };
 
-        ledger.p2tr_check(&tx2, &[output], 0).unwrap();
+        ledger.p2tr_check(&tx2, &[], &[output], 0).unwrap();
     }
 }
