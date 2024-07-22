@@ -57,7 +57,7 @@ pub fn dump_ledger_inner(ledger: Ledger, pretty: bool) -> String {
 
     const DELIMETER: &str = "\n-----\n";
 
-    let transactions = ledger._get_transactions();
+    let transactions = ledger.get_transactions();
 
     if pretty {
         dump += DELIMETER;

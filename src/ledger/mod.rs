@@ -14,11 +14,10 @@ use std::{
 mod address;
 mod block;
 mod errors;
-mod macros;
 mod script;
 mod spending_requirements;
 mod transactions;
-// mod utxo;
+mod utxo;
 
 /// Mock Bitcoin ledger.
 #[derive(Clone)]
@@ -44,15 +43,15 @@ impl Ledger {
 
         let database = Connection::open(path).unwrap();
 
-        Ledger::drop_databases(&database).unwrap();
-        Ledger::create_databases(&database).unwrap();
+        Ledger::drop_tables(&database).unwrap();
+        Ledger::create_tables(&database).unwrap();
 
         Self {
             database: Arc::new(Mutex::new(database)),
         }
     }
 
-    pub fn drop_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+    pub fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
                 DROP TABLE IF EXISTS blocks;
@@ -64,46 +63,48 @@ impl Ledger {
         )
     }
 
-    pub fn create_databases(database: &Connection) -> Result<(), rusqlite::Error> {
+    /// This is where all the ledger data is kept. Note that it is not aimed to
+    /// hold all kind of information about the blockchain. Just holds enough
+    /// data to provide a persistent storage for the limited features that the
+    /// library provides.
+    pub fn create_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "CREATE TABLE blocks
-                (
-                    height         integer           not null
-                );
-                INSERT INTO blocks (height) VALUES (0);
+            (
+                height         INTEGER           not null
+            );
+            INSERT INTO blocks (height) VALUES (0);
 
-                CREATE TABLE block_times
-                (
-                    block_height   integer           not null
-                        constraint block_height primary key,
-                    unix_time      integer
-                );
+            CREATE TABLE block_times
+            (
+                block_height   INTEGER           not null
+                    constraint block_height primary key,
+                unix_time      INTEGER
+            );
 
-                CREATE TABLE mempool
-                (
-                    txid          TEXT    not null
-                        constraint txid primary key
-                );
+            CREATE TABLE mempool
+            (
+                txid          TEXT    not null
+                    constraint txid primary key
+            );
 
-                CREATE TABLE transactions
-                (
-                    txid          TEXT    not null
-                        constraint txid primary key,
-                    block_height  integer not null,
-                    body          blob    not null
-                );
+            CREATE TABLE transactions
+            (
+                txid          TEXT    not null
+                    constraint txid primary key,
+                block_height  INTEGER not null,
+                body          blob    not null
+            );
 
-                CREATE TABLE utxos
-                (
-                    txid           TEXT              not null,
-                    vout           integer           not null,
-                    value          integer           not null,
-                    script_pubkey  BLOB              not null,
-                    is_spent       INTEGER default 0 not null,
-                    constraint utxos_pk
-                        primary key (txid, vout)
-                );
-                ",
+            CREATE TABLE utxos
+            (
+                txid           TEXT                       not null,
+                vout           INTEGER                    not null,
+                time_lock      INTEGER default 2147483648 not null,
+                constraint utxos_pk
+                    primary key (txid, vout)
+            );
+            ",
         )
     }
 }
