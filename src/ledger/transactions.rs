@@ -1,11 +1,12 @@
 //! # Transaction Related Ledger Operations
 
-use super::{errors::LedgerError, Ledger};
+use super::{errors::LedgerError, spending_requirements::SpendingRequirementsReturn, Ledger};
 use bitcoin::{
     absolute,
     consensus::{Decodable, Encodable},
     Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
 };
+use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use rusqlite::params;
 
 impl Ledger {
@@ -44,7 +45,6 @@ impl Ledger {
         ) {
             return Err(LedgerError::AnyHow(e.into()));
         };
-
 
         Ok(txid)
     }
@@ -131,13 +131,28 @@ impl Ledger {
         }
 
         for input_idx in 0..transaction.input.len() {
+            let mut ret: SpendingRequirementsReturn = SpendingRequirementsReturn::default();
+            let mut ctx: ExecCtx = ExecCtx::Legacy;
+
             if txouts[input_idx].script_pubkey.is_p2wpkh() {
                 self.p2wpkh_check(&transaction, txouts.as_slice(), input_idx)?;
+                continue;
             } else if txouts[input_idx].script_pubkey.is_p2wsh() {
-                self.p2wsh_check(&transaction, &txouts, input_idx)?;
+                ret = self.p2wsh_check(&transaction, &txouts, input_idx)?;
+                ctx = ExecCtx::SegwitV0;
             } else if txouts[input_idx].script_pubkey.is_p2tr() {
-                self.p2tr_check(&transaction, &txouts, input_idx)?;
+                ret = self.p2tr_check(&transaction, &txouts, input_idx)?;
+                ctx = ExecCtx::Tapscript;
             }
+
+            let tx_template = TxTemplate {
+                tx: transaction.clone(),
+                prevouts: txouts.to_vec(),
+                input_idx,
+                taproot_annex_scriptleaf: ret.taproot,
+            };
+
+            self.run_script(ctx, tx_template, ret.script_buf, ret.witness)?;
         }
 
         Ok(())

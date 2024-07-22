@@ -13,8 +13,14 @@ use bitcoin::{
     TapLeafHash, XOnlyPublicKey,
 };
 use bitcoin::{Script, WitnessProgram};
-use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use secp256k1::Message;
+
+#[derive(Default)]
+pub struct SpendingRequirementsReturn {
+    pub taproot: Option<(TapLeafHash, Option<Vec<u8>>)>,
+    pub script_buf: ScriptBuf,
+    pub witness: Vec<Vec<u8>>,
+}
 
 impl Ledger {
     pub fn p2wpkh_check(
@@ -78,7 +84,7 @@ impl Ledger {
         tx: &Transaction,
         txouts: &[TxOut],
         input_idx: usize,
-    ) -> Result<(), LedgerError> {
+    ) -> Result<SpendingRequirementsReturn, LedgerError> {
         let witness_version = txouts[input_idx].script_pubkey.as_bytes()[0];
 
         if witness_version != 0 {
@@ -110,21 +116,11 @@ impl Ledger {
             ));
         }
 
-        let tx_template = TxTemplate {
-            tx: tx.clone(),
-            prevouts: txouts.to_vec(),
-            input_idx,
-            taproot_annex_scriptleaf: None,
-        };
-
-        self.run_script(
-            ExecCtx::SegwitV0,
-            tx_template,
-            ScriptBuf::from_bytes(script.to_vec()),
+        Ok(SpendingRequirementsReturn {
+            taproot: None,
+            script_buf: ScriptBuf::from_bytes(script.to_vec()),
             witness,
-        )?;
-
-        Ok(())
+        })
     }
 
     pub fn p2tr_check(
@@ -132,7 +128,7 @@ impl Ledger {
         tx: &Transaction,
         txouts: &[TxOut],
         input_idx: usize,
-    ) -> Result<(), LedgerError> {
+    ) -> Result<SpendingRequirementsReturn, LedgerError> {
         let secp = secp256k1::Secp256k1::new();
 
         let sig_pub_key_bytes = txouts[input_idx].script_pubkey.as_bytes();
@@ -171,7 +167,11 @@ impl Ledger {
             let msg = Message::from(h);
 
             return match x_only_public_key.verify(&secp, &msg, &signature.signature) {
-                Ok(()) => Ok(()),
+                Ok(()) => Ok(SpendingRequirementsReturn {
+                    taproot: None,
+                    script_buf: ScriptBuf::new(),
+                    witness,
+                }),
                 Err(e) => Err(LedgerError::Transaction(e.to_string())),
             };
         }
@@ -196,24 +196,14 @@ impl Ledger {
             ));
         }
 
-        let tx_template = TxTemplate {
-            tx: tx.clone(),
-            prevouts: txouts.to_vec(),
-            input_idx,
-            taproot_annex_scriptleaf: Some((
+        Ok(SpendingRequirementsReturn {
+            taproot: Some((
                 TapLeafHash::from_script(script, LeafVersion::TapScript),
                 annex,
             )),
-        };
-
-        self.run_script(
-            ExecCtx::Tapscript,
-            tx_template,
-            ScriptBuf::from_bytes(script_buf),
+            script_buf: ScriptBuf::from_bytes(script_buf),
             witness,
-        )?;
-
-        Ok(())
+        })
     }
 }
 
@@ -237,8 +227,8 @@ mod test {
     use std::str::FromStr;
 
     #[test]
-    fn p2wpkh() {
-        let ledger = Ledger::new("p2wpkh");
+    fn p2wpkh_check() {
+        let ledger = Ledger::new("p2wpkh_check");
         let credential = Ledger::generate_credential_from_witness();
 
         let wpkh = bitcoin::PublicKey::new(credential.public_key)
@@ -290,13 +280,12 @@ mod test {
 
         tx2.input[0].witness = Witness::p2wpkh(&signature, &credential.public_key);
 
-        let res = ledger.p2wpkh_check(&tx2, &[output], 0);
-        assert!(res.is_ok());
+        ledger.p2wpkh_check(&tx2, &[output], 0).unwrap();
     }
 
     #[test]
-    fn p2wsh() {
-        let ledger = Ledger::new("p2wsh");
+    fn p2wsh_check() {
+        let ledger = Ledger::new("p2wsh_check");
         let witness_program = WitnessProgram::p2wsh(Script::from_bytes(
             &script! {
                 { 1234 } OP_EQUAL
@@ -337,13 +326,12 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2wsh_check(&tx2, &[output], 0);
-        assert!(res.is_ok());
+        ledger.p2wsh_check(&tx2, &[output], 0).unwrap();
     }
 
     #[test]
-    fn p2tr() {
-        let ledger = Ledger::new("p2tr");
+    fn p2tr_check() {
+        let ledger = Ledger::new("p2tr_check");
         let secp = bitcoin::secp256k1::Secp256k1::new();
         let internal_key = UntweakedPublicKey::from(
             bitcoin::secp256k1::PublicKey::from_str(
@@ -402,8 +390,7 @@ mod test {
             output: vec![],
         };
 
-        let res = ledger.p2tr_check(&tx2, &[output], 0);
-        assert!(res.is_ok());
+        ledger.p2tr_check(&tx2, &[output], 0).unwrap();
     }
 
     #[test]
