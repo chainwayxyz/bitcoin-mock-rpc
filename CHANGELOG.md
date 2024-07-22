@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Block have time
   - Blocks have fixed 10 minute interval
-  - First block is current time
+  - First block have current time
 
 ## [0.0.3] - 2024-07-16
 
