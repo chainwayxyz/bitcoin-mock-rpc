@@ -142,6 +142,9 @@ impl Ledger {
                 ctx = ExecCtx::SegwitV0;
             } else if txouts[input_idx].script_pubkey.is_p2tr() {
                 ret = self.p2tr_check(&transaction, &txouts, input_idx)?;
+                if ret.taproot == None {
+                    continue;
+                }
                 ctx = ExecCtx::Tapscript;
             }
 
