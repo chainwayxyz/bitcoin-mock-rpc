@@ -100,9 +100,8 @@ impl Ledger {
             (
                 txid           TEXT                       not null,
                 vout           INTEGER                    not null,
-                time_lock      INTEGER default 2147483648 not null,
-                constraint utxos_pk
-                    primary key (txid, vout)
+                sequence       INTEGER default 2147483648 not null,
+                constraint utxos_pk primary key (txid, vout)
             );
             ",
         )

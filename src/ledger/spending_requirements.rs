@@ -216,7 +216,7 @@ impl Ledger {
         let current_block_height = self.get_block_height();
 
         if let Some(tl) = self.get_utxo_timelock(input.previous_output) {
-            let tl = Ledger::sequence_to_timelock(tl)?;
+            let tl = Ledger::sequence_to_timelock(tl.to_consensus_u32())?;
 
             let satisfied = if tl.is_block_height() {
                 tl.is_satisfied_by_height(relative::Height::from_height(
@@ -257,6 +257,23 @@ mod test {
     use bitcoin_script::{define_pushable, script};
     use bitcoin_scriptexec::utils::scriptint_vec;
     use std::str::FromStr;
+
+    #[test]
+    fn check_input_lock() {
+        // let ledger = Ledger::new("check_input_lock");
+
+        // let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
+        // let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
+        // let txid = ledger.add_transaction_unconditionally(tx).unwrap();
+
+        // let txin = TxIn {
+        //     previous_output: OutPoint { txid, vout: 0 },
+        //     script_sig: ScriptBuf::new(),
+        //     sequence: todo!(),
+        //     witness: todo!(),
+        // };
+        // let tx = ledger.create_transaction(vec![txin], vec![txout]);
+    }
 
     #[test]
     fn p2wpkh_check() {
