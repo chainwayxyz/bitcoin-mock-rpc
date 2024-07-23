@@ -91,6 +91,7 @@ impl Ledger {
         };
         let lock_time = Ledger::sequence_to_timelock(sequence)?;
 
+        // Convert relative lock to absolute time.
         match lock_time {
             relative::LockTime::Blocks(height) => {
                 let target_height = self.get_block_height() as u32 + height.to_consensus_u32();
@@ -136,61 +137,92 @@ impl Ledger {
 
 #[cfg(test)]
 mod tests {
-    // use crate::ledger::{self, Ledger};
-    // use bitcoin::opcodes::all::*;
-    // use bitcoin::script::Builder;
-    // use bitcoin::Sequence;
+    use crate::ledger::{self, Ledger};
+    use bitcoin::absolute::LockTime;
+    use bitcoin::hashes::Hash;
+    use bitcoin::opcodes::all::*;
+    use bitcoin::script::Builder;
+    use bitcoin::{OutPoint, Txid};
 
     #[test]
-    fn check_csv_with_block_height() {
-        //     let ledger = Ledger::new("check_csv_with_block_height");
-        //     let xonly_pk = ledger::Ledger::generate_credential_from_witness().x_only_public_key;
+    fn check_for_csv_with_block_height() {
+        let ledger = Ledger::new("check_for_csv_with_block_height");
+        let xonly_pk = ledger::Ledger::generate_credential_from_witness().x_only_public_key;
+        let mut utxo = OutPoint {
+            txid: Txid::all_zeros(),
+            vout: 0,
+        };
 
-        //     let script = Builder::new()
-        //         .push_int(0x1 as i64)
-        //         .push_opcode(OP_CSV)
-        //         .push_opcode(OP_DROP)
-        //         .push_x_only_key(&xonly_pk)
-        //         .push_opcode(OP_CHECKSIG)
-        //         .into_script();
-        //     if let Ok(_) = ledger.check_for_csv(bitcoin::OutPoint { txid: (), vout: () }, script) {
-        //         assert!(false);
-        //     };
+        ledger.increment_block_height();
+        assert_eq!(ledger.get_block_height(), 1);
 
-        //     for _ in 0..2 {
-        //         ledger.increment_block_height();
-        //     }
-        //     let script = Builder::new()
-        //         .push_int(0x1 as i64)
-        //         .push_opcode(OP_CSV)
-        //         .push_opcode(OP_DROP)
-        //         .push_x_only_key(&xonly_pk)
-        //         .push_opcode(OP_CHECKSIG)
-        //         .into_script();
-        //     ledger.check_for_csv(script).unwrap();
+        let script = Builder::new()
+            .push_int(0x1 as i64)
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(&xonly_pk)
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(2).unwrap()
+        );
 
-        //     for _ in 2..0x46 {
-        //         ledger.increment_block_height();
-        //     }
-        //     let script = Builder::new()
-        //         .push_int(0x45 as i64)
-        //         .push_opcode(OP_CSV)
-        //         .push_opcode(OP_DROP)
-        //         .push_x_only_key(&xonly_pk)
-        //         .push_opcode(OP_CHECKSIG)
-        //         .into_script();
-        //     ledger.check_for_csv(script).unwrap();
+        for _ in 0..3 {
+            ledger.increment_block_height();
+        }
+        assert_eq!(ledger.get_block_height(), 4);
 
-        //     let script = Builder::new()
-        //         .push_int(0x100 as i64)
-        //         .push_opcode(OP_CSV)
-        //         .push_opcode(OP_DROP)
-        //         .push_x_only_key(&xonly_pk)
-        //         .push_opcode(OP_CHECKSIG)
-        //         .into_script();
-        //     if let Ok(_) = ledger.check_for_csv(script) {
-        //         assert!(false);
-        //     };
+        let script = Builder::new()
+            .push_int(0x1 as i64)
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(&xonly_pk)
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        utxo.vout = 1;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(5).unwrap()
+        );
+
+        for _ in 0..3 {
+            ledger.increment_block_height();
+        }
+        assert_eq!(ledger.get_block_height(), 7);
+        let script = Builder::new()
+            .push_int(0x45 as i64)
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(&xonly_pk)
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        utxo.vout = 2;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(0x45 + 7).unwrap()
+        );
+
+        for _ in 0..10 {
+            ledger.increment_block_height();
+        }
+        assert_eq!(ledger.get_block_height(), 17);
+        let script = Builder::new()
+            .push_int(0x100 as i64)
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(&xonly_pk)
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        utxo.vout = 3;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(0x100 + 17).unwrap()
+        );
     }
 
     #[ignore]
@@ -198,10 +230,15 @@ mod tests {
     fn check_csv_with_time_lock() {
         // let ledger = Ledger::new("check_csv_with_time_lock");
         // let xonly_pk = ledger::Ledger::generate_credential_from_witness().x_only_public_key;
+        // let mut utxo = OutPoint {
+        //     txid: Txid::all_zeros(),
+        //     vout: 0,
+        // };
 
-        // let sequence = Sequence::from_512_second_intervals(2);
+        // ledger.increment_block_height();
+
         // let script = Builder::new()
-        //     .push_sequence(sequence)
+        //     .push_sequence(Sequence::from_512_second_intervals(2))
         //     .push_opcode(OP_CSV)
         //     .push_opcode(OP_DROP)
         //     .push_x_only_key(&xonly_pk)
