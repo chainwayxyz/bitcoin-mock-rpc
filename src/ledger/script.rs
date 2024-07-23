@@ -4,10 +4,9 @@ use super::{errors::LedgerError, Ledger};
 use bitcoin::{
     opcodes::all::{OP_CSV, OP_PUSHNUM_1},
     relative::{self, Height, Time},
-    script, ScriptBuf, Sequence, TxIn,
+    script, ScriptBuf, Sequence,
 };
 use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 impl Ledger {
     pub fn run_script(
@@ -46,35 +45,6 @@ impl Ledger {
         Ok(())
     }
 
-    /// Checks if given inputs are now spendable.
-    fn _check_input_locks(&self, inputs: &[TxIn]) -> Result<(), LedgerError> {
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let current_block_height = self.get_block_height();
-
-        for input in inputs {
-            if let Some(tl) = self.get_utxo_timelock(input.previous_output) {
-                let tl = Ledger::sequence_to_timelock(tl)?;
-
-                let satisfied = if tl.is_block_height() {
-                    tl.is_satisfied_by_height(Height::from_height(current_block_height as u16))
-                        .is_ok()
-                } else {
-                    tl.is_satisfied_by_time(Time::from_seconds_ceil(current_time as u32).unwrap())
-                        .is_ok()
-                };
-
-                if !satisfied {
-                    return Err(LedgerError::Script("Input still locked until".to_string()));
-                }
-            };
-        }
-
-        Ok(())
-    }
-
     /// Checks if a script is a CSV script. If it is, returns lock time.
     fn is_csv(script_buf: ScriptBuf) -> Option<relative::LockTime> {
         let mut instructions = script_buf.instructions();
@@ -103,7 +73,7 @@ impl Ledger {
     }
 
     #[inline]
-    fn sequence_to_timelock(sequence: u32) -> Result<relative::LockTime, LedgerError> {
+    pub fn sequence_to_timelock(sequence: u32) -> Result<relative::LockTime, LedgerError> {
         match relative::LockTime::from_sequence(Sequence::from_consensus(sequence)) {
             Ok(lt) => return Ok(lt),
             Err(e) => return Err(LedgerError::AnyHow(e.into())),

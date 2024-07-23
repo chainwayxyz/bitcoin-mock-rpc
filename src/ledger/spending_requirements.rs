@@ -12,8 +12,9 @@ use bitcoin::{
     taproot::{ControlBlock, LeafVersion},
     TapLeafHash, XOnlyPublicKey,
 };
-use bitcoin::{Script, WitnessProgram};
+use bitcoin::{relative, Script, TxIn, WitnessProgram};
 use secp256k1::Message;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Default)]
 pub struct SpendingRequirementsReturn {
@@ -204,6 +205,37 @@ impl Ledger {
             script_buf: ScriptBuf::from_bytes(script_buf),
             witness,
         })
+    }
+
+    /// Checks if given inputs are now spendable.
+    pub fn check_input_lock(&self, input: TxIn) -> Result<(), LedgerError> {
+        let current_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let current_block_height = self.get_block_height();
+
+        if let Some(tl) = self.get_utxo_timelock(input.previous_output) {
+            let tl = Ledger::sequence_to_timelock(tl)?;
+
+            let satisfied = if tl.is_block_height() {
+                tl.is_satisfied_by_height(relative::Height::from_height(
+                    current_block_height as u16,
+                ))
+                .is_ok()
+            } else {
+                tl.is_satisfied_by_time(
+                    relative::Time::from_seconds_ceil(current_time as u32).unwrap(),
+                )
+                .is_ok()
+            };
+
+            if !satisfied {
+                return Err(LedgerError::Script(format!("Input is locked: {:?}", input)));
+            }
+        };
+
+        Ok(())
     }
 }
 

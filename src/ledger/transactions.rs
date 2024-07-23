@@ -152,6 +152,8 @@ impl Ledger {
                 taproot_annex_scriptleaf: ret.taproot,
             };
 
+            self.check_input_lock(transaction.input[input_idx].clone())?;
+
             self.run_script(ctx, tx_template, ret.script_buf, ret.witness)?;
         }
 
