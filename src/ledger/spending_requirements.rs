@@ -208,7 +208,7 @@ impl Ledger {
     }
 
     /// Checks if given inputs are now spendable.
-    pub fn check_input_lock(&self, input: TxIn) -> Result<(), LedgerError> {
+    pub fn check_input_lock(&self, input: &TxIn) -> Result<(), LedgerError> {
         let current_block_height = self.get_block_height();
         let current_time = self.get_block_time(current_block_height)?;
 
@@ -230,7 +230,7 @@ impl Ledger {
 mod test {
     define_pushable!();
     use crate::ledger::Ledger;
-    use bitcoin::absolute::LockTime;
+    use bitcoin::absolute::{self, LockTime};
     use bitcoin::ecdsa::Signature;
     use bitcoin::key::UntweakedPublicKey;
     use bitcoin::secp256k1::Message;
@@ -249,16 +249,26 @@ mod test {
     fn check_input_lock() {
         let ledger = Ledger::new("check_input_lock");
 
+        // Prepare ledger.
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = ledger.add_transaction_unconditionally(tx).unwrap();
+        ledger.add_utxo_with_lock_time(
+            OutPoint { txid, vout: 0 },
+            absolute::LockTime::from_height(2).unwrap(),
+        );
+        ledger.increment_block_height();
 
         let txin = TxIn {
             previous_output: OutPoint { txid, vout: 0 },
-            script_sig: ScriptBuf::new(),
             ..Default::default()
         };
-        let tx = ledger.create_transaction(vec![txin], vec![txout]);
+        if let Ok(_) = ledger.check_input_lock(&txin) {
+            assert!(false);
+        };
+
+        ledger.increment_block_height();
+        ledger.check_input_lock(&txin).unwrap();
     }
 
     #[test]
