@@ -3,7 +3,6 @@
 //! This crate implements `RpcApi` trait in `bitcoincore-rpc` for the mock
 //! `Client`.
 
-use std::u32;
 use super::Client;
 use crate::ledger::Ledger;
 use bitcoin::{
@@ -23,6 +22,7 @@ use bitcoincore_rpc::{
     RpcApi,
 };
 use secp256k1::rand::{self, RngCore};
+use std::u32;
 
 impl RpcApi for Client {
     /// TL;DR: If this function is called for `cmd`, it's corresponding mock is
