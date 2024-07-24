@@ -72,13 +72,10 @@ impl Ledger {
 
         let last_block_time = if last_block_height == 0 {
             // This is genesis block. Use current time.
-            let start = SystemTime::now();
-            let duration = start
-                .duration_since(UNIX_EPOCH)
-                .expect("Time went backwards");
+            let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
 
-            // Return 10 minute before current time. Because new block will have
-            // time of 10 minute before than the last block.
+            // Return 10 minutes before current time. New block will have the
+            // time of 10 minute after the last block.
             (duration - Duration::from_secs(60 * 10)).as_secs()
         } else {
             self.get_block_time(last_block_height).unwrap()
@@ -86,7 +83,6 @@ impl Ledger {
         let current_block_time = last_block_time + (60 * 10);
 
         self.set_block_time(current_block_height, current_block_time);
-
         self.set_block_height(current_block_height);
     }
 
@@ -172,6 +168,7 @@ impl Ledger {
 
         Err(LedgerError::BlockInMempool(block_height))
     }
+
     /// Sets specified blocks time.
     ///
     /// # Panics

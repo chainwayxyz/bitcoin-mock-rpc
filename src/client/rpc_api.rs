@@ -22,6 +22,7 @@ use bitcoincore_rpc::{
     RpcApi,
 };
 use secp256k1::rand::{self, RngCore};
+use std::u32;
 
 impl RpcApi for Client {
     /// TL;DR: If this function is called for `cmd`, it's corresponding mock is
@@ -224,24 +225,20 @@ impl RpcApi for Client {
         // First, create a random input. Why? Because calling this function for
         // same amount twice will trigger a database error about same TXID blah,
         // blah, blah.
-        let txout = self.ledger.create_txout(
-            Amount::from_sat(rand::thread_rng().next_u64()) + amount,
-            address.script_pubkey(),
+        let rn = rand::thread_rng().next_u64();
+        let txin = self.ledger.create_txin(
+            Txid::hash(&[(rn & 0xFF) as u8]),
+            (rn & (u32::MAX as u64)) as u32,
         );
-        let tx = self.ledger.create_transaction(vec![], vec![txout]);
-        let txid = tx.compute_txid();
-        self.ledger.add_transaction_unconditionally(tx)?;
 
-        // Now send amount to address.
-        let txin = self.ledger.create_txin(txid, 0);
         let txout = self.ledger.create_txout(amount, address.script_pubkey());
         let tx = self.ledger.create_transaction(vec![txin], vec![txout]);
 
         Ok(self.ledger.add_transaction_unconditionally(tx)?)
     }
 
-    // / Creates a random secret/public key pair and generates a Bitcoin address
-    // / from witness program.
+    /// Creates a random secret/public key pair and generates a Bitcoin address
+    /// from witness program.
     fn get_new_address(
         &self,
         _label: Option<&str>,
@@ -259,19 +256,19 @@ impl RpcApi for Client {
         block_num: u64,
         address: &Address<NetworkChecked>,
     ) -> bitcoincore_rpc::Result<Vec<bitcoin::BlockHash>> {
-        // Block reward is 1 BTC regardless of how many block is mined.
-        let txout = self.ledger.create_txout(
-            Amount::from_sat(100_000_000 * block_num),
-            address.script_pubkey(),
-        );
-        let tx = self.ledger.create_transaction(vec![], vec![txout]);
-
-        self.ledger.add_transaction_unconditionally(tx)?;
-
-        self.ledger.clean_mempool();
-
-        // Finally, increase the block height, one by one.
         for _ in 0..block_num {
+            self.send_to_address(
+                address,
+                Amount::from_sat(100_000_000),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )?;
+
+            self.ledger.clean_mempool();
             self.ledger.increment_block_height();
         }
 

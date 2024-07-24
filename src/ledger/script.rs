@@ -2,12 +2,11 @@
 
 use super::{errors::LedgerError, Ledger};
 use bitcoin::{
+    absolute::{self, Height, Time},
     opcodes::all::{OP_CSV, OP_PUSHNUM_1},
-    relative::{self, Height, Time},
-    script, ScriptBuf, Sequence, TxIn,
+    relative, script, OutPoint, ScriptBuf, Sequence,
 };
 use bitcoin_scriptexec::{Exec, ExecCtx, Options, TxTemplate};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 impl Ledger {
     pub fn run_script(
@@ -17,7 +16,10 @@ impl Ledger {
         script_buf: ScriptBuf,
         script_witness: Vec<Vec<u8>>,
     ) -> Result<(), LedgerError> {
-        self.check_csv(script_buf.clone())?;
+        self.check_for_csv(
+            tx_template.tx.input[tx_template.input_idx].previous_output,
+            script_buf.clone(),
+        )?;
 
         let mut exec = Exec::new(
             ctx,
@@ -46,37 +48,16 @@ impl Ledger {
         Ok(())
     }
 
-    /// Checks if given inputs are now spendable.
-    fn _check_input_locks(&self, inputs: &[TxIn]) -> Result<(), LedgerError> {
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let current_block_height = self.get_block_height();
-
-        for input in inputs {
-            if let Some(tl) = self.get_utxo_timelock(input.previous_output) {
-                let tl = Ledger::sequence_to_timelock(tl)?;
-
-                let satisfied = if tl.is_block_height() {
-                    tl.is_satisfied_by_height(Height::from_height(current_block_height as u16))
-                        .is_ok()
-                } else {
-                    tl.is_satisfied_by_time(Time::from_seconds_ceil(current_time as u32).unwrap())
-                        .is_ok()
-                };
-
-                if !satisfied {
-                    return Err(LedgerError::Script("Input still locked until".to_string()));
-                }
-            };
-        }
-
-        Ok(())
+    #[inline]
+    pub fn sequence_to_timelock(sequence: u32) -> Result<relative::LockTime, LedgerError> {
+        match relative::LockTime::from_sequence(Sequence::from_consensus(sequence)) {
+            Ok(lt) => return Ok(lt),
+            Err(e) => return Err(LedgerError::AnyHow(e.into())),
+        };
     }
 
     /// Checks if a script is a CSV script. If it is, returns lock time.
-    fn is_csv(script_buf: ScriptBuf) -> Option<relative::LockTime> {
+    fn is_csv(script_buf: ScriptBuf) -> Option<u32> {
         let mut instructions = script_buf.instructions();
         let op1 = instructions.next();
         let op2 = instructions.next();
@@ -95,49 +76,37 @@ impl Ledger {
                     op1_data = data as i64;
                 };
 
-                return Some(Ledger::sequence_to_timelock(op1_data as u32).unwrap());
+                return Some(op1_data as u32);
             }
         }
 
         None
     }
 
-    #[inline]
-    fn sequence_to_timelock(sequence: u32) -> Result<relative::LockTime, LedgerError> {
-        match relative::LockTime::from_sequence(Sequence::from_consensus(sequence)) {
-            Ok(lt) => return Ok(lt),
-            Err(e) => return Err(LedgerError::AnyHow(e.into())),
-        };
-    }
-
-    /// Checks if script is a CSV and it satisfies conditions.
-    fn check_csv(&self, script_buf: ScriptBuf) -> Result<(), LedgerError> {
-        let lock_time = match Ledger::is_csv(script_buf) {
-            Some(data) => data,
+    /// Checks if script is a CSV and saves lock time to ledger if it is.
+    fn check_for_csv(&self, utxo: OutPoint, script_buf: ScriptBuf) -> Result<(), LedgerError> {
+        let sequence = match Ledger::is_csv(script_buf) {
+            Some(s) => s,
             None => return Ok(()),
         };
+        let lock_time = Ledger::sequence_to_timelock(sequence)?;
 
-        if lock_time.is_block_height() {
-            let current_height = self.get_block_height();
-            let target_height = Height::from_height(current_height as u16);
+        // Convert relative lock to absolute time.
+        let lock = match lock_time {
+            relative::LockTime::Blocks(height) => {
+                let target_height = self.get_block_height() as u32 + height.to_consensus_u32();
 
-            if let false = lock_time.is_satisfied_by_height(target_height).unwrap() {
-                return Err(LedgerError::Script(format!(
-                    "UTXO is locked for the block height: {target_height}; Current block height: {current_height}"
-                )));
+                absolute::LockTime::Blocks(Height::from_consensus(target_height).unwrap())
             }
-        } else {
-            let current_height = self.get_block_height();
-            let current_time = self.get_block_time(current_height).unwrap();
+            relative::LockTime::Time(time) => {
+                let target_time = self.get_block_time(self.get_block_height()).unwrap() as u32
+                    + (time.value() as u32 * 512);
 
-            let target_time = Time::from_seconds_floor(current_time as u32).unwrap();
-
-            if let false = lock_time.is_satisfied_by_time(target_time).unwrap() {
-                return Err(LedgerError::Script(format!(
-                    "UTXO is locked for the block time: {target_time}; Current block time: {current_time}"
-                )));
+                absolute::LockTime::Seconds(Time::from_consensus(target_time).unwrap())
             }
-        }
+        };
+
+        self.add_utxo_with_lock_time(utxo, lock);
 
         Ok(())
     }
@@ -146,29 +115,24 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::{self, Ledger};
+    use bitcoin::absolute::LockTime;
+    use bitcoin::hashes::Hash;
     use bitcoin::opcodes::all::*;
     use bitcoin::script::Builder;
-    use bitcoin::Sequence;
+    use bitcoin::{OutPoint, Sequence, Txid};
 
     #[test]
-    fn check_csv_with_block_height() {
-        let ledger = Ledger::new("check_csv_with_block_height");
+    fn check_for_csv_with_block_height() {
+        let ledger = Ledger::new("check_for_csv_with_block_height");
         let xonly_pk = ledger::Ledger::generate_credential_from_witness().x_only_public_key;
-
-        let script = Builder::new()
-            .push_int(0x1 as i64)
-            .push_opcode(OP_CSV)
-            .push_opcode(OP_DROP)
-            .push_x_only_key(&xonly_pk)
-            .push_opcode(OP_CHECKSIG)
-            .into_script();
-        if let Ok(_) = ledger.check_csv(script) {
-            assert!(false);
+        let mut utxo = OutPoint {
+            txid: Txid::all_zeros(),
+            vout: 0,
         };
 
-        for _ in 0..2 {
-            ledger.increment_block_height();
-        }
+        ledger.increment_block_height();
+        assert_eq!(ledger.get_block_height(), 1);
+
         let script = Builder::new()
             .push_int(0x1 as i64)
             .push_opcode(OP_CSV)
@@ -176,11 +140,35 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_csv(script).unwrap();
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(2).unwrap()
+        );
 
-        for _ in 2..0x46 {
+        for _ in 0..3 {
             ledger.increment_block_height();
         }
+        assert_eq!(ledger.get_block_height(), 4);
+
+        let script = Builder::new()
+            .push_int(0x1 as i64)
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(&xonly_pk)
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        utxo.vout = 1;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(5).unwrap()
+        );
+
+        for _ in 0..3 {
+            ledger.increment_block_height();
+        }
+        assert_eq!(ledger.get_block_height(), 7);
         let script = Builder::new()
             .push_int(0x45 as i64)
             .push_opcode(OP_CSV)
@@ -188,8 +176,17 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_csv(script).unwrap();
+        utxo.vout = 2;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(0x45 + 7).unwrap()
+        );
 
+        for _ in 0..10 {
+            ledger.increment_block_height();
+        }
+        assert_eq!(ledger.get_block_height(), 17);
         let script = Builder::new()
             .push_int(0x100 as i64)
             .push_opcode(OP_CSV)
@@ -197,34 +194,42 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_csv(script) {
-            assert!(false);
-        };
+        utxo.vout = 3;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_height(0x100 + 17).unwrap()
+        );
     }
 
-    #[ignore]
     #[test]
     fn check_csv_with_time_lock() {
         let ledger = Ledger::new("check_csv_with_time_lock");
         let xonly_pk = ledger::Ledger::generate_credential_from_witness().x_only_public_key;
-
-        let sequence = Sequence::from_512_second_intervals(2);
-        let script = Builder::new()
-            .push_sequence(sequence)
-            .push_opcode(OP_CSV)
-            .push_opcode(OP_DROP)
-            .push_x_only_key(&xonly_pk)
-            .push_opcode(OP_CHECKSIG)
-            .into_script();
-        println!("Script: {}", script);
-        if let Ok(_) = ledger.check_csv(script) {
-            assert!(false);
+        let mut utxo = OutPoint {
+            txid: Txid::all_zeros(),
+            vout: 0,
         };
 
-        for _ in 0..3 {
-            ledger.increment_block_height();
-        }
-        let sequence = Sequence::from_512_second_intervals(3);
+        ledger.increment_block_height();
+        let current_time = ledger.get_block_time(ledger.get_block_height()).unwrap() as u32;
+        let script = Builder::new()
+            .push_sequence(Sequence::from_512_second_intervals(2))
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(&xonly_pk)
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        utxo.vout = 0;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_time(current_time + (2 * 512)).unwrap()
+        );
+
+        ledger.increment_block_height();
+        let current_time = ledger.get_block_time(ledger.get_block_height()).unwrap() as u32;
+        let sequence = Sequence::from_512_second_intervals(300);
         let script = Builder::new()
             .push_sequence(sequence)
             .push_opcode(OP_CSV)
@@ -232,7 +237,11 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        println!("Script: {}", script);
-        ledger.check_csv(script).unwrap();
+        utxo.vout = 1;
+        ledger.check_for_csv(utxo, script).unwrap();
+        assert_eq!(
+            ledger.get_utxo_timelock(utxo).unwrap(),
+            LockTime::from_time(current_time + (300 * 512)).unwrap()
+        );
     }
 }

@@ -81,6 +81,7 @@ impl Ledger {
                     constraint block_height primary key,
                 unix_time      INTEGER
             );
+            INSERT INTO block_times (block_height, unix_time) VALUES (0, 500000000);
 
             CREATE TABLE mempool
             (
@@ -100,9 +101,8 @@ impl Ledger {
             (
                 txid           TEXT                       not null,
                 vout           INTEGER                    not null,
-                time_lock      INTEGER default 2147483648 not null,
-                constraint utxos_pk
-                    primary key (txid, vout)
+                sequence       INTEGER default 2147483648 not null,
+                constraint utxos_pk primary key (txid, vout)
             );
             ",
         )
