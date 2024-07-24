@@ -92,44 +92,21 @@ impl Ledger {
         let lock_time = Ledger::sequence_to_timelock(sequence)?;
 
         // Convert relative lock to absolute time.
-        match lock_time {
+        let lock = match lock_time {
             relative::LockTime::Blocks(height) => {
                 let target_height = self.get_block_height() as u32 + height.to_consensus_u32();
-                let lock =
-                    absolute::LockTime::Blocks(Height::from_consensus(target_height).unwrap());
 
-                self.add_utxo_with_lock_time(utxo, lock);
+                absolute::LockTime::Blocks(Height::from_consensus(target_height).unwrap())
             }
             relative::LockTime::Time(time) => {
                 let target_time = self.get_block_time(self.get_block_height()).unwrap() as u32
                     + (time.value() as u32 * 512);
-                let lock = absolute::LockTime::Seconds(Time::from_consensus(target_time).unwrap());
 
-                self.add_utxo_with_lock_time(utxo, lock);
+                absolute::LockTime::Seconds(Time::from_consensus(target_time).unwrap())
             }
         };
 
-        // if lock_time.is_block_height() {
-        //     let current_height = self.get_block_height();
-        //     let target_height = Height::from_height(current_height as u16);
-
-        //     if let false = lock_time.is_satisfied_by_height(target_height).unwrap() {
-        //         return Err(LedgerError::Script(format!(
-        //             "UTXO is locked for the block height: {target_height}; Current block height: {current_height}"
-        //         )));
-        //     }
-        // } else {
-        //     let current_height = self.get_block_height();
-        //     let current_time = self.get_block_time(current_height).unwrap();
-
-        //     let target_time = Time::from_seconds_floor(current_time as u32).unwrap();
-
-        //     if let false = lock_time.is_satisfied_by_time(target_time).unwrap() {
-        //         return Err(LedgerError::Script(format!(
-        //             "UTXO is locked for the block time: {target_time}; Current block time: {current_time}"
-        //         )));
-        //     }
-        // }
+        self.add_utxo_with_lock_time(utxo, lock);
 
         Ok(())
     }
