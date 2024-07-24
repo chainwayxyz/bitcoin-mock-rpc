@@ -81,6 +81,7 @@ impl Ledger {
                     constraint block_height primary key,
                 unix_time      INTEGER
             );
+            INSERT INTO block_times (block_height, unix_time) VALUES (0, 500000000);
 
             CREATE TABLE mempool
             (
