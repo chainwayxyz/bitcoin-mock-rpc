@@ -2,6 +2,7 @@
 
 use super::Ledger;
 use crate::ledger::errors::LedgerError;
+use bitcoin::absolute;
 use bitcoin::{
     ecdsa::Signature, opcodes::all::OP_PUSHBYTES_20, sighash::SighashCache, CompressedPublicKey,
     ScriptBuf, Transaction, TxOut,
@@ -12,9 +13,8 @@ use bitcoin::{
     taproot::{ControlBlock, LeafVersion},
     TapLeafHash, XOnlyPublicKey,
 };
-use bitcoin::{relative, Script, TxIn, WitnessProgram};
+use bitcoin::{Script, TxIn, WitnessProgram};
 use secp256k1::Message;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Default)]
 pub struct SpendingRequirementsReturn {
@@ -209,28 +209,15 @@ impl Ledger {
 
     /// Checks if given inputs are now spendable.
     pub fn check_input_lock(&self, input: TxIn) -> Result<(), LedgerError> {
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
         let current_block_height = self.get_block_height();
+        let current_time = self.get_block_time(current_block_height)?;
+
+        let current_block_height =
+            absolute::Height::from_consensus(current_block_height as u32).unwrap();
+        let current_time = absolute::Time::from_consensus(current_time as u32).unwrap();
 
         if let Some(tl) = self.get_utxo_timelock(input.previous_output) {
-            let tl = Ledger::sequence_to_timelock(tl.to_consensus_u32())?;
-
-            let satisfied = if tl.is_block_height() {
-                tl.is_satisfied_by_height(relative::Height::from_height(
-                    current_block_height as u16,
-                ))
-                .is_ok()
-            } else {
-                tl.is_satisfied_by_time(
-                    relative::Time::from_seconds_ceil(current_time as u32).unwrap(),
-                )
-                .is_ok()
-            };
-
-            if !satisfied {
+            if !tl.is_satisfied_by(current_block_height, current_time) {
                 return Err(LedgerError::Script(format!("Input is locked: {:?}", input)));
             }
         };
@@ -260,19 +247,18 @@ mod test {
 
     #[test]
     fn check_input_lock() {
-        // let ledger = Ledger::new("check_input_lock");
+        let ledger = Ledger::new("check_input_lock");
 
-        // let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
-        // let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
-        // let txid = ledger.add_transaction_unconditionally(tx).unwrap();
+        let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
+        let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
+        let txid = ledger.add_transaction_unconditionally(tx).unwrap();
 
-        // let txin = TxIn {
-        //     previous_output: OutPoint { txid, vout: 0 },
-        //     script_sig: ScriptBuf::new(),
-        //     sequence: todo!(),
-        //     witness: todo!(),
-        // };
-        // let tx = ledger.create_transaction(vec![txin], vec![txout]);
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            script_sig: ScriptBuf::new(),
+            ..Default::default()
+        };
+        let tx = ledger.create_transaction(vec![txin], vec![txout]);
     }
 
     #[test]
