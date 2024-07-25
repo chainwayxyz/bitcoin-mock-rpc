@@ -134,28 +134,6 @@ impl Ledger {
     }
 }
 
-// impl Clone for Ledger {
-//     fn clone(&self) -> Self {
-//         let database = Connection::open(self.path.clone()).unwrap();
-
-//         Self {
-//             database: Arc::new(Mutex::new(database)),
-//             path: self.path.clone()
-//         }
-//     }
-// }
-
-// impl Drop for Ledger {
-//     fn drop(&mut self) {
-//         println!("Cleaning mock RPC database for {}...", self.path);
-
-//         drop(self.database.clone());
-
-//         let x = std::fs::remove_file(&self.path);
-//         println!("droooppp {:?}", x);
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
