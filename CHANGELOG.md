@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2024-07-25
+
 ### Added
 
+- Custom cloning support
+  - Users of this library can establish a new connection while preserving ledger database
 - Block have time
   - Blocks have fixed 10 minute interval
   - First block have current time
+- Initial relative lock time support
+  - Currently only supports script CSV
+
+### Changed
+
+- Script CSV is now relative, rather than absolute
 
 ## [0.0.3] - 2024-07-16
 
@@ -61,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `get_balance`
 
 [Unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.3...HEAD
+[0.0.4]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/0.0.1...v0.0.2
 [0.0.1]: https://github.com/chainwayxyz/bitcoin-mock-rpc/releases/tag/0.0.1
