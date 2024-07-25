@@ -10,7 +10,6 @@ use std::{
     env,
     sync::{Arc, Mutex},
 };
-
 mod address;
 mod block;
 mod errors;
@@ -38,10 +37,9 @@ impl Ledger {
     /// Panics if SQLite connection can't be established and initial query can't
     /// be run.
     pub fn new(path: &str) -> Self {
-        let temp_dir = env::temp_dir();
-        let path = temp_dir.to_str().unwrap().to_owned() + "/" + path;
+        let path = Ledger::get_database_path(path);
 
-        let database = Connection::open(path).unwrap();
+        let database = Connection::open(path.clone()).unwrap();
 
         Ledger::drop_tables(&database).unwrap();
         Ledger::create_tables(&database).unwrap();
@@ -51,7 +49,34 @@ impl Ledger {
         }
     }
 
-    pub fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
+    /// Connects the ledger, previously created by the `new` call. This function
+    /// won't clean any data from database. Therefore it is a useful function
+    /// for cloning.
+    ///
+    /// This function is needed because `bitcoincore_rpc` doesn't provide a
+    /// `clone` interface. Therefore users of that library need to call `new`
+    /// and establish a new connection to the Bitcoin. This is a solution to
+    /// that problem: We won't clean any mock data and use previously created
+    /// database.
+    ///
+    /// # Panics
+    ///
+    /// Panics if SQLite connection can't be established.
+    pub fn new_without_cleanup(path: &str) -> Self {
+        let path = Ledger::get_database_path(path);
+
+        let database = Connection::open(path.clone()).unwrap();
+
+        Self {
+            database: Arc::new(Mutex::new(database)),
+        }
+    }
+
+    fn get_database_path(path: &str) -> String {
+        env::temp_dir().to_str().unwrap().to_owned() + "/" + path
+    }
+
+    fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
                 DROP TABLE IF EXISTS blocks;
@@ -67,7 +92,7 @@ impl Ledger {
     /// hold all kind of information about the blockchain. Just holds enough
     /// data to provide a persistent storage for the limited features that the
     /// library provides.
-    pub fn create_tables(database: &Connection) -> Result<(), rusqlite::Error> {
+    fn create_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "CREATE TABLE blocks
             (
