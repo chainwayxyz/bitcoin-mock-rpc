@@ -216,7 +216,7 @@ impl Ledger {
             absolute::Height::from_consensus(current_block_height as u32).unwrap();
         let current_time = absolute::Time::from_consensus(current_time as u32).unwrap();
 
-        if let Some(tl) = self.get_utxo_timelock(input.previous_output) {
+        if let Some(tl) = self.get_utxo_locktime(input.previous_output) {
             if !tl.is_satisfied_by(current_block_height, current_time) {
                 return Err(LedgerError::Script(format!("Input is locked: {:?}", input)));
             }
@@ -253,7 +253,7 @@ mod test {
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
         let txid = ledger.add_transaction_unconditionally(tx).unwrap();
-        ledger.add_utxo_with_lock_time(
+        ledger.add_utxo_with_locktime(
             OutPoint { txid, vout: 0 },
             absolute::LockTime::from_height(2).unwrap(),
         );

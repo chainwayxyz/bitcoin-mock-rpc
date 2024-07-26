@@ -106,7 +106,7 @@ impl Ledger {
             }
         };
 
-        self.add_utxo_with_lock_time(utxo, lock);
+        self.add_utxo_with_locktime(utxo, lock);
 
         Ok(())
     }
@@ -142,7 +142,7 @@ mod tests {
             .into_script();
         ledger.check_for_csv(utxo, script).unwrap();
         assert_eq!(
-            ledger.get_utxo_timelock(utxo).unwrap(),
+            ledger.get_utxo_locktime(utxo).unwrap(),
             LockTime::from_height(2).unwrap()
         );
 
@@ -161,7 +161,7 @@ mod tests {
         utxo.vout = 1;
         ledger.check_for_csv(utxo, script).unwrap();
         assert_eq!(
-            ledger.get_utxo_timelock(utxo).unwrap(),
+            ledger.get_utxo_locktime(utxo).unwrap(),
             LockTime::from_height(5).unwrap()
         );
 
@@ -179,7 +179,7 @@ mod tests {
         utxo.vout = 2;
         ledger.check_for_csv(utxo, script).unwrap();
         assert_eq!(
-            ledger.get_utxo_timelock(utxo).unwrap(),
+            ledger.get_utxo_locktime(utxo).unwrap(),
             LockTime::from_height(0x45 + 7).unwrap()
         );
 
@@ -197,7 +197,7 @@ mod tests {
         utxo.vout = 3;
         ledger.check_for_csv(utxo, script).unwrap();
         assert_eq!(
-            ledger.get_utxo_timelock(utxo).unwrap(),
+            ledger.get_utxo_locktime(utxo).unwrap(),
             LockTime::from_height(0x100 + 17).unwrap()
         );
     }
@@ -223,7 +223,7 @@ mod tests {
         utxo.vout = 0;
         ledger.check_for_csv(utxo, script).unwrap();
         assert_eq!(
-            ledger.get_utxo_timelock(utxo).unwrap(),
+            ledger.get_utxo_locktime(utxo).unwrap(),
             LockTime::from_time(current_time + (2 * 512)).unwrap()
         );
 
@@ -240,7 +240,7 @@ mod tests {
         utxo.vout = 1;
         ledger.check_for_csv(utxo, script).unwrap();
         assert_eq!(
-            ledger.get_utxo_timelock(utxo).unwrap(),
+            ledger.get_utxo_locktime(utxo).unwrap(),
             LockTime::from_time(current_time + (300 * 512)).unwrap()
         );
     }

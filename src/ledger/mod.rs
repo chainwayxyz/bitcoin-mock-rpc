@@ -126,7 +126,8 @@ impl Ledger {
             (
                 txid           TEXT                       not null,
                 vout           INTEGER                    not null,
-                sequence       INTEGER default 2147483648 not null,
+                sequence       INTEGER default 2147483648,
+                height         INTEGER,
                 constraint utxos_pk primary key (txid, vout)
             );
             ",
