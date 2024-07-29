@@ -15,7 +15,7 @@ impl Ledger {
         script_buf: ScriptBuf,
         script_witness: Vec<Vec<u8>>,
     ) -> Result<(), LedgerError> {
-        self.check_for_csv(
+        self.check_sequence(
             tx_template.tx.input[tx_template.input_idx].previous_output,
             script_buf.clone(),
             tx_template.tx.input[tx_template.input_idx].sequence.0,
@@ -83,15 +83,15 @@ impl Ledger {
         None
     }
 
-    /// Checks if script is a CSV and checks sequence against current block
-    /// height/time.
-    fn check_for_csv(
+    /// Checks if it is a CSV script and compares sequence against the current
+    /// block height/time.
+    fn check_sequence(
         &self,
         utxo: OutPoint,
         script_buf: ScriptBuf,
         input_sequence: u32,
     ) -> Result<(), LedgerError> {
-        // If not a CSV script, we don't need to check sequence number.
+        // If not a CSV script, we don't need to check sequence.
         match Ledger::is_csv(script_buf) {
             Some(_) => (),
             None => return Ok(()),
@@ -99,9 +99,12 @@ impl Ledger {
 
         let current_block_height = self.get_block_height() as u32;
         let current_block_time = self.get_block_time(current_block_height as u64)? as u32;
-        let blocks_after = current_block_height - self.get_transaction_block_height(utxo.txid)? - 1;
-        let time_after =
-            current_block_time - (self.get_tx_block_height(utxo.txid) as u32) - (60 * 10);
+
+        let tx_block_height = self.get_transaction_block_height(utxo.txid)?;
+        let tx_block_time = self.get_tx_block_height(utxo.txid) as u32;
+
+        let blocks_after = current_block_height - tx_block_height;
+        let time_after = current_block_time - tx_block_time;
 
         let sequence_lock = Ledger::sequence_to_timelock(input_sequence)?;
 
@@ -111,7 +114,7 @@ impl Ledger {
                     return Err(LedgerError::Script(format!(
                         "Input {:?} is locked until block {} (current block height {})",
                         utxo,
-                        height.value() + blocks_after as u16,
+                        tx_block_height + blocks_after + 1,
                         current_block_height,
                     )));
                 }
@@ -121,7 +124,7 @@ impl Ledger {
                     return Err(LedgerError::Script(format!(
                         "Input {:?} is locked until time {} (current block time {})",
                         utxo,
-                        time.value() + time_after as u16,
+                        tx_block_time + time_after + (10 * 60),
                         current_block_time
                     )));
                 }
@@ -160,7 +163,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_for_csv(utxo, script, 0).unwrap();
+        ledger.check_sequence(utxo, script, 0).unwrap();
         // assert_eq!(
         //     ledger.get_utxo_locktime(utxo).unwrap(),
         //     LockTime::from_height(2).unwrap()
@@ -179,7 +182,7 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         utxo.vout = 1;
-        ledger.check_for_csv(utxo, script, 0).unwrap();
+        ledger.check_sequence(utxo, script, 0).unwrap();
         // assert_eq!(
         //     ledger.get_utxo_locktime(utxo).unwrap(),
         //     LockTime::from_height(5).unwrap()
@@ -197,7 +200,7 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         utxo.vout = 2;
-        ledger.check_for_csv(utxo, script, 0).unwrap();
+        ledger.check_sequence(utxo, script, 0).unwrap();
         // assert_eq!(
         //     ledger.get_utxo_locktime(utxo).unwrap(),
         //     LockTime::from_height(0x45 + 7).unwrap()
@@ -215,7 +218,7 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         utxo.vout = 3;
-        ledger.check_for_csv(utxo, script, 0).unwrap();
+        ledger.check_sequence(utxo, script, 0).unwrap();
         // assert_eq!(
         //     ledger.get_utxo_locktime(utxo).unwrap(),
         //     LockTime::from_height(0x100 + 17).unwrap()
@@ -242,7 +245,7 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         utxo.vout = 0;
-        ledger.check_for_csv(utxo, script, 0).unwrap();
+        ledger.check_sequence(utxo, script, 0).unwrap();
         // assert_eq!(
         //     ledger.get_utxo_locktime(utxo).unwrap(),
         //     LockTime::from_time(current_time + (2 * 512)).unwrap()
@@ -259,7 +262,7 @@ mod tests {
             .push_opcode(OP_CHECKSIG)
             .into_script();
         utxo.vout = 1;
-        ledger.check_for_csv(utxo, script, 0).unwrap();
+        ledger.check_sequence(utxo, script, 0).unwrap();
         // assert_eq!(
         //     ledger.get_utxo_locktime(utxo).unwrap(),
         //     LockTime::from_time(current_time + (300 * 512)).unwrap()
