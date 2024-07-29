@@ -16,7 +16,7 @@ mod errors;
 mod script;
 mod spending_requirements;
 mod transactions;
-mod utxo;
+// mod utxo;
 
 /// Mock Bitcoin ledger.
 #[derive(Clone)]
