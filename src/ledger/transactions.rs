@@ -76,6 +76,30 @@ impl Ledger {
         Ok(tx)
     }
 
+    pub fn get_transaction_block_height(&self, txid: Txid) -> Result<u32, LedgerError> {
+        let sequence = self.database.lock().unwrap().query_row(
+            "SELECT block_height FROM transactions WHERE txid = ?1",
+            params![txid.to_string()],
+            |row| {
+                let body = row.get::<_, u32>(0).unwrap();
+
+                Ok(body)
+            },
+        );
+        let sequence = match sequence {
+            Ok(sequence) => sequence,
+            Err(e) => {
+                return Err(LedgerError::Transaction(format!(
+                    "{}: {}",
+                    txid,
+                    e.to_string()
+                )))
+            }
+        };
+
+        Ok(sequence)
+    }
+
     pub fn get_transactions(&self) -> Vec<Transaction> {
         let database = self.database.lock().unwrap();
 
@@ -154,8 +178,6 @@ impl Ledger {
                 input_idx,
                 taproot_annex_scriptleaf: ret.taproot,
             };
-
-            self.check_input_lock(&transaction.input[input_idx])?;
 
             self.run_script(ctx, tx_template, ret.script_buf, ret.witness)?;
         }

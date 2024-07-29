@@ -16,7 +16,6 @@ mod errors;
 mod script;
 mod spending_requirements;
 mod transactions;
-mod utxo;
 
 /// Mock Bitcoin ledger.
 #[derive(Clone)]
@@ -83,7 +82,6 @@ impl Ledger {
                 DROP TABLE IF EXISTS block_times;
                 DROP TABLE IF EXISTS mempool;
                 DROP TABLE IF EXISTS transactions;
-                DROP TABLE IF EXISTS utxos;
                 ",
         )
     }
@@ -120,14 +118,6 @@ impl Ledger {
                     constraint txid primary key,
                 block_height  INTEGER not null,
                 body          blob    not null
-            );
-
-            CREATE TABLE utxos
-            (
-                txid           TEXT                       not null,
-                vout           INTEGER                    not null,
-                sequence       INTEGER default 2147483648 not null,
-                constraint utxos_pk primary key (txid, vout)
             );
             ",
         )
