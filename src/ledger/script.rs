@@ -138,10 +138,9 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::{self, Ledger};
-    use bitcoin::hashes::Hash;
     use bitcoin::opcodes::all::*;
     use bitcoin::script::Builder;
-    use bitcoin::{Amount, OutPoint, Sequence, Txid};
+    use bitcoin::{Amount, OutPoint, Sequence};
 
     #[test]
     fn check_for_csv_with_block_height() {
@@ -214,33 +213,54 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "Needs more work with creating inputs"]
     fn check_csv_with_time_lock() {
         let ledger = Ledger::new("check_csv_with_time_lock");
-        let xonly_pk = ledger::Ledger::generate_credential_from_witness().x_only_public_key;
-        let mut utxo = OutPoint {
-            txid: Txid::all_zeros(),
+        let credential = ledger::Ledger::generate_credential_from_witness();
+        let xonly_pk = credential.x_only_public_key;
+
+        let txout = ledger.create_txout(Amount::from_sat(0x45), credential.address.script_pubkey());
+        let tx = ledger.create_transaction(vec![], vec![txout]);
+        let utxo = OutPoint {
+            txid: tx.compute_txid(),
             vout: 0,
         };
 
+        ledger.add_transaction_unconditionally(tx.clone()).unwrap();
         ledger.increment_block_height();
-        let current_time = ledger.get_block_time(ledger.get_block_height()).unwrap() as u32;
+
+        let sequence = Sequence::from_512_second_intervals(2);
         let script = Builder::new()
-            .push_sequence(Sequence::from_512_second_intervals(2))
+            .push_sequence(sequence)
             .push_opcode(OP_CSV)
             .push_opcode(OP_DROP)
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        utxo.vout = 0;
-        ledger.check_sequence(utxo, script, 0).unwrap();
-        // assert_eq!(
-        //     ledger.get_utxo_locktime(utxo).unwrap(),
-        //     LockTime::from_time(current_time + (2 * 512)).unwrap()
-        // );
+        ledger
+            .check_sequence(utxo, script, sequence.to_consensus_u32())
+            .unwrap();
 
         ledger.increment_block_height();
-        let current_time = ledger.get_block_time(ledger.get_block_height()).unwrap() as u32;
+
+        let sequence = Sequence::from_512_second_intervals(0x45);
+        let script = Builder::new()
+            .push_sequence(sequence)
+            .push_opcode(OP_CSV)
+            .push_opcode(OP_DROP)
+            .push_x_only_key(&xonly_pk)
+            .push_opcode(OP_CHECKSIG)
+            .into_script();
+        if let Ok(_) = ledger.check_sequence(
+            utxo,
+            script,
+            Sequence::from_512_second_intervals(0x44).to_consensus_u32(),
+        ) {
+            assert!(false);
+        };
+
+        ledger.increment_block_height();
+
         let sequence = Sequence::from_512_second_intervals(300);
         let script = Builder::new()
             .push_sequence(sequence)
@@ -249,11 +269,8 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        utxo.vout = 1;
-        ledger.check_sequence(utxo, script, 0).unwrap();
-        // assert_eq!(
-        //     ledger.get_utxo_locktime(utxo).unwrap(),
-        //     LockTime::from_time(current_time + (300 * 512)).unwrap()
-        // );
+        ledger
+            .check_sequence(utxo, script, sequence.to_consensus_u32())
+            .unwrap();
     }
 }
