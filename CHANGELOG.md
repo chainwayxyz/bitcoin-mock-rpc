@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2024-07-29
+
+### Changed
+
+- Fixed the way of relative time locks handled
+
+### Removed
+
+- UTXO related database tables and codes
+
 ## [0.0.4] - 2024-07-25
 
 ### Added
@@ -70,7 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generate_to_address`
   - `get_balance`
 
-[Unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.5...HEAD
+[0.0.5]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/0.0.1...v0.0.2
