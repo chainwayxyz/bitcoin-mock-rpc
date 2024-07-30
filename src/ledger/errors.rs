@@ -16,7 +16,7 @@ pub enum LedgerError {
     #[error("Script error: {0}")]
     Script(String),
     #[error("Requested block is in mempool; Block height: {0}")]
-    BlockInMempool(u64),
+    BlockInMempool(u32),
 }
 
 impl From<LedgerError> for bitcoincore_rpc::Error {

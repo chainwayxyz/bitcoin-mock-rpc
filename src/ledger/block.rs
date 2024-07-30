@@ -13,14 +13,14 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if cannot get height from database.
-    pub fn get_block_height(&self) -> u64 {
+    pub fn get_block_height(&self) -> u32 {
         self.database
             .lock()
             .unwrap()
             .query_row("SELECT height FROM blocks", params![], |row| {
                 let body = row.get::<_, i64>(0).unwrap();
 
-                Ok(body as u64)
+                Ok(body as u32)
             })
             .unwrap()
     }
@@ -30,7 +30,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if cannot get height from database.
-    pub fn get_tx_block_height(&self, txid: Txid) -> u64 {
+    pub fn get_tx_block_height(&self, txid: Txid) -> u32 {
         self.database
             .lock()
             .unwrap()
@@ -40,7 +40,7 @@ impl Ledger {
                 |row| {
                     let body = row.get::<_, i64>(0).unwrap();
 
-                    Ok(body as u64)
+                    Ok(body as u32)
                 },
             )
             .unwrap()
@@ -51,7 +51,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if cannot set height to database.
-    fn set_block_height(&self, height: u64) {
+    fn set_block_height(&self, height: u32) {
         self.database
             .lock()
             .unwrap()
@@ -76,7 +76,7 @@ impl Ledger {
 
             // Return 10 minutes before current time. New block will have the
             // time of 10 minute after the last block.
-            (duration - Duration::from_secs(60 * 10)).as_secs()
+            (duration - Duration::from_secs(60 * 10)).as_secs() as u32
         } else {
             self.get_block_time(last_block_height).unwrap()
         };
@@ -170,14 +170,14 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if there is a problem with database.
-    pub fn get_block_time(&self, block_height: u64) -> Result<u64, LedgerError> {
+    pub fn get_block_time(&self, block_height: u32) -> Result<u32, LedgerError> {
         if let Ok(time) = self.database.lock().unwrap().query_row(
             "SELECT unix_time FROM block_times WHERE block_height = ?1",
             params![block_height],
             |row| {
                 let body = row.get::<_, i64>(0).unwrap();
 
-                Ok(body as u64)
+                Ok(body as u32)
             },
         ) {
             return Ok(time);
@@ -191,7 +191,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if there is a problem with database.
-    fn set_block_time(&self, block_height: u64, time: u64) {
+    fn set_block_time(&self, block_height: u32, time: u32) {
         self.database
             .lock()
             .unwrap()
