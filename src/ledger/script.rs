@@ -52,7 +52,12 @@ impl Ledger {
     pub fn sequence_to_timelock(sequence: u32) -> Result<relative::LockTime, LedgerError> {
         match relative::LockTime::from_sequence(Sequence::from_consensus(sequence)) {
             Ok(lt) => return Ok(lt),
-            Err(e) => return Err(LedgerError::AnyHow(e.into())),
+            Err(e) => {
+                return Err(LedgerError::Script(format!(
+                    "Couldn't convert sequence {} to timelock: {}",
+                    sequence, e
+                )))
+            }
         };
     }
 
