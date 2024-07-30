@@ -10,10 +10,8 @@ serde = { version = "1.0", default-features = false }
 serde_json = "1.0.108"
 bitcoincore-rpc = "0.19.0"
 thiserror = "1.0.61"
-bitcoin-script = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-script" }
 bitcoin-scriptexec = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-scriptexec" }
 rusqlite = { version = "0.31.0", features = ["bundled"] }
-anyhow = "1.0.86"
 
 [dev-dependencies]
 tokio = { version = "1.38.0", features = ["full"]}

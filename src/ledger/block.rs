@@ -113,6 +113,23 @@ impl Ledger {
             .map(|txid| self.get_transaction(*txid).unwrap())
             .collect::<Vec<Transaction>>()
     }
+    /// Adds a transactions to the mempool.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    pub fn add_mempool_transaction(&self, txid: Txid) -> Result<(), LedgerError> {
+        match self.database.lock().unwrap().execute(
+            "INSERT INTO mempool (txid) VALUES (?1)",
+            params![txid.to_string()],
+        ) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(LedgerError::Transaction(format!(
+                "Couldn't add transaction with txid {} to mempool: {}",
+                txid, e
+            ))),
+        }
+    }
 
     /// Gets a mempool transaction, if it's in the mempool.
     ///

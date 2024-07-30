@@ -172,7 +172,10 @@ impl Ledger {
                     script_buf: ScriptBuf::new(),
                     witness,
                 }),
-                Err(e) => Err(LedgerError::Transaction(e.to_string())),
+                Err(e) => Err(LedgerError::SpendingRequirements(format!(
+                    "Couldn't verify x-only public key {} with signature {}: {}",
+                    x_only_public_key, signature.signature, e
+                ))),
             };
         }
 
@@ -209,20 +212,20 @@ impl Ledger {
 
 #[cfg(test)]
 mod test {
-    define_pushable!();
     use crate::ledger::Ledger;
     use bitcoin::absolute::LockTime;
     use bitcoin::ecdsa::Signature;
     use bitcoin::key::UntweakedPublicKey;
+    use bitcoin::opcodes::all::OP_EQUAL;
+    use bitcoin::script::Builder;
     use bitcoin::secp256k1::Message;
     use bitcoin::sighash::SighashCache;
     use bitcoin::taproot::{LeafVersion, TaprootBuilder};
     use bitcoin::transaction::Version;
     use bitcoin::{
-        Amount, EcdsaSighashType, OutPoint, Script, ScriptBuf, Sequence, TxIn, TxOut, Witness,
+        Amount, EcdsaSighashType, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness,
         WitnessProgram,
     };
-    use bitcoin_script::{define_pushable, script};
     use bitcoin_scriptexec::utils::scriptint_vec;
     use std::str::FromStr;
 
@@ -286,12 +289,11 @@ mod test {
     #[test]
     fn p2wsh_check() {
         let ledger = Ledger::new("p2wsh_check");
-        let witness_program = WitnessProgram::p2wsh(Script::from_bytes(
-            &script! {
-                { 1234 } OP_EQUAL
-            }
-            .to_bytes(),
-        ));
+        let script = Builder::new()
+            .push_int(1234)
+            .push_opcode(OP_EQUAL)
+            .into_script();
+        let witness_program = WitnessProgram::p2wsh(&script);
 
         let output = TxOut {
             value: Amount::from_sat(1_000_000_000),
@@ -310,7 +312,7 @@ mod test {
         let mut witness = Witness::new();
         witness.push([]);
         witness.push(scriptint_vec(1234));
-        witness.push(script! { { 1234 } OP_EQUAL }.to_bytes());
+        witness.push(script.to_bytes());
 
         let input = TxIn {
             previous_output: OutPoint::new(tx_id, 0),
@@ -340,9 +342,10 @@ mod test {
             .unwrap(),
         );
 
-        let script = script! {
-            { 1234 } OP_EQUAL
-        };
+        let script = Builder::new()
+            .push_int(1234)
+            .push_opcode(OP_EQUAL)
+            .into_script();
 
         let taproot_builder = TaprootBuilder::new().add_leaf(0, script.clone()).unwrap();
         let taproot_spend_info = taproot_builder.finalize(&secp, internal_key).unwrap();
@@ -373,7 +376,7 @@ mod test {
 
         let mut witness = Witness::new();
         witness.push(scriptint_vec(1234));
-        witness.push(script! { { 1234 } OP_EQUAL }.to_bytes());
+        witness.push(script.to_bytes());
         witness.push(control_block_bytes);
 
         let input = TxIn {
