@@ -73,7 +73,7 @@ impl Ledger {
         Ok(tx)
     }
 
-    pub fn get_transaction_block_height(&self, txid: Txid) -> Result<u32, LedgerError> {
+    pub fn get_transaction_block_height(&self, txid: &Txid) -> Result<u32, LedgerError> {
         let sequence = self.database.lock().unwrap().query_row(
             "SELECT block_height FROM transactions WHERE txid = ?1",
             params![txid.to_string()],
@@ -389,7 +389,7 @@ mod tests {
     fn get_transaction_block_height_non_existing() {
         let ledger = Ledger::new("get_transaction_block_height_non_existing");
         ledger
-            .get_transaction_block_height(Txid::all_zeros())
+            .get_transaction_block_height(&Txid::all_zeros())
             .unwrap();
     }
 }
