@@ -17,18 +17,10 @@ pub enum LedgerError {
     Script(String),
     #[error("Requested block is in mempool; Block height: {0}")]
     BlockInMempool(u64),
-    #[error("Anyhow error: {0}")]
-    AnyHow(anyhow::Error),
 }
 
 impl From<LedgerError> for bitcoincore_rpc::Error {
     fn from(error: LedgerError) -> Self {
         bitcoincore_rpc::Error::ReturnedError(error.to_string())
-    }
-}
-
-impl From<anyhow::Error> for LedgerError {
-    fn from(error: anyhow::Error) -> Self {
-        LedgerError::AnyHow(error)
     }
 }
