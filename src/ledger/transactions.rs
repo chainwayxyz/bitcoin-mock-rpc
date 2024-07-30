@@ -32,19 +32,16 @@ impl Ledger {
         };
 
         if let Err(e) = self.database.lock().unwrap().execute(
-            "INSERT INTO \"transactions\" (txid, block_height, body) VALUES (?1, ?2, ?3)",
+            "INSERT INTO transactions (txid, block_height, body) VALUES (?1, ?2, ?3)",
             params![txid.to_string(), current_block_height, body],
         ) {
-            return Err(LedgerError::AnyHow(e.into()));
+            return Err(LedgerError::Transaction(format!(
+                "Couldn't add transaction with txid {} to ledger: {}",
+                txid, e
+            )));
         };
 
-        // TODO: This can be a function in block crate.
-        if let Err(e) = self.database.lock().unwrap().execute(
-            "INSERT INTO \"mempool\" (txid) VALUES (?1)",
-            params![txid.to_string()],
-        ) {
-            return Err(LedgerError::AnyHow(e.into()));
-        };
+        self.add_mempool_transaction(txid)?;
 
         Ok(txid)
     }
