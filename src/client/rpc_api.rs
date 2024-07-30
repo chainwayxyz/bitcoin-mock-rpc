@@ -189,19 +189,25 @@ impl RpcApi for Client {
             })
             .collect();
 
+        let current_height = self.ledger.get_block_height();
+        let current_time = self.ledger.get_block_time(current_height)?;
+        let tx_block_height = self.ledger.get_transaction_block_height(txid)?;
+        let tx_block_time = self.ledger.get_block_time(tx_block_height)?;
+        let info = WalletTxInfo {
+            confirmations: (current_height - tx_block_height) as i32,
+            blockhash: None,
+            blockindex: None,
+            blocktime: Some(current_time as u64),
+            blockheight: Some(current_height),
+            txid: *txid,
+            time: current_time as u64,
+            timereceived: tx_block_time as u64,
+            bip125_replaceable: json::Bip125Replaceable::Unknown,
+            wallet_conflicts: vec![],
+        };
+
         Ok(GetTransactionResult {
-            info: WalletTxInfo {
-                confirmations: i32::MAX - 1,
-                blockhash: None,
-                blockindex: None,
-                blocktime: Some(0),
-                blockheight: None,
-                txid: *txid,
-                time: 0,
-                timereceived: 0,
-                bip125_replaceable: json::Bip125Replaceable::Unknown,
-                wallet_conflicts: vec![],
-            },
+            info,
             amount: SignedAmount::from_sat(amount.to_sat() as i64),
             fee: None,
             details,
