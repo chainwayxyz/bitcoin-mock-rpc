@@ -172,7 +172,10 @@ impl Ledger {
                     script_buf: ScriptBuf::new(),
                     witness,
                 }),
-                Err(e) => Err(LedgerError::Transaction(e.to_string())),
+                Err(e) => Err(LedgerError::SpendingRequirements(format!(
+                    "Couldn't verify x-only public key {} with signature {}: {}",
+                    x_only_public_key, signature.signature, e
+                ))),
             };
         }
 
