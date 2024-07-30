@@ -66,7 +66,7 @@ impl Ledger {
             Ok(tx) => tx,
             Err(e) => {
                 return Err(LedgerError::Transaction(format!(
-                    "{}: {}",
+                    "Couldn't found transaction with txid {}: {}",
                     txid,
                     e.to_string()
                 )))
@@ -90,7 +90,7 @@ impl Ledger {
             Ok(sequence) => sequence,
             Err(e) => {
                 return Err(LedgerError::Transaction(format!(
-                    "{}: {}",
+                    "Couldn't get block height for txid {}: {}",
                     txid,
                     e.to_string()
                 )))
@@ -243,7 +243,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::{Amount, OutPoint, ScriptBuf, TxIn};
+    use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, TxIn, Txid};
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
@@ -363,5 +363,36 @@ mod tests {
             ledger.calculate_transaction_output_value(tx),
             Amount::from_sat(100)
         );
+    }
+
+    #[test]
+    #[should_panic]
+    fn check_transaction_wiht_low_input_value() {
+        let ledger = Ledger::new("check_transaction_wiht_low_input_value");
+
+        let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
+        let tx = ledger.create_transaction(vec![], vec![txout.clone()]);
+        let txid = ledger.add_transaction_unconditionally(tx).unwrap();
+
+        let txin = ledger.create_txin(txid, 0);
+        let txout = ledger.create_txout(Amount::from_sat(0x100), ScriptBuf::new());
+        let tx = ledger.create_transaction(vec![txin], vec![txout.clone()]);
+        ledger.check_transaction(&tx).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_transaction_non_existing() {
+        let ledger = Ledger::new("get_transaction_non_existing");
+        ledger.get_transaction(Txid::all_zeros()).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_transaction_block_height_non_existing() {
+        let ledger = Ledger::new("get_transaction_block_height_non_existing");
+        ledger
+            .get_transaction_block_height(Txid::all_zeros())
+            .unwrap();
     }
 }
