@@ -101,11 +101,12 @@ impl Ledger {
 
             CREATE TABLE tmpblocks
             (
-                block_height   INTEGER           not null
-                    constraint block_height primary key,
+                height         INTEGER           NOT NULL,
+                hash           BLOB              NOT NULL,
                 raw_body       BLOB              NOT NULL
+                    CONSTRAINT block_height PRIMARY KEY
             );
-            INSERT INTO tmpblocks (block_height, raw_body) VALUES (0, 0);
+            INSERT INTO tmpblocks (height, hash, raw_body) VALUES (0, 0, 0);
 
             CREATE TABLE blocks
             (

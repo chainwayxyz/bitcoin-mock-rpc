@@ -17,14 +17,17 @@ impl Ledger {
     pub fn add_block(&self, block: Block) -> Result<(), LedgerError> {
         let current_block_height = self.get_block_height();
 
+        let mut hash: Vec<u8> = Vec::new();
+        block.block_hash().consensus_encode(&mut hash).unwrap();
+
         let mut raw_body: Vec<u8> = Vec::new();
         if let Err(e) = block.consensus_encode(&mut raw_body) {
             return Err(LedgerError::Block(format!("Couldn't encode block: {}", e)));
         };
 
         if let Err(e) = self.database.lock().unwrap().execute(
-            "INSERT INTO tmpblocks (block_height, raw_body) VALUES (?1, ?2)",
-            params![current_block_height, raw_body],
+            "INSERT INTO tmpblocks (height, hash, raw_body) VALUES (?1, ?2, ?3)",
+            params![current_block_height, hash, raw_body],
         ) {
             return Err(LedgerError::Block(format!(
                 "Couldn't add block {:?} to ledger: {}",
@@ -35,17 +38,44 @@ impl Ledger {
         Ok(())
     }
     /// Returns a block with `height` from ledger.
-    pub fn get_block_with_height(&self, block_height: u32) -> Result<Block, LedgerError> {
+    pub fn get_block_with_height(&self, height: u32) -> Result<Block, LedgerError> {
         let qr = match self.database.lock().unwrap().query_row(
-            "SELECT raw_body FROM tmpblocks WHERE block_height = ?1",
-            params![block_height],
+            "SELECT raw_body FROM tmpblocks WHERE height = ?1",
+            params![height],
             |row| Ok(row.get::<_, Vec<u8>>(0).unwrap()),
         ) {
             Ok(qr) => qr,
             Err(e) => {
                 return Err(LedgerError::Block(format!(
                     "Couldn't find any block with block height {}: {}",
-                    block_height, e
+                    height, e
+                )))
+            }
+        };
+
+        match Block::consensus_decode(&mut qr.as_slice()) {
+            Ok(block) => Ok(block),
+            Err(e) => Err(LedgerError::Block(format!(
+                "Internal error while reading block from ledger: {}",
+                e
+            ))),
+        }
+    }
+    /// Returns a block with `height` from ledger.
+    pub fn get_block_with_hash(&self, hash: BlockHash) -> Result<Block, LedgerError> {
+        let mut encoded_hash: Vec<u8> = Vec::new();
+        hash.consensus_encode(&mut encoded_hash).unwrap();
+
+        let qr = match self.database.lock().unwrap().query_row(
+            "SELECT raw_body FROM tmpblocks WHERE hash = ?1",
+            params![encoded_hash],
+            |row| Ok(row.get::<_, Vec<u8>>(0).unwrap()),
+        ) {
+            Ok(qr) => qr,
+            Err(e) => {
+                return Err(LedgerError::Block(format!(
+                    "Couldn't find any block with block height {}: {}",
+                    hash, e
                 )))
             }
         };
@@ -360,8 +390,8 @@ mod tests {
     }
 
     #[test]
-    fn create_add_get_block() {
-        let ledger = Ledger::new("create_add_get_block");
+    fn create_add_get_block_with_height() {
+        let ledger = Ledger::new("create_add_get_block_with_height");
         ledger.increment_block_height();
         ledger.increment_block_height();
         let block_heigh = ledger.get_block_height();
@@ -379,6 +409,29 @@ mod tests {
         ledger.add_block(block.clone()).unwrap();
 
         let read_block = ledger.get_block_with_height(block_heigh).unwrap();
+
+        assert_eq!(block, read_block);
+    }
+
+    #[test]
+    fn create_add_get_block_with_hash() {
+        let ledger = Ledger::new("create_add_get_block_with_hash");
+        ledger.increment_block_height();
+
+        let mut transactions: Vec<Transaction> = Vec::new();
+        for i in 0..0x1F {
+            let txout = ledger.create_txout(Amount::from_sat(0x1F * i), ScriptBuf::new());
+            let tx = ledger.create_transaction(vec![], vec![txout]);
+
+            transactions.push(tx);
+        }
+
+        let block = ledger.create_block(transactions).unwrap();
+        let block_hash = block.block_hash();
+
+        ledger.add_block(block.clone()).unwrap();
+
+        let read_block = ledger.get_block_with_hash(block_hash).unwrap();
 
         assert_eq!(block, read_block);
     }
