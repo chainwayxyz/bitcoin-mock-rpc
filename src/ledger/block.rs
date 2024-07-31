@@ -2,12 +2,74 @@
 
 use super::errors::LedgerError;
 use super::Ledger;
-use bitcoin::{Transaction, Txid};
+use bitcoin::block::{Header, Version};
+use bitcoin::hashes::Hash;
+use bitcoin::{Block, CompactTarget, Transaction, TxMerkleNode, Txid};
+use rs_merkle::algorithms::Sha256;
+use rs_merkle::MerkleTree;
 use rusqlite::params;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 impl Ledger {
+    pub fn create_block(&self, transactions: Vec<Transaction>) -> Result<Block, LedgerError> {
+        let prev_block_height = self.get_block_height();
+        let prev_block_time = self.get_block_time(prev_block_height).unwrap();
+
+        let prev_block = self.get_block_with_height(prev_block_height);
+        let prev_blockhash = prev_block.block_hash();
+
+        let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
+        let merkle_root = self.calculate_merkle_root(txids)?;
+
+        Ok(Block {
+            header: Header {
+                version: Version::TWO,
+                prev_blockhash,
+                merkle_root,
+                time: prev_block_time + (10 * 60),
+                bits: CompactTarget::from_consensus(0x20FFFFFF),
+                nonce: 0,
+            },
+            txdata: transactions,
+        })
+    }
+
+    pub fn get_block_with_height(&self, _block_height: u32) -> Block {
+        todo!()
+    }
+
+    fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
+        let leaves: Vec<_> = txids
+            .iter()
+            .map(|txid| txid.to_raw_hash().as_byte_array().to_owned())
+            .collect();
+
+        let merkle_tree = MerkleTree::<Sha256>::from_leaves(leaves.as_slice());
+
+        let root = match merkle_tree.root() {
+            Some(r) => r,
+            None => {
+                return Err(LedgerError::Transaction(format!(
+                    "Not enough transactions ({}) are given to create a merkle tree",
+                    txids.len()
+                )))
+            }
+        };
+
+        let hash = match Hash::from_slice(root.as_slice()) {
+            Ok(h) => h,
+            Err(e) => {
+                return Err(LedgerError::Transaction(format!(
+                    "Couldn't convert root {:?} to hash: {}",
+                    root, e
+                )))
+            }
+        };
+
+        Ok(TxMerkleNode::from_raw_hash(hash))
+    }
+
     /// Returns current block height.
     ///
     /// # Panics
@@ -205,7 +267,10 @@ impl Ledger {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::ledger::Ledger;
+    use bitcoin::Txid;
 
     #[test]
     fn get_set_block_height() {
@@ -247,5 +312,26 @@ mod tests {
         ledger.increment_block_height();
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 0x46);
+    }
+
+    #[test]
+    fn merkle_tree() {
+        let ledger = Ledger::new("merkle_tree");
+
+        let txids = [
+            Txid::from_str("39bd74af2177428de4cfb10dc82af0b04d7d51859a4c501470734bbdc8e8e633")
+                .unwrap(),
+            Txid::from_str("353f5e73fa737f625474b81a8d0a5ea00b23ce8ff8880cf001e3d472d325bc93")
+                .unwrap(),
+            Txid::from_str("353f5e73fa737f625474b81a8d0a5ea00b23ce8ff8880cf001e3d472d325bc93")
+                .unwrap(),
+            Txid::from_str("9c9a8f998468bb363e5809ce84a80e35054f104b64ef4aa2d832a426e6837665")
+                .unwrap(),
+        ];
+        println!("Txids: {:?}", txids);
+
+        let merkle_root = ledger.calculate_merkle_root(txids.to_vec().clone());
+
+        println!("Merkle root: {:?}", (merkle_root));
     }
 }
