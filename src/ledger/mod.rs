@@ -102,6 +102,7 @@ impl Ledger {
             (
                 block_height   INTEGER           not null
                     constraint block_height primary key,
+                raw_body       BLOB              ,
                 unix_time      INTEGER
             );
             INSERT INTO blocks (block_height, unix_time) VALUES (0, 500000000);

@@ -3,6 +3,7 @@
 use super::errors::LedgerError;
 use super::Ledger;
 use bitcoin::block::{Header, Version};
+use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::hashes::Hash;
 use bitcoin::{Block, CompactTarget, Transaction, TxMerkleNode, Txid};
 use rs_merkle::algorithms::Sha256;
@@ -17,7 +18,7 @@ impl Ledger {
         let prev_block_time = self.get_block_time(prev_block_height).unwrap();
 
         let prev_block = self.get_block_with_height(prev_block_height);
-        let prev_blockhash = prev_block.block_hash();
+        let prev_blockhash = prev_block?.block_hash();
 
         let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
         let merkle_root = self.calculate_merkle_root(txids)?;
@@ -35,11 +36,52 @@ impl Ledger {
         })
     }
 
+    /// Adds a block to ledger.
     pub fn add_block(&self, block: Block) -> Result<(), LedgerError> {
+        let mut raw_body: Vec<u8> = Vec::new();
+        if let Err(e) = block.consensus_encode(&mut raw_body) {
+            return Err(LedgerError::Block(format!("Couldn't encode block: {}", e)));
+        };
+
+        if let Err(e) = self.database.lock().unwrap().execute(
+            "INSERT INTO transactions (raw_body) VALUES (?1)",
+            params![raw_body],
+        ) {
+            return Err(LedgerError::Block(format!(
+                "Couldn't add block {:?} to ledger: {}",
+                block, e
+            )));
+        };
+
         Ok(())
     }
-    pub fn get_block_with_height(&self, _block_height: u32) -> Block {
-        todo!()
+    /// Returns a block with `height` from ledger.
+    pub fn get_block_with_height(&self, block_height: u32) -> Result<Block, LedgerError> {
+        let qr = match self.database.lock().unwrap().query_row(
+            "SELECT (raw_body) FROM blocks WHERE block_height = ?1",
+            params![block_height],
+            |row| {
+                let body = row.get::<_, Vec<u8>>(0).unwrap();
+
+                Ok(body)
+            },
+        ) {
+            Ok(qr) => qr,
+            Err(e) => {
+                return Err(LedgerError::Block(format!(
+                    "Couldn't find any block with block height {}: {}",
+                    block_height, e
+                )))
+            }
+        };
+
+        match Block::consensus_decode(&mut qr.as_slice()) {
+            Ok(block) => Ok(block),
+            Err(e) => Err(LedgerError::Block(format!(
+                "Internal error while reading block from ledger: {}",
+                e
+            ))),
+        }
     }
 
     fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
