@@ -5,7 +5,7 @@ use super::Ledger;
 use bitcoin::block::{Header, Version};
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::hashes::Hash;
-use bitcoin::{Block, CompactTarget, Transaction, TxMerkleNode, Txid};
+use bitcoin::{Block, BlockHash, CompactTarget, Transaction, TxMerkleNode, Txid};
 use rs_merkle::algorithms::Sha256;
 use rs_merkle::MerkleTree;
 use rusqlite::params;
@@ -13,39 +13,18 @@ use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 impl Ledger {
-    pub fn create_block(&self, transactions: Vec<Transaction>) -> Result<Block, LedgerError> {
-        let prev_block_height = self.get_block_height();
-        let prev_block_time = self.get_block_time(prev_block_height).unwrap();
-
-        let prev_block = self.get_block_with_height(prev_block_height);
-        let prev_blockhash = prev_block?.block_hash();
-
-        let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
-        let merkle_root = self.calculate_merkle_root(txids)?;
-
-        Ok(Block {
-            header: Header {
-                version: Version::TWO,
-                prev_blockhash,
-                merkle_root,
-                time: prev_block_time + (10 * 60),
-                bits: CompactTarget::from_consensus(0x20FFFFFF),
-                nonce: 0,
-            },
-            txdata: transactions,
-        })
-    }
-
     /// Adds a block to ledger.
     pub fn add_block(&self, block: Block) -> Result<(), LedgerError> {
+        let current_block_height = self.get_block_height();
+
         let mut raw_body: Vec<u8> = Vec::new();
         if let Err(e) = block.consensus_encode(&mut raw_body) {
             return Err(LedgerError::Block(format!("Couldn't encode block: {}", e)));
         };
 
         if let Err(e) = self.database.lock().unwrap().execute(
-            "INSERT INTO transactions (raw_body) VALUES (?1)",
-            params![raw_body],
+            "INSERT INTO tmpblocks (block_height, raw_body) VALUES (?1, ?2)",
+            params![current_block_height, raw_body],
         ) {
             return Err(LedgerError::Block(format!(
                 "Couldn't add block {:?} to ledger: {}",
@@ -58,13 +37,9 @@ impl Ledger {
     /// Returns a block with `height` from ledger.
     pub fn get_block_with_height(&self, block_height: u32) -> Result<Block, LedgerError> {
         let qr = match self.database.lock().unwrap().query_row(
-            "SELECT (raw_body) FROM blocks WHERE block_height = ?1",
+            "SELECT raw_body FROM tmpblocks WHERE block_height = ?1",
             params![block_height],
-            |row| {
-                let body = row.get::<_, Vec<u8>>(0).unwrap();
-
-                Ok(body)
-            },
+            |row| Ok(row.get::<_, Vec<u8>>(0).unwrap()),
         ) {
             Ok(qr) => qr,
             Err(e) => {
@@ -82,6 +57,31 @@ impl Ledger {
                 e
             ))),
         }
+    }
+
+    pub fn create_block(&self, transactions: Vec<Transaction>) -> Result<Block, LedgerError> {
+        let prev_block_height = self.get_block_height();
+        let prev_block_time = self.get_block_time(prev_block_height).unwrap();
+
+        let prev_blockhash = match self.get_block_with_height(prev_block_height) {
+            Ok(b) => b.block_hash(),
+            Err(_) => BlockHash::all_zeros(),
+        };
+
+        let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
+        let merkle_root = self.calculate_merkle_root(txids)?;
+
+        Ok(Block {
+            header: Header {
+                version: Version::TWO,
+                prev_blockhash,
+                merkle_root,
+                time: prev_block_time + (10 * 60),
+                bits: CompactTarget::from_consensus(0x20FFFFFF),
+                nonce: 0,
+            },
+            txdata: transactions,
+        })
     }
 
     fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
@@ -315,7 +315,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::ledger::Ledger;
-    use bitcoin::Txid;
+    use bitcoin::{Amount, ScriptBuf, Transaction, Txid};
 
     #[test]
     fn get_set_block_height() {
@@ -357,6 +357,30 @@ mod tests {
         ledger.increment_block_height();
         let current_height = ledger.get_block_height();
         assert_eq!(current_height, 0x46);
+    }
+
+    #[test]
+    fn create_add_get_block() {
+        let ledger = Ledger::new("create_add_get_block");
+        ledger.increment_block_height();
+        ledger.increment_block_height();
+        let block_heigh = ledger.get_block_height();
+
+        let mut transactions: Vec<Transaction> = Vec::new();
+        for i in 0..0x45 {
+            let txout = ledger.create_txout(Amount::from_sat(0x45 * i), ScriptBuf::new());
+            let tx = ledger.create_transaction(vec![], vec![txout]);
+
+            transactions.push(tx);
+        }
+
+        let block = ledger.create_block(transactions).unwrap();
+
+        ledger.add_block(block.clone()).unwrap();
+
+        let read_block = ledger.get_block_with_height(block_heigh).unwrap();
+
+        assert_eq!(block, read_block);
     }
 
     #[test]
