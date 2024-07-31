@@ -35,6 +35,9 @@ impl Ledger {
         })
     }
 
+    pub fn add_block(&self, block: Block) -> Result<(), LedgerError> {
+        Ok(())
+    }
     pub fn get_block_with_height(&self, _block_height: u32) -> Block {
         todo!()
     }
@@ -79,7 +82,7 @@ impl Ledger {
         self.database
             .lock()
             .unwrap()
-            .query_row("SELECT height FROM blocks", params![], |row| {
+            .query_row("SELECT height FROM block_height", params![], |row| {
                 let body = row.get::<_, i64>(0).unwrap();
 
                 Ok(body as u32)
@@ -117,7 +120,7 @@ impl Ledger {
         self.database
             .lock()
             .unwrap()
-            .execute("UPDATE blocks SET height = ?1", params![height])
+            .execute("UPDATE block_height SET height = ?1", params![height])
             .unwrap();
     }
 
@@ -234,7 +237,7 @@ impl Ledger {
     /// Will panic if there is a problem with database.
     pub fn get_block_time(&self, block_height: u32) -> Result<u32, LedgerError> {
         if let Ok(time) = self.database.lock().unwrap().query_row(
-            "SELECT unix_time FROM block_times WHERE block_height = ?1",
+            "SELECT unix_time FROM blocks WHERE block_height = ?1",
             params![block_height],
             |row| {
                 let body = row.get::<_, i64>(0).unwrap();
@@ -258,7 +261,7 @@ impl Ledger {
             .lock()
             .unwrap()
             .execute(
-                "INSERT INTO block_times (block_height, unix_time) VALUES (?1, ?2)",
+                "INSERT INTO blocks (block_height, unix_time) VALUES (?1, ?2)",
                 params![block_height, time],
             )
             .unwrap();

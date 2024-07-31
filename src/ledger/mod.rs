@@ -78,8 +78,8 @@ impl Ledger {
     fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
+                DROP TABLE IF EXISTS block_height;
                 DROP TABLE IF EXISTS blocks;
-                DROP TABLE IF EXISTS block_times;
                 DROP TABLE IF EXISTS mempool;
                 DROP TABLE IF EXISTS transactions;
                 ",
@@ -92,19 +92,19 @@ impl Ledger {
     /// library provides.
     fn create_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
-            "CREATE TABLE blocks
+            "CREATE TABLE block_height
             (
                 height         INTEGER           not null
             );
-            INSERT INTO blocks (height) VALUES (0);
+            INSERT INTO block_height (height) VALUES (0);
 
-            CREATE TABLE block_times
+            CREATE TABLE blocks
             (
                 block_height   INTEGER           not null
                     constraint block_height primary key,
                 unix_time      INTEGER
             );
-            INSERT INTO block_times (block_height, unix_time) VALUES (0, 500000000);
+            INSERT INTO blocks (block_height, unix_time) VALUES (0, 500000000);
 
             CREATE TABLE mempool
             (
