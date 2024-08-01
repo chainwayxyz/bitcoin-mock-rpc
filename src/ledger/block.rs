@@ -26,6 +26,41 @@ impl Ledger {
         self.add_block(block)
     }
 
+    /// Creates a block using given transactions.
+    pub fn create_block(&self, transactions: Vec<Transaction>) -> Result<Block, LedgerError> {
+        let prev_block_height = self.get_block_height()?;
+        let prev_block_time = self.get_block_time(prev_block_height)?;
+
+        let prev_blockhash = match self.get_block_with_height(prev_block_height) {
+            Ok(b) => b.block_hash(),
+            Err(e) => {
+                if prev_block_height >= 1 {
+                    return Err(LedgerError::Block(format!(
+                        "Couldn't get previous block hash with height {}: {}",
+                        prev_block_height, e
+                    )));
+                }
+
+                BlockHash::all_zeros()
+            }
+        };
+
+        let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
+        let merkle_root = self.calculate_merkle_root(txids)?;
+
+        Ok(Block {
+            header: Header {
+                version: Version::TWO,
+                prev_blockhash,
+                merkle_root,
+                time: prev_block_time + (10 * 60),
+                bits: CompactTarget::from_consensus(0x20FFFFFF),
+                nonce: 0,
+            },
+            txdata: transactions,
+        })
+    }
+
     /// Adds a block to ledger.
     ///
     /// Uses current block height and time to calculate next block height and
@@ -117,31 +152,6 @@ impl Ledger {
                 e
             ))),
         }
-    }
-
-    pub fn create_block(&self, transactions: Vec<Transaction>) -> Result<Block, LedgerError> {
-        let prev_block_height = self.get_block_height()?;
-        let prev_block_time = self.get_block_time(prev_block_height)?;
-
-        let prev_blockhash = match self.get_block_with_height(prev_block_height) {
-            Ok(b) => b.block_hash(),
-            Err(_) => BlockHash::all_zeros(),
-        };
-
-        let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
-        let merkle_root = self.calculate_merkle_root(txids)?;
-
-        Ok(Block {
-            header: Header {
-                version: Version::TWO,
-                prev_blockhash,
-                merkle_root,
-                time: prev_block_time + (10 * 60),
-                bits: CompactTarget::from_consensus(0x20FFFFFF),
-                nonce: 0,
-            },
-            txdata: transactions,
-        })
     }
 
     fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
