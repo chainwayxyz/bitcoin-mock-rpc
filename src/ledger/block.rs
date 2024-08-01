@@ -317,17 +317,30 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn mine_block() {
-        let ledger = Ledger::new("mine_block");
+    fn mine_blocks_and_mempool() {
+        let ledger = Ledger::new("mine_blocks_and_mempool");
 
         let current_height = ledger.get_block_height().unwrap();
         assert_eq!(current_height, 0);
 
         let tx = ledger.create_transaction(vec![], vec![]);
-        ledger.add_transaction_unconditionally(tx).unwrap();
+        ledger.add_transaction_unconditionally(tx.clone()).unwrap();
+
+        assert_eq!(ledger.get_mempool_transactions().len(), 1);
+        assert_eq!(
+            ledger.get_mempool_transaction(tx.compute_txid()).unwrap(),
+            tx
+        );
+
         ledger.mine_block().unwrap();
+
         let current_height = ledger.get_block_height().unwrap();
         assert_eq!(current_height, 1);
+
+        assert_eq!(ledger.get_mempool_transactions().len(), 0);
+        if let Some(_) = ledger.get_mempool_transaction(tx.compute_txid()) {
+            assert!(false);
+        }
     }
 
     #[test]
