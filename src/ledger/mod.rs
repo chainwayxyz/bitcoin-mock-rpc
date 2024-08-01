@@ -94,10 +94,10 @@ impl Ledger {
             "
             CREATE TABLE blocks
             (
-                height    INTEGER  NOT NULL,
-                time      INTEGER  NOT NULL,
-                hash      BLOB     NOT NULL,
-                body      BLOB     NOT NULL
+                height  INTEGER  NOT NULL,
+                time    INTEGER  NOT NULL,
+                hash    BLOB     NOT NULL,
+                body    BLOB     NOT NULL
 
                 CONSTRAINT height PRIMARY KEY
             );
@@ -105,16 +105,16 @@ impl Ledger {
 
             CREATE TABLE mempool
             (
-                txid          TEXT    NOT NULL
-                
+                txid  TEXT  NOT NULL
+
                 CONSTRAINT txid PRIMARY KEY
             );
 
             CREATE TABLE transactions
             (
-                txid          TEXT    NOT NULL,
-                block_height  INTEGER NOT NULL,
-                body          BLOB    NOT NULL
+                txid          TEXT     NOT NULL,
+                block_height  INTEGER  NOT NULL,
+                body          BLOB     NOT NULL
 
                 CONSTRAINT txid PRIMARY KEY
             );
