@@ -23,7 +23,7 @@ impl Ledger {
         transaction: Transaction,
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
-        let current_block_height = self.get_block_height();
+        let current_block_height = self.get_block_height()?;
 
         let mut body = Vec::new();
         match transaction.consensus_encode(&mut body) {

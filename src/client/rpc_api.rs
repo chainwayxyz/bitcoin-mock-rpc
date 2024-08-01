@@ -131,7 +131,7 @@ impl RpcApi for Client {
             })
             .collect();
 
-        let current_block_height = self.ledger.get_block_height();
+        let current_block_height = self.ledger.get_block_height()?;
         let tx_block_height = self.ledger.get_tx_block_height(tx.compute_txid());
         let confirmations = match self.ledger.get_mempool_transaction(*txid) {
             Some(_) => None,
@@ -189,7 +189,7 @@ impl RpcApi for Client {
             })
             .collect();
 
-        let current_height = self.ledger.get_block_height();
+        let current_height = self.ledger.get_block_height()?;
         let current_time = self.ledger.get_block_time(current_height)?;
         let tx_block_height = self.ledger.get_transaction_block_height(txid)?;
         let tx_block_time = self.ledger.get_block_time(tx_block_height)?;
@@ -274,8 +274,7 @@ impl RpcApi for Client {
                 None,
             )?;
 
-            self.ledger.clean_mempool();
-            self.ledger.increment_block_height();
+            self.ledger.mine_block()?;
         }
 
         Ok(vec![BlockHash::all_zeros(); block_num as usize])

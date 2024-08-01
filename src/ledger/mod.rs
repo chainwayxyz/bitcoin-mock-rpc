@@ -78,9 +78,7 @@ impl Ledger {
     fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
-            DROP TABLE IF EXISTS block_height;
             DROP TABLE IF EXISTS blocks;
-            DROP TABLE IF EXISTS tmpblocks;
             DROP TABLE IF EXISTS mempool;
             DROP TABLE IF EXISTS transactions;
             ",
@@ -93,42 +91,32 @@ impl Ledger {
     /// library provides.
     fn create_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
-            "CREATE TABLE block_height
-            (
-                height         INTEGER           not null
-            );
-            INSERT INTO block_height (height) VALUES (0);
-
-            CREATE TABLE tmpblocks
-            (
-                height         INTEGER           NOT NULL,
-                hash           BLOB              NOT NULL,
-                raw_body       BLOB              NOT NULL
-                    CONSTRAINT block_height PRIMARY KEY
-            );
-            INSERT INTO tmpblocks (height, hash, raw_body) VALUES (0, 0, 0);
-
+            "
             CREATE TABLE blocks
             (
-                block_height   INTEGER           not null
-                    constraint block_height primary key,
-                raw_body       BLOB,
-                unix_time      INTEGER
+                height    INTEGER  NOT NULL,
+                time      INTEGER  NOT NULL,
+                hash      BLOB     NOT NULL,
+                body      BLOB     NOT NULL
+
+                CONSTRAINT height PRIMARY KEY
             );
-            INSERT INTO blocks (block_height, unix_time) VALUES (0, 500000000);
+            INSERT INTO blocks (height, time, hash, body) VALUES (0, 500000000, 0, 0);
 
             CREATE TABLE mempool
             (
-                txid          TEXT    not null
-                    constraint txid primary key
+                txid          TEXT    NOT NULL
+                
+                CONSTRAINT txid PRIMARY KEY
             );
 
             CREATE TABLE transactions
             (
-                txid          TEXT    not null
-                    constraint txid primary key,
-                block_height  INTEGER not null,
-                body          blob    not null
+                txid          TEXT    NOT NULL,
+                block_height  INTEGER NOT NULL,
+                body          BLOB    NOT NULL
+
+                CONSTRAINT txid PRIMARY KEY
             );
             ",
         )
