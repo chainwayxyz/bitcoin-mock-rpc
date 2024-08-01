@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Block support
+  - Block bodies are stored in ledger
+  - Block hash calculation
+
 ### Changed
 
 - Removed some of the unnecessary third-party libraries
-- Detailed some of the error messages
+- Some of the error messages are detailed
+- Block height and time storage simplified in ledger
 
 ## [0.0.5] - 2024-07-29
 
