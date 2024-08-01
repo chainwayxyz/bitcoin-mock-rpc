@@ -106,7 +106,7 @@ impl Ledger {
         let current_block_time = self.get_block_time(current_block_height)?;
 
         let tx_block_height = self.get_transaction_block_height(&utxo.txid)?;
-        let tx_block_time = self.get_tx_block_height(utxo.txid);
+        let tx_block_time = self.get_transaction_block_height(&utxo.txid)?;
 
         let blocks_after = current_block_height - tx_block_height;
         let time_after = current_block_time - tx_block_time;

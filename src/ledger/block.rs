@@ -203,27 +203,6 @@ impl Ledger {
         }
     }
 
-    /// Returns specified transaction's block height.
-    ///
-    /// # Panics
-    ///
-    /// Will panic if cannot get height from database.
-    pub fn get_tx_block_height(&self, txid: Txid) -> u32 {
-        self.database
-            .lock()
-            .unwrap()
-            .query_row(
-                "SELECT (block_height) FROM transactions WHERE txid = ?1",
-                params![txid.to_string()],
-                |row| {
-                    let body = row.get::<_, i64>(0).unwrap();
-
-                    Ok(body as u32)
-                },
-            )
-            .unwrap()
-    }
-
     /// Gets all the transactions that are in the mempool.
     ///
     /// # Panics
