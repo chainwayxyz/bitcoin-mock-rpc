@@ -4,13 +4,24 @@ use super::errors::LedgerError;
 use super::Ledger;
 use bitcoin::block::{Header, Version};
 use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::hashes::Hash;
+use bitcoin::hashes::{sha256, Hash};
 use bitcoin::{Block, BlockHash, CompactTarget, Transaction, TxMerkleNode, Txid};
-use rs_merkle::algorithms::Sha256;
-use rs_merkle::MerkleTree;
+use rs_merkle::{Hasher, MerkleTree};
 use rusqlite::params;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Bitcoin merkle root hashing algorithm.
+#[derive(Clone)]
+pub struct Hash256 {}
+impl Hasher for Hash256 {
+    type Hash = [u8; 32];
+
+    /// Double SHA256 for merkle root calculation.
+    fn hash(data: &[u8]) -> [u8; 32] {
+        sha256::Hash::hash(&sha256::Hash::hash(data).to_byte_array()).to_byte_array()
+    }
+}
 
 impl Ledger {
     /// Mines current transactions that are in mempool to a block.
@@ -157,10 +168,10 @@ impl Ledger {
     fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
         let leaves: Vec<_> = txids
             .iter()
-            .map(|txid| txid.to_raw_hash().as_byte_array().to_owned())
+            .map(|txid| Hash256::hash(txid.as_byte_array()))
             .collect();
 
-        let merkle_tree = MerkleTree::<Sha256>::from_leaves(leaves.as_slice());
+        let merkle_tree = MerkleTree::<Hash256>::from_leaves(leaves.as_slice());
 
         let root = match merkle_tree.root() {
             Some(r) => r,
@@ -313,7 +324,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::Ledger;
-    use bitcoin::{Amount, ScriptBuf, Transaction, Txid};
+    use bitcoin::{hashes::sha256d::Hash, Amount, ScriptBuf, Transaction, TxMerkleNode, Txid};
     use std::str::FromStr;
 
     #[test]
@@ -396,19 +407,26 @@ mod tests {
         let ledger = Ledger::new("merkle_tree");
 
         let txids = [
-            Txid::from_str("39bd74af2177428de4cfb10dc82af0b04d7d51859a4c501470734bbdc8e8e633")
+            Txid::from_str("8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87")
                 .unwrap(),
-            Txid::from_str("353f5e73fa737f625474b81a8d0a5ea00b23ce8ff8880cf001e3d472d325bc93")
+            Txid::from_str("fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4")
                 .unwrap(),
-            Txid::from_str("353f5e73fa737f625474b81a8d0a5ea00b23ce8ff8880cf001e3d472d325bc93")
+            Txid::from_str("6359f0868171b1d194cbee1af2f16ea598ae8fad666d9b012c8ed2b79a236ec4")
                 .unwrap(),
-            Txid::from_str("9c9a8f998468bb363e5809ce84a80e35054f104b64ef4aa2d832a426e6837665")
+            Txid::from_str("e9a66845e05d5abc0ad04ec80f774a7e585c6e8db975962d069a522137b80c1d")
                 .unwrap(),
         ];
-        println!("Txids: {:?}", txids);
 
-        let merkle_root = ledger.calculate_merkle_root(txids.to_vec().clone());
+        let merkle_root = ledger
+            .calculate_merkle_root(txids.to_vec().clone())
+            .unwrap();
 
-        println!("Merkle root: {:?}", (merkle_root));
+        assert_eq!(
+            TxMerkleNode::from_raw_hash(
+                Hash::from_str("f3e94742aca4b5ef85488dc37c06c3282295ffec960994b2c0d5ac2a25a95766")
+                    .unwrap()
+            ),
+            merkle_root
+        );
     }
 }
