@@ -168,7 +168,17 @@ impl Ledger {
     fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
         let leaves: Vec<_> = txids
             .iter()
-            .map(|txid| Hash256::hash(txid.as_byte_array()))
+            .map(|txid| {
+                let mut hex: Vec<u8> = Vec::new();
+                txid.consensus_encode(&mut hex).unwrap();
+
+                let mut arr: [u8; 32] = [32; 32];
+                for i in 0..hex.len() {
+                    arr[i] = hex[i];
+                }
+
+                arr
+            })
             .collect();
 
         let merkle_tree = MerkleTree::<Hash256>::from_leaves(leaves.as_slice());
