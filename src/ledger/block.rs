@@ -166,7 +166,7 @@ impl Ledger {
     }
 
     fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
-        let leaves: Vec<_> = txids
+        let mut leaves: Vec<_> = txids
             .iter()
             .map(|txid| {
                 let mut hex: Vec<u8> = Vec::new();
@@ -180,6 +180,14 @@ impl Ledger {
                 arr
             })
             .collect();
+
+        // If there are odd numbered transactions, we must concatenate and hash
+        // with itself. Hashing is done by the MerkleTree library. We only need
+        // to add an extra TXID to the list.
+        let len = leaves.len();
+        if len % 2 == 1 {
+            leaves.push(leaves[len - 1]);
+        }
 
         let merkle_tree = MerkleTree::<Hash256>::from_leaves(leaves.as_slice());
 
@@ -413,8 +421,8 @@ mod tests {
     }
 
     #[test]
-    fn merkle_tree() {
-        let ledger = Ledger::new("merkle_tree");
+    fn merkle_tree_even_numbered() {
+        let ledger = Ledger::new("merkle_tree_even_numbered");
 
         let txids = [
             Txid::from_str("8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87")
@@ -434,6 +442,32 @@ mod tests {
         assert_eq!(
             TxMerkleNode::from_raw_hash(
                 Hash::from_str("f3e94742aca4b5ef85488dc37c06c3282295ffec960994b2c0d5ac2a25a95766")
+                    .unwrap()
+            ),
+            merkle_root
+        );
+    }
+
+    #[test]
+    fn merkle_tree_odd_numbered() {
+        let ledger = Ledger::new("merkle_tree_odd_numbered");
+
+        let txids = [
+            Txid::from_str("ff4861ebd4709ba120b8cb418385cc3ff5184a917fb91f7dff03ecb521ca192e")
+                .unwrap(),
+            Txid::from_str("97a3dd8b297a0e46f274036a5f78b43c16286e3a34271ca6be7a1b51bba16a71")
+                .unwrap(),
+            Txid::from_str("02d08b73223be820351d0edc2a40046e320efacb3ab665dedf36ae178086565e")
+                .unwrap(),
+        ];
+
+        let merkle_root = ledger
+            .calculate_merkle_root(txids.to_vec().clone())
+            .unwrap();
+
+        assert_eq!(
+            TxMerkleNode::from_raw_hash(
+                Hash::from_str("8c1c8ff245b6d8bbbde4e8fc6686c6b57d2911fc5ec9743658f0f04868377df3")
                     .unwrap()
             ),
             merkle_root
