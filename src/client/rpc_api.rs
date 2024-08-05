@@ -59,8 +59,6 @@ impl RpcApi for Client {
 
         Ok(tx.compute_txid())
     }
-    /// Because there are no blocks, this function works pretty much same as
-    /// `get_transaction`.
     fn get_raw_transaction(
         &self,
         txid: &bitcoin::Txid,
@@ -68,6 +66,13 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<bitcoin::Transaction> {
         Ok(self.ledger.get_transaction(*txid)?)
     }
+    /// Verbose flag enabled `get_raw_transaction`.
+    ///
+    /// This function is not intended to return information about the
+    /// transaction itself. Instead, it mostly provides information about the
+    /// transaction's state in blockchain. It is recommmended to use
+    /// `get_raw_transaction` for information about transaction's inputs and
+    /// outputs.
     fn get_raw_transaction_info(
         &self,
         txid: &bitcoin::Txid,
