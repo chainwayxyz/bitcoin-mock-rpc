@@ -202,7 +202,7 @@ impl RpcApi for Client {
         let tx_block_time = self.ledger.get_block_time(tx_block_height)?;
         let info = WalletTxInfo {
             confirmations: (current_height - tx_block_height) as i32,
-            blockhash: None,
+            blockhash: Some(self.ledger.get_transaction_block_hash(txid)?),
             blockindex: None,
             blocktime: Some(current_time as u64),
             blockheight: Some(current_height),

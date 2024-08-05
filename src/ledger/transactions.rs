@@ -4,7 +4,8 @@ use super::{errors::LedgerError, spending_requirements::SpendingRequirementsRetu
 use bitcoin::{
     absolute,
     consensus::{Decodable, Encodable},
-    Amount, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
+    hashes::sha256d,
+    Amount, BlockHash, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
 };
 use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use rusqlite::params;
@@ -95,6 +96,30 @@ impl Ledger {
         };
 
         Ok(sequence)
+    }
+
+    pub fn get_transaction_block_hash(&self, txid: &Txid) -> Result<BlockHash, LedgerError> {
+        let height = self.get_transaction_block_height(txid)?;
+
+        let hash = self.database.lock().unwrap().query_row(
+            "SELECT hash FROM blocks WHERE height = ?1",
+            params![height],
+            |row| {
+                let body = row.get::<_, Vec<u8>>(0).unwrap();
+
+                Ok(body)
+            },
+        );
+
+        let hash = match hash {
+            Ok(h) => {
+                let hash = sha256d::Hash::consensus_decode(&mut h.as_slice()).unwrap();
+                BlockHash::from_raw_hash(hash)
+            }
+            Err(_) => return Err(LedgerError::BlockInMempool(height)),
+        };
+
+        Ok(hash)
     }
 
     pub fn get_transactions(&self) -> Vec<Transaction> {
