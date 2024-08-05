@@ -102,11 +102,11 @@ impl Ledger {
             None => return Ok(()),
         };
 
-        let current_block_height = self.get_block_height();
+        let current_block_height = self.get_block_height()?;
         let current_block_time = self.get_block_time(current_block_height)?;
 
         let tx_block_height = self.get_transaction_block_height(&utxo.txid)?;
-        let tx_block_time = self.get_tx_block_height(utxo.txid);
+        let tx_block_time = self.get_transaction_block_height(&utxo.txid)?;
 
         let blocks_after = current_block_height - tx_block_height;
         let time_after = current_block_time - tx_block_time;
@@ -161,9 +161,9 @@ mod tests {
         };
 
         ledger.add_transaction_unconditionally(tx.clone()).unwrap();
-        ledger.increment_block_height();
-        ledger.increment_block_height();
-        assert_eq!(ledger.get_block_height(), 2);
+        ledger.mine_block().unwrap();
+        ledger.mine_block().unwrap();
+        assert_eq!(ledger.get_block_height().unwrap(), 2);
 
         let script = Builder::new()
             .push_int(0x1 as i64)
@@ -175,9 +175,9 @@ mod tests {
         ledger.check_sequence(utxo, script, 2).unwrap();
 
         for _ in 0..3 {
-            ledger.increment_block_height();
+            ledger.mine_block().unwrap();
         }
-        assert_eq!(ledger.get_block_height(), 5);
+        assert_eq!(ledger.get_block_height().unwrap(), 5);
 
         let script = Builder::new()
             .push_int(0x1 as i64)
@@ -189,9 +189,9 @@ mod tests {
         ledger.check_sequence(utxo, script, 1).unwrap();
 
         for _ in 0..3 {
-            ledger.increment_block_height();
+            ledger.mine_block().unwrap();
         }
-        assert_eq!(ledger.get_block_height(), 8);
+        assert_eq!(ledger.get_block_height().unwrap(), 8);
         let script = Builder::new()
             .push_int(0x45 as i64)
             .push_opcode(OP_CSV)
@@ -204,9 +204,9 @@ mod tests {
         }
 
         for _ in 0..0x100 {
-            ledger.increment_block_height();
+            ledger.mine_block().unwrap();
         }
-        assert_eq!(ledger.get_block_height(), 8 + 0x100);
+        assert_eq!(ledger.get_block_height().unwrap(), 8 + 0x100);
         let script = Builder::new()
             .push_int(0x100 as i64)
             .push_opcode(OP_CSV)
@@ -232,7 +232,7 @@ mod tests {
         };
 
         ledger.add_transaction_unconditionally(tx.clone()).unwrap();
-        ledger.increment_block_height();
+        ledger.mine_block().unwrap();
 
         let sequence = Sequence::from_512_second_intervals(2);
         let script = Builder::new()
@@ -246,7 +246,7 @@ mod tests {
             .check_sequence(utxo, script, sequence.to_consensus_u32())
             .unwrap();
 
-        ledger.increment_block_height();
+        ledger.mine_block().unwrap();
 
         let sequence = Sequence::from_512_second_intervals(0x45);
         let script = Builder::new()
@@ -264,7 +264,7 @@ mod tests {
             assert!(false);
         };
 
-        ledger.increment_block_height();
+        ledger.mine_block().unwrap();
 
         let sequence = Sequence::from_512_second_intervals(300);
         let script = Builder::new()
