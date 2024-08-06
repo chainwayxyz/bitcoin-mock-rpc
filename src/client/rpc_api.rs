@@ -200,9 +200,13 @@ impl RpcApi for Client {
         let current_time = self.ledger.get_block_time(current_height)?;
         let tx_block_height = self.ledger.get_transaction_block_height(txid)?;
         let tx_block_time = self.ledger.get_block_time(tx_block_height)?;
+        let blockhash = match self.ledger.get_transaction_block_hash(txid) {
+            Ok(h) => Some(h),
+            Err(_) => None,
+        };
         let info = WalletTxInfo {
             confirmations: (current_height - tx_block_height) as i32,
-            blockhash: Some(self.ledger.get_transaction_block_hash(txid)?),
+            blockhash,
             blockindex: None,
             blocktime: Some(current_time as u64),
             blockheight: Some(current_height),
@@ -375,33 +379,36 @@ mod tests {
     }
 
     #[test]
-    fn transaction() {
-        // let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+    fn get_transaction() {
+        let rpc = Client::new("get_transaction", bitcoincore_rpc::Auth::None).unwrap();
 
-        // let credential = Ledger::generate_credential_from_witness();
-        // rpc.ledger.add_credential(credential.clone());
-        // let address = credential.address;
+        let credential = Ledger::generate_credential_from_witness();
+        let address = credential.address;
 
-        // // First, add some funds to user, for free.
-        // let txout = rpc
-        //     .ledger
-        //     .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
-        // let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-        // let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        // First, add some funds to user, for free.
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
-        // // Insert raw transactions to Bitcoin.
-        // let txin = rpc.ledger._create_txin(txid, 0);
-        // let txout = rpc
-        //     .ledger
-        //     .create_txout(Amount::from_sat(0x1F), address.script_pubkey());
-        // let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        // rpc.send_raw_transaction(&tx).unwrap();
+        // Insert raw transactions to Bitcoin.
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            witness: credential.witness.unwrap(),
+            ..Default::default()
+        };
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(0x1F), address.script_pubkey());
+        let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+        rpc.send_raw_transaction(&tx).unwrap();
 
-        // let txid = tx.compute_txid();
+        let txid = tx.compute_txid();
 
-        // let tx = rpc.get_transaction(&txid, None).unwrap();
+        let tx = rpc.get_transaction(&txid, None).unwrap();
 
-        // assert_eq!(txid, tx.info.txid);
+        assert_eq!(txid, tx.info.txid);
     }
 
     #[test]

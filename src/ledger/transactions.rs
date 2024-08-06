@@ -104,11 +104,7 @@ impl Ledger {
         let hash = self.database.lock().unwrap().query_row(
             "SELECT hash FROM blocks WHERE height = ?1",
             params![height],
-            |row| {
-                let body = row.get::<_, Vec<u8>>(0).unwrap();
-
-                Ok(body)
-            },
+            |row| Ok(row.get::<_, Vec<u8>>(0)?),
         );
 
         let hash = match hash {
