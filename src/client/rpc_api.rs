@@ -140,9 +140,17 @@ impl RpcApi for Client {
         let tx_block_height = self
             .ledger
             .get_transaction_block_height(&tx.compute_txid())?;
+        let blockhash = match self.ledger.get_transaction_block_hash(txid) {
+            Ok(bh) => Some(bh),
+            Err(_) => None,
+        };
+        let blocktime = match self.ledger.get_block_time(tx_block_height) {
+            Ok(bt) => Some(bt as usize),
+            Err(_) => None,
+        };
         let confirmations = match self.ledger.get_mempool_transaction(*txid) {
             Some(_) => None,
-            None => Some((current_block_height - tx_block_height) as u32),
+            None => Some((current_block_height - tx_block_height + 1) as u32),
         };
 
         Ok(GetRawTransactionResult {
@@ -156,10 +164,10 @@ impl RpcApi for Client {
             locktime: 0,
             vin,
             vout,
-            blockhash: None,
+            blockhash,
             confirmations,
             time: None,
-            blocktime: None,
+            blocktime,
         })
     }
 
@@ -205,7 +213,7 @@ impl RpcApi for Client {
             Err(_) => None,
         };
         let info = WalletTxInfo {
-            confirmations: (current_height - tx_block_height) as i32,
+            confirmations: (current_height as i64 - tx_block_height as i64 + 1) as i32,
             blockhash,
             blockindex: None,
             blocktime: Some(current_time as u64),
@@ -376,6 +384,60 @@ mod tests {
             .unwrap();
         assert_eq!(read_tx, inserted_tx2);
         assert_ne!(read_tx, inserted_tx1);
+    }
+
+    #[test]
+    fn get_raw_transaction_info() {
+        let rpc = Client::new("get_raw_transaction_info", bitcoincore_rpc::Auth::None).unwrap();
+
+        let credential = Ledger::generate_credential_from_witness();
+        let address = credential.address;
+
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+
+        // No blocks are mined. Little to none information is available.
+        let info = rpc.get_raw_transaction_info(&txid, None).unwrap();
+        assert_eq!(info.txid, txid);
+        assert_eq!(info.blockhash, None);
+        assert_eq!(info.confirmations, None);
+
+        // Mining blocks should enable more transaction information.
+        rpc.ledger.mine_block().unwrap();
+        let info = rpc.get_raw_transaction_info(&txid, None).unwrap();
+        assert_eq!(info.txid, txid);
+        assert_eq!(
+            info.blockhash,
+            Some(rpc.ledger.get_transaction_block_hash(&txid).unwrap())
+        );
+        assert_eq!(info.confirmations, Some(1));
+
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(0x1F), address.script_pubkey());
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+
+        // No blocks are mined. Little to none information is available.
+        let info = rpc.get_raw_transaction_info(&txid, None).unwrap();
+        assert_eq!(info.txid, txid);
+        assert_eq!(info.blockhash, None);
+        assert_eq!(info.confirmations, None);
+
+        // Mining blocks should enable more transaction information.
+        rpc.ledger.mine_block().unwrap();
+        rpc.ledger.mine_block().unwrap();
+        rpc.ledger.mine_block().unwrap();
+        let info = rpc.get_raw_transaction_info(&txid, None).unwrap();
+        assert_eq!(info.txid, txid);
+        assert_eq!(
+            info.blockhash,
+            Some(rpc.ledger.get_transaction_block_hash(&txid).unwrap())
+        );
+        assert_eq!(info.confirmations, Some(3));
     }
 
     #[test]
