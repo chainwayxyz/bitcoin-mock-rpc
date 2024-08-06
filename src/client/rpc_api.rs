@@ -305,26 +305,39 @@ impl RpcApi for Client {
         Ok(vec![BlockHash::all_zeros(); block_num as usize])
     }
 
-    /// TODO: whole function
+    /// This function is intended for retrieving information about a txout's
+    /// value and confirmation. Other data may not be reliable.
+    ///
+    /// This will include mempool txouts regardless of the `include_mempool`
+    /// flag. `coinbase` will be set to false regardless if it is or not.
     fn get_tx_out(
         &self,
-        _txid: &bitcoin::Txid,
-        _vout: u32,
+        txid: &bitcoin::Txid,
+        vout: u32,
         _include_mempool: Option<bool>,
     ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
+        let current_height = self.ledger.get_block_height()?;
+        let current_block = self.ledger.get_block_with_height(current_height)?;
+        let bestblock = current_block.block_hash();
+
+        let tx = self.get_raw_transaction(txid, None)?;
+        let value = tx.output.get(vout as usize).unwrap().value;
+
+        let confirmations = self.get_transaction(txid, None)?.info.confirmations as u32;
+
         Ok(Some(GetTxOutResult {
-            bestblock: BlockHash::all_zeros(),
-            confirmations: u32::MAX,
-            value: Amount::from_sat(0x45),
+            bestblock,
+            confirmations,
+            value,
             script_pub_key: GetRawTransactionResultVoutScriptPubKey {
-                asm: "asmwhat".to_string(),
+                asm: "TODO".to_string(),
                 hex: Vec::new(),
                 req_sigs: None,
                 type_: None,
                 addresses: Vec::new(),
                 address: None,
             },
-            coinbase: true,
+            coinbase: false,
         }))
     }
 }
