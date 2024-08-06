@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed some of the unnecessary third-party libraries
 - Some of the error messages are detailed
 - Block height and time storage simplified in ledger
+- RPC functions now return block related informations
 
 ## [0.0.5] - 2024-07-29
 

@@ -5,6 +5,12 @@ library, which is a wrapper of Bitcoin RPC for Rust. This library aims to mock
 `RpcApi` trait interface of bitcoincore-rpc and provide a separate mock
 blockchain for every unit and integration test.
 
+## Differences Between Real Bitcoin RPC
+
+Some of the RPC functions behave similarly with real RPC while some of them are
+not. To check if an RPC function behaves different than the real one, please
+check function comments in [`src/client/rpc_api.rs`](src/client/rpc_api.rs).
+
 ## Usage
 
 This mock won't provide a CLI tool. Instead, you should use this in your Rust

@@ -106,7 +106,7 @@ impl Ledger {
         let current_block_time = self.get_block_time(current_block_height)?;
 
         let tx_block_height = self.get_transaction_block_height(&utxo.txid)?;
-        let tx_block_time = self.get_transaction_block_height(&utxo.txid)?;
+        let tx_block_time = self.get_block_time(tx_block_height)?;
 
         let blocks_after = current_block_height - tx_block_height;
         let time_after = current_block_time - tx_block_time;
@@ -160,10 +160,13 @@ mod tests {
             vout: 0,
         };
 
-        ledger.add_transaction_unconditionally(tx.clone()).unwrap();
+        let txid = ledger.add_transaction_unconditionally(tx.clone()).unwrap();
+        assert_eq!(ledger.get_transaction_block_height(&txid).unwrap(), 1);
+
         ledger.mine_block().unwrap();
         ledger.mine_block().unwrap();
-        assert_eq!(ledger.get_block_height().unwrap(), 2);
+        ledger.mine_block().unwrap();
+        assert_eq!(ledger.get_block_height().unwrap(), 3);
 
         let script = Builder::new()
             .push_int(0x1 as i64)
@@ -177,7 +180,7 @@ mod tests {
         for _ in 0..3 {
             ledger.mine_block().unwrap();
         }
-        assert_eq!(ledger.get_block_height().unwrap(), 5);
+        assert_eq!(ledger.get_block_height().unwrap(), 6);
 
         let script = Builder::new()
             .push_int(0x1 as i64)
@@ -186,12 +189,12 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_sequence(utxo, script, 1).unwrap();
+        ledger.check_sequence(utxo, script, 2).unwrap();
 
         for _ in 0..3 {
             ledger.mine_block().unwrap();
         }
-        assert_eq!(ledger.get_block_height().unwrap(), 8);
+        assert_eq!(ledger.get_block_height().unwrap(), 9);
         let script = Builder::new()
             .push_int(0x45 as i64)
             .push_opcode(OP_CSV)
@@ -199,14 +202,14 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_sequence(utxo, script, 0x45) {
+        if let Ok(_) = ledger.check_sequence(utxo, script, 0x46) {
             assert!(false);
         }
 
         for _ in 0..0x100 {
             ledger.mine_block().unwrap();
         }
-        assert_eq!(ledger.get_block_height().unwrap(), 8 + 0x100);
+        assert_eq!(ledger.get_block_height().unwrap(), 9 + 0x100);
         let script = Builder::new()
             .push_int(0x100 as i64)
             .push_opcode(OP_CSV)
@@ -214,7 +217,7 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        ledger.check_sequence(utxo, script, 0x100).unwrap();
+        ledger.check_sequence(utxo, script, 0x101).unwrap();
     }
 
     #[test]
