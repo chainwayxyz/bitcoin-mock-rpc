@@ -68,7 +68,7 @@ impl RpcApi for Client {
     }
     /// Verbose flag enabled `get_raw_transaction`.
     ///
-    /// This function is not intended to return information about the
+    /// This function **is not** intended to return information about the
     /// transaction itself. Instead, it mostly provides information about the
     /// transaction's state in blockchain. It is recommmended to use
     /// `get_raw_transaction` for information about transaction's inputs and
@@ -234,8 +234,12 @@ impl RpcApi for Client {
         })
     }
 
-    /// Warning `send_to_address` won't check anything. It will only send funds
-    /// to specified address. This means: Unlimited free money.
+    /// Sends specified amount to `address` regardless of the user balance.
+    /// Meaning: Unlimited free money.
+    ///
+    /// Reason this call behaves like this is there are no wallet
+    /// implementation. This is intended way to generate inputs for other
+    /// transactions.
     fn send_to_address(
         &self,
         address: &Address<NetworkChecked>,
@@ -263,7 +267,8 @@ impl RpcApi for Client {
     }
 
     /// Creates a random secret/public key pair and generates a Bitcoin address
-    /// from witness program.
+    /// from witness program. Please note that this address is not hold in
+    /// ledger in any way.
     fn get_new_address(
         &self,
         _label: Option<&str>,
@@ -274,8 +279,9 @@ impl RpcApi for Client {
         Ok(address.as_unchecked().to_owned())
     }
 
-    /// Generates `block_num` amount of block rewards to user. Block reward is
-    /// fixed to 1 BTC, regardless of which and how many blocks are generated.
+    /// Generates `block_num` amount of block rewards to `address`. Block reward
+    /// is fixed to 1 BTC, regardless of which and how many blocks are
+    /// generated. Also mines current mempool transactions to a block.
     fn generate_to_address(
         &self,
         block_num: u64,
