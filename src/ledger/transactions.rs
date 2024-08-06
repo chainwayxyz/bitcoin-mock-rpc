@@ -32,9 +32,10 @@ impl Ledger {
             Err(e) => return Err(LedgerError::Transaction(e.to_string())),
         };
 
+        // Use next block height as the transaction height.
         if let Err(e) = self.database.lock().unwrap().execute(
             "INSERT INTO transactions (txid, block_height, body) VALUES (?1, ?2, ?3)",
-            params![txid.to_string(), current_block_height, body],
+            params![txid.to_string(), current_block_height + 1, body],
         ) {
             return Err(LedgerError::Transaction(format!(
                 "Couldn't add transaction with txid {} to ledger: {}",
