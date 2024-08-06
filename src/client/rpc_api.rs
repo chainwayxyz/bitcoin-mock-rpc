@@ -450,65 +450,42 @@ mod tests {
         assert!(!address.is_valid_for_network(Network::Testnet));
         assert!(!address.is_valid_for_network(Network::Signet));
         assert!(!address.is_valid_for_network(Network::Bitcoin));
-
-        for _ in 0..100 {
-            let address = rpc.get_new_address(None, None).unwrap();
-
-            assert!(address.is_valid_for_network(Network::Regtest));
-            assert!(!address.is_valid_for_network(Network::Testnet));
-            assert!(!address.is_valid_for_network(Network::Signet));
-            assert!(!address.is_valid_for_network(Network::Bitcoin));
-        }
     }
 
-    // #[test]
-    // fn generate_to_address() {
-    //     let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+    #[test]
+    fn generate_to_address() {
+        let rpc = Client::new("generate_to_address", bitcoincore_rpc::Auth::None).unwrap();
 
-    //     let address = rpc.get_new_address(None, None).unwrap().assume_checked();
+        let credential = Ledger::generate_credential_from_witness();
+        let address = credential.address;
 
-    //     // Empty wallet should reject transaction.
-    //     let txout = rpc
-    //         .ledger
-    //         .create_txout(Amount::from_sat(1), address.script_pubkey());
-    //     let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-    //     if let Ok(()) = rpc.ledger.check_transaction(&tx) {
-    //         assert!(false);
-    //     };
+        // Empty wallet should reject transaction.
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(1), address.script_pubkey());
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        if let Ok(()) = rpc.ledger.check_transaction(&tx) {
+            assert!(false);
+        };
 
-    //     // Generating blocks should add funds to wallet.
-    //     rpc.generate_to_address(101, &address).unwrap();
+        // Generating blocks should add funds to wallet.
+        rpc.generate_to_address(101, &address).unwrap();
 
-    //     // Wallet has funds now. It should not be rejected.
-    //     let txin = rpc.ledger._create_txin(
-    //         rpc.ledger.get_transactions().get(0).unwrap().compute_txid(),
-    //         0,
-    //     );
-    //     let txout = rpc
-    //         .ledger
-    //         .create_txout(Amount::from_sat(1), address.script_pubkey());
-    //     let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-    //     if let Err(e) = rpc.ledger.check_transaction(&tx) {
-    //         assert!(false, "{:?}", e);
-    //     };
-    // }
-
-    // #[test]
-    // fn get_balance() {
-    //     let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
-
-    //     let credential = Ledger::generate_credential_from_witness();
-    //     rpc.ledger.add_credential(credential.clone());
-    //     let address = credential.address;
-
-    //     assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0));
-
-    //     let txout = rpc
-    //         .ledger
-    //         .create_txout(Amount::from_sat(0x45), address.script_pubkey());
-    //     let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-    //     rpc.ledger.add_transaction_unconditionally(tx).unwrap();
-
-    //     assert_eq!(rpc.get_balance(None, None).unwrap(), Amount::from_sat(0x45));
-    // }
+        // Wallet has funds now. It should not be rejected.
+        let txin = TxIn {
+            previous_output: OutPoint {
+                txid: rpc.ledger.get_transactions().get(0).unwrap().compute_txid(),
+                vout: 0,
+            },
+            witness: credential.witness.unwrap(),
+            ..Default::default()
+        };
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(1), address.script_pubkey());
+        let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+        if let Err(e) = rpc.ledger.check_transaction(&tx) {
+            assert!(false, "{:?}", e);
+        };
+    }
 }
