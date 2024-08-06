@@ -309,65 +309,69 @@ impl RpcApi for Client {
             coinbase: true,
         }))
     }
-
-    // / Returns user's balance. Balance is calculated using addresses that are
-    // / generated with `get_new_address` rpc call.
-    // fn get_balance(
-    //     &self,
-    //     _minconf: Option<usize>,
-    //     _include_watchonly: Option<bool>,
-    // ) -> bitcoincore_rpc::Result<Amount> {
-    //     Ok(self.ledger.calculate_balance()?)
-    // }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{ledger::Ledger, Client, RpcApiWrapper};
+    use bitcoin::{Amount, OutPoint, TxIn};
+    use bitcoincore_rpc::RpcApi;
+
     #[test]
-    fn raw_transaction() {
-        // let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+    fn send_get_raw_transaction() {
+        let rpc = Client::new("send_get_raw_transaction", bitcoincore_rpc::Auth::None).unwrap();
 
-        // let credential = Ledger::generate_credential_from_witness();
-        // rpc.ledger.add_credential(credential.clone());
-        // let address = credential.address;
+        let credential = Ledger::generate_credential_from_witness();
+        let address = credential.address;
 
-        // // First, add some funds to user, for free.
-        // let txout = rpc
-        //     .ledger
-        //     .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
-        // let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-        // let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        // First, create a transaction for the next txin.
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(100_000_000), address.script_pubkey());
+        let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
+        let txid = rpc.ledger.add_transaction_unconditionally(tx).unwrap();
 
-        // // Create a new raw transactions that is valid.
-        // let txin = rpc.ledger._create_txin(txid, 0);
-        // let txout = rpc
-        //     .ledger
-        //     .create_txout(Amount::from_sat(0x45), address.script_pubkey());
-        // let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        // rpc.send_raw_transaction(&inserted_tx1).unwrap();
+        // Create a new raw transactions that is valid.
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            witness: credential.witness.clone().unwrap(),
+            ..Default::default()
+        };
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
+        let inserted_tx1 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+        rpc.send_raw_transaction(&inserted_tx1).unwrap();
 
-        // let txin = rpc.ledger._create_txin(inserted_tx1.compute_txid(), 0);
-        // let txout = rpc.ledger.create_txout(
-        //     Amount::from_sat(0x45),
-        //     Ledger::generate_credential_from_witness()
-        //         .address
-        //         .script_pubkey(),
-        // );
-        // let inserted_tx2 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        // rpc.send_raw_transaction(&inserted_tx2).unwrap();
+        let txin = TxIn {
+            previous_output: OutPoint {
+                txid: inserted_tx1.compute_txid(),
+                vout: 0,
+            },
+            witness: credential.witness.unwrap(),
+            ..Default::default()
+        };
+        let txout = rpc.ledger.create_txout(
+            Amount::from_sat(0x45),
+            Ledger::generate_credential_from_witness()
+                .address
+                .script_pubkey(),
+        );
+        let inserted_tx2 = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+        rpc.send_raw_transaction(&inserted_tx2).unwrap();
 
-        // // Retrieve inserted transactions from Bitcoin.
-        // let read_tx = rpc
-        //     .get_raw_transaction(&inserted_tx1.compute_txid(), None)
-        //     .unwrap();
-        // assert_eq!(read_tx, inserted_tx1);
-        // assert_ne!(read_tx, inserted_tx2);
+        // Retrieve inserted transactions from Bitcoin.
+        let read_tx = rpc
+            .get_raw_transaction(&inserted_tx1.compute_txid(), None)
+            .unwrap();
+        assert_eq!(read_tx, inserted_tx1);
+        assert_ne!(read_tx, inserted_tx2);
 
-        // let read_tx = rpc
-        //     .get_raw_transaction(&inserted_tx2.compute_txid(), None)
-        //     .unwrap();
-        // assert_eq!(read_tx, inserted_tx2);
-        // assert_ne!(read_tx, inserted_tx1);
+        let read_tx = rpc
+            .get_raw_transaction(&inserted_tx2.compute_txid(), None)
+            .unwrap();
+        assert_eq!(read_tx, inserted_tx2);
+        assert_ne!(read_tx, inserted_tx1);
     }
 
     #[test]
