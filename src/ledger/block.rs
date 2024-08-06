@@ -325,6 +325,10 @@ impl Ledger {
                 .as_secs() as u32);
         }
 
+        if self.get_block_height()? + 1 == block_height {
+            return Ok(self.get_block_time(block_height - 1)? + (10 * 60));
+        }
+
         match self.database.lock().unwrap().query_row(
             "SELECT time FROM blocks WHERE height = ?1",
             params![block_height],
