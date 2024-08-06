@@ -318,7 +318,7 @@ impl RpcApi for Client {
 #[cfg(test)]
 mod tests {
     use crate::{ledger::Ledger, Client, RpcApiWrapper};
-    use bitcoin::{Amount, OutPoint, TxIn};
+    use bitcoin::{Amount, Network, OutPoint, TxIn};
     use bitcoincore_rpc::RpcApi;
 
     #[test]
@@ -440,39 +440,26 @@ mod tests {
         assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
     }
 
-    // #[test]
-    // fn get_new_address() {
-    //     let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+    #[test]
+    fn get_new_address() {
+        let rpc = Client::new("get_new_address", bitcoincore_rpc::Auth::None).unwrap();
 
-    //     let address = rpc.get_new_address(None, None).unwrap();
+        let address = rpc.get_new_address(None, None).unwrap();
 
-    //     assert!(address.is_valid_for_network(Network::Regtest));
-    //     assert!(!address.is_valid_for_network(Network::Testnet));
-    //     assert!(!address.is_valid_for_network(Network::Signet));
-    //     assert!(!address.is_valid_for_network(Network::Bitcoin));
-    //     assert_eq!(
-    //         *rpc.ledger.get_credentials()[0].address.as_unchecked(),
-    //         address
-    //     );
+        assert!(address.is_valid_for_network(Network::Regtest));
+        assert!(!address.is_valid_for_network(Network::Testnet));
+        assert!(!address.is_valid_for_network(Network::Signet));
+        assert!(!address.is_valid_for_network(Network::Bitcoin));
 
-    //     const ADDRESS_COUNT: usize = 100;
-    //     let mut prev = address;
-    //     for i in 0..ADDRESS_COUNT {
-    //         let curr = rpc.get_new_address(None, None).unwrap();
+        for _ in 0..100 {
+            let address = rpc.get_new_address(None, None).unwrap();
 
-    //         assert_ne!(prev, curr);
-    //         assert!(curr.is_valid_for_network(Network::Regtest));
-    //         assert!(!curr.is_valid_for_network(Network::Testnet));
-    //         assert!(!curr.is_valid_for_network(Network::Signet));
-    //         assert!(!curr.is_valid_for_network(Network::Bitcoin));
-    //         assert_eq!(
-    //             *rpc.ledger.get_credentials()[i + 1].address.as_unchecked(),
-    //             curr
-    //         );
-
-    //         prev = curr;
-    //     }
-    // }
+            assert!(address.is_valid_for_network(Network::Regtest));
+            assert!(!address.is_valid_for_network(Network::Testnet));
+            assert!(!address.is_valid_for_network(Network::Signet));
+            assert!(!address.is_valid_for_network(Network::Bitcoin));
+        }
+    }
 
     // #[test]
     // fn generate_to_address() {
