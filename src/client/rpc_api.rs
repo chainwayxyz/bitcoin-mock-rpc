@@ -413,31 +413,31 @@ mod tests {
 
     #[test]
     fn send_to_address() {
-        // let rpc = Client::new("", bitcoincore_rpc::Auth::None).unwrap();
+        let rpc = Client::new("send_to_address", bitcoincore_rpc::Auth::None).unwrap();
 
-        // let credential = Ledger::generate_credential_from_witness();
-        // let receiver_address = credential.address;
+        let credential = Ledger::generate_credential_from_witness();
+        let receiver_address = credential.address;
 
-        // // send_to_address should send `amount` to `address`, regardless of the
-        // // user's balance.
-        // let txid = rpc
-        //     .send_to_address(
-        //         &receiver_address,
-        //         Amount::from_sat(0x45),
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //     )
-        //     .unwrap();
+        // send_to_address should send `amount` to `address`, regardless of the
+        // user's balance.
+        let txid = rpc
+            .send_to_address(
+                &receiver_address,
+                Amount::from_sat(0x45),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
 
-        // let tx = rpc.get_raw_transaction(&txid, None).unwrap();
+        let tx = rpc.get_raw_transaction(&txid, None).unwrap();
 
-        // // Receiver should have this.
-        // assert_eq!(tx.output[0].value.to_sat(), 0x45);
-        // assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
+        // Receiver should have this.
+        assert_eq!(tx.output[0].value.to_sat(), 0x45);
+        assert_eq!(tx.output[0].script_pubkey, receiver_address.script_pubkey());
     }
 
     // #[test]
