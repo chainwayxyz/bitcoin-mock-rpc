@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- 4 new RPC functions
+  - getbestblockhash, getblock, getblockheader and getblockcount
+
 ## [0.0.6] - 2024-08-06
 
 ### Added
