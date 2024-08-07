@@ -316,9 +316,7 @@ impl RpcApi for Client {
         vout: u32,
         _include_mempool: Option<bool>,
     ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
-        let current_height = self.ledger.get_block_height()?;
-        let current_block = self.ledger.get_block_with_height(current_height)?;
-        let bestblock = current_block.block_hash();
+        let bestblock = self.get_best_block_hash()?;
 
         let tx = self.get_raw_transaction(txid, None)?;
         let value = tx.output.get(vout as usize).unwrap().value;
@@ -339,6 +337,14 @@ impl RpcApi for Client {
             },
             coinbase: false,
         }))
+    }
+
+    fn get_best_block_hash(&self) -> bitcoincore_rpc::Result<bitcoin::BlockHash> {
+        let current_height = self.ledger.get_block_height()?;
+        let current_block = self.ledger.get_block_with_height(current_height)?;
+        let block_hash = current_block.block_hash();
+
+        Ok(block_hash)
     }
 }
 
