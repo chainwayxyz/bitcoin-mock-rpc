@@ -19,6 +19,8 @@ pub enum LedgerError {
     Block(String),
     #[error("Requested block is in mempool; Block height: {0}")]
     BlockInMempool(u32),
+    #[error("RPC error: {0}")]
+    Rpc(String),
 }
 
 impl From<LedgerError> for bitcoincore_rpc::Error {

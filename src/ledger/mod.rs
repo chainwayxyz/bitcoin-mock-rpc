@@ -12,7 +12,7 @@ use std::{
 };
 mod address;
 mod block;
-mod errors;
+pub(crate) mod errors;
 mod script;
 mod spending_requirements;
 mod transactions;
