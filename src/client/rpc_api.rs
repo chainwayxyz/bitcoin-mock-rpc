@@ -357,6 +357,10 @@ impl RpcApi for Client {
     ) -> bitcoincore_rpc::Result<bitcoin::block::Header> {
         Ok(self.ledger.get_block_with_hash(*hash)?.header)
     }
+
+    fn get_block_count(&self) -> bitcoincore_rpc::Result<u64> {
+        Ok(self.ledger.get_block_height()?.into())
+    }
 }
 
 #[cfg(test)]
@@ -626,5 +630,18 @@ mod tests {
         let block_header = rpc.get_block_header(&block_hash).unwrap();
 
         assert_eq!(block.header, block_header);
+    }
+
+    #[test]
+    fn get_block_count() {
+        let rpc = Client::new("get_block_count", bitcoincore_rpc::Auth::None).unwrap();
+
+        assert_eq!(rpc.get_block_count().unwrap(), 0);
+
+        let tx = rpc.ledger.create_transaction(vec![], vec![]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        rpc.ledger.mine_block().unwrap();
+
+        assert_eq!(rpc.get_block_count().unwrap(), 1);
     }
 }
