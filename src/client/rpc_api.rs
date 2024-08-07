@@ -346,6 +346,10 @@ impl RpcApi for Client {
 
         Ok(block_hash)
     }
+
+    fn get_block(&self, hash: &bitcoin::BlockHash) -> bitcoincore_rpc::Result<bitcoin::Block> {
+        Ok(self.ledger.get_block_with_hash(*hash)?)
+    }
 }
 
 #[cfg(test)]
@@ -574,5 +578,32 @@ mod tests {
         if let Err(e) = rpc.ledger.check_transaction(&tx) {
             assert!(false, "{:?}", e);
         };
+    }
+
+    #[test]
+    fn get_best_block_hash() {
+        let rpc = Client::new("get_best_block_hash", bitcoincore_rpc::Auth::None).unwrap();
+
+        let tx = rpc.ledger.create_transaction(vec![], vec![]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        let block_hash = rpc.ledger.mine_block().unwrap();
+
+        let best_block_hash = rpc.get_best_block_hash().unwrap();
+
+        assert_eq!(block_hash, best_block_hash);
+    }
+
+    #[test]
+    fn get_block() {
+        let rpc = Client::new("get_block", bitcoincore_rpc::Auth::None).unwrap();
+
+        let tx = rpc.ledger.create_transaction(vec![], vec![]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        let block_hash = rpc.ledger.mine_block().unwrap();
+        let block = rpc.ledger.get_block_with_hash(block_hash).unwrap();
+
+        let read_block = rpc.get_block(&block_hash).unwrap();
+
+        assert_eq!(block, read_block);
     }
 }
