@@ -316,9 +316,7 @@ impl RpcApi for Client {
         vout: u32,
         _include_mempool: Option<bool>,
     ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
-        let current_height = self.ledger.get_block_height()?;
-        let current_block = self.ledger.get_block_with_height(current_height)?;
-        let bestblock = current_block.block_hash();
+        let bestblock = self.get_best_block_hash()?;
 
         let tx = self.get_raw_transaction(txid, None)?;
         let value = tx.output.get(vout as usize).unwrap().value;
@@ -339,6 +337,29 @@ impl RpcApi for Client {
             },
             coinbase: false,
         }))
+    }
+
+    fn get_best_block_hash(&self) -> bitcoincore_rpc::Result<bitcoin::BlockHash> {
+        let current_height = self.ledger.get_block_height()?;
+        let current_block = self.ledger.get_block_with_height(current_height)?;
+        let block_hash = current_block.block_hash();
+
+        Ok(block_hash)
+    }
+
+    fn get_block(&self, hash: &bitcoin::BlockHash) -> bitcoincore_rpc::Result<bitcoin::Block> {
+        Ok(self.ledger.get_block_with_hash(*hash)?)
+    }
+
+    fn get_block_header(
+        &self,
+        hash: &bitcoin::BlockHash,
+    ) -> bitcoincore_rpc::Result<bitcoin::block::Header> {
+        Ok(self.ledger.get_block_with_hash(*hash)?.header)
+    }
+
+    fn get_block_count(&self) -> bitcoincore_rpc::Result<u64> {
+        Ok(self.ledger.get_block_height()?.into())
     }
 }
 
@@ -568,5 +589,59 @@ mod tests {
         if let Err(e) = rpc.ledger.check_transaction(&tx) {
             assert!(false, "{:?}", e);
         };
+    }
+
+    #[test]
+    fn get_best_block_hash() {
+        let rpc = Client::new("get_best_block_hash", bitcoincore_rpc::Auth::None).unwrap();
+
+        let tx = rpc.ledger.create_transaction(vec![], vec![]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        let block_hash = rpc.ledger.mine_block().unwrap();
+
+        let best_block_hash = rpc.get_best_block_hash().unwrap();
+
+        assert_eq!(block_hash, best_block_hash);
+    }
+
+    #[test]
+    fn get_block() {
+        let rpc = Client::new("get_block", bitcoincore_rpc::Auth::None).unwrap();
+
+        let tx = rpc.ledger.create_transaction(vec![], vec![]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        let block_hash = rpc.ledger.mine_block().unwrap();
+        let block = rpc.ledger.get_block_with_hash(block_hash).unwrap();
+
+        let read_block = rpc.get_block(&block_hash).unwrap();
+
+        assert_eq!(block, read_block);
+    }
+
+    #[test]
+    fn get_block_header() {
+        let rpc = Client::new("get_block_header", bitcoincore_rpc::Auth::None).unwrap();
+
+        let tx = rpc.ledger.create_transaction(vec![], vec![]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        let block_hash = rpc.ledger.mine_block().unwrap();
+        let block = rpc.ledger.get_block_with_hash(block_hash).unwrap();
+
+        let block_header = rpc.get_block_header(&block_hash).unwrap();
+
+        assert_eq!(block.header, block_header);
+    }
+
+    #[test]
+    fn get_block_count() {
+        let rpc = Client::new("get_block_count", bitcoincore_rpc::Auth::None).unwrap();
+
+        assert_eq!(rpc.get_block_count().unwrap(), 0);
+
+        let tx = rpc.ledger.create_transaction(vec![], vec![]);
+        rpc.ledger.add_transaction_unconditionally(tx).unwrap();
+        rpc.ledger.mine_block().unwrap();
+
+        assert_eq!(rpc.get_block_count().unwrap(), 1);
     }
 }
