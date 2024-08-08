@@ -4,9 +4,22 @@
 //! interface.
 
 use crate::ledger::errors::LedgerError;
-use jsonrpsee::{server::Server, RpcModule};
-use std::net::SocketAddr;
-use std::{io::Error, net::TcpListener};
+use jsonrpsee::server::ServerHandle;
+use server::run_server;
+use std::{
+    io::Error,
+    net::{SocketAddr, TcpListener},
+};
+
+mod server;
+mod traits;
+
+#[derive(Debug)]
+pub struct MockRpc {
+    pub handle: ServerHandle,
+    pub socket_address: SocketAddr,
+    pub url: String,
+}
 
 /// Spawns an RPC server for the mock blockchain.
 ///
@@ -18,7 +31,7 @@ use std::{io::Error, net::TcpListener};
 /// # Returns
 ///
 /// URL on success, `std::io::Error` otherwise.
-pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<String, Error> {
+pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<MockRpc, Error> {
     let host = match host {
         Some(h) => h,
         None => "127.0.0.1",
@@ -29,24 +42,13 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<S
     };
     let url = format!("{}:{}", host, port);
 
-    let server_addr = {
-        let url = url.as_str().parse::<SocketAddr>().unwrap();
-        let server = Server::builder().build(url).await?;
-        let mut module = RpcModule::new(());
+    let (socket_address, handle) = run_server(url.as_str()).await.unwrap();
 
-        module.register_method("say_hello", |_, _, _| "lo").unwrap();
-
-        let addr = server.local_addr()?;
-        let handle = server.start(module);
-
-        // In this example we don't care about doing shutdown so let's it run forever.
-        // You may use the `ServerHandle` to shut it down or manage it yourself.
-        tokio::spawn(handle.stopped());
-
-        Result::<std::net::SocketAddr, Error>::Ok(addr)
-    }?;
-
-    Ok(format!("http://{}", server_addr))
+    Ok(MockRpc {
+        handle,
+        socket_address,
+        url,
+    })
 }
 
 /// Finds the first empty port for the given `host`.
@@ -78,9 +80,7 @@ mod tests {
 
     #[tokio::test]
     async fn spawn_rpc_server() {
-        println!(
-            "Server started at {}",
-            super::spawn_rpc_server(None, None).await.unwrap()
-        );
+        let server = super::spawn_rpc_server(None, None).await.unwrap();
+        println!("Server started at {}", server.socket_address);
     }
 }

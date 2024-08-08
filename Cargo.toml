@@ -13,5 +13,7 @@ thiserror = "1.0.61"
 bitcoin-scriptexec = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-scriptexec" }
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 rs_merkle = "1.4"
-jsonrpsee = { version = "0.24.2", features = ["server", "client"], default-features = false }
+jsonrpsee = { version = "0.24.2", features = ["server", "client", "macros"], default-features = false }
 tokio = { version = "1.38.0", features = ["full"]}
+tracing = "0.1.40"
+tower = "0.4.13"
