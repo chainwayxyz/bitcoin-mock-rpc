@@ -6,19 +6,15 @@
 use crate::ledger::errors::LedgerError;
 use jsonrpsee::server::ServerHandle;
 use server::run_server;
-use std::{
-    io::Error,
-    net::{SocketAddr, TcpListener},
-};
+use std::{io::Error, net::SocketAddr, net::TcpListener};
+use traits::InnerRpc;
 
 mod server;
 mod traits;
 
-#[derive(Debug)]
 pub struct MockRpc {
-    pub handle: ServerHandle,
     pub socket_address: SocketAddr,
-    pub url: String,
+    pub handle: ServerHandle,
 }
 
 /// Spawns an RPC server for the mock blockchain.
@@ -45,9 +41,8 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<M
     let (socket_address, handle) = run_server(url.as_str()).await.unwrap();
 
     Ok(MockRpc {
-        handle,
         socket_address,
-        url,
+        handle,
     })
 }
 
