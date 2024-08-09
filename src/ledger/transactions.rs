@@ -66,8 +66,7 @@ impl Ledger {
             Err(e) => {
                 return Err(LedgerError::Transaction(format!(
                     "Couldn't found transaction with txid {}: {}",
-                    txid,
-                    e.to_string()
+                    txid, e
                 )))
             }
         };
@@ -90,8 +89,7 @@ impl Ledger {
             Err(e) => {
                 return Err(LedgerError::Transaction(format!(
                     "Couldn't get block height for txid {}: {}",
-                    txid,
-                    e.to_string()
+                    txid, e
                 )))
             }
         };
@@ -105,7 +103,7 @@ impl Ledger {
         let hash = self.database.lock().unwrap().query_row(
             "SELECT hash FROM blocks WHERE height = ?1",
             params![height],
-            |row| Ok(row.get::<_, Vec<u8>>(0)?),
+            |row| row.get::<_, Vec<u8>>(0),
         );
 
         let hash = match hash {
@@ -178,14 +176,14 @@ impl Ledger {
             let mut ctx: ExecCtx = ExecCtx::Legacy;
 
             if txouts[input_idx].script_pubkey.is_p2wpkh() {
-                self.p2wpkh_check(&transaction, txouts.as_slice(), input_idx)?;
+                self.p2wpkh_check(transaction, txouts.as_slice(), input_idx)?;
                 continue;
             } else if txouts[input_idx].script_pubkey.is_p2wsh() {
-                ret = self.p2wsh_check(&transaction, &txouts, input_idx)?;
+                ret = self.p2wsh_check(transaction, &txouts, input_idx)?;
                 ctx = ExecCtx::SegwitV0;
             } else if txouts[input_idx].script_pubkey.is_p2tr() {
-                ret = self.p2tr_check(&transaction, &txouts, input_idx)?;
-                if ret.taproot == None {
+                ret = self.p2tr_check(transaction, &txouts, input_idx)?;
+                if ret.taproot.is_none() {
                     continue;
                 }
                 ctx = ExecCtx::Tapscript;

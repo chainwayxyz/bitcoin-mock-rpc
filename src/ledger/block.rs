@@ -173,9 +173,7 @@ impl Ledger {
                 txid.consensus_encode(&mut hex).unwrap();
 
                 let mut arr: [u8; 32] = [32; 32];
-                for i in 0..hex.len() {
-                    arr[i] = hex[i];
-                }
+                arr[..hex.len()].copy_from_slice(&hex[..]);
 
                 arr
             })
@@ -218,13 +216,9 @@ impl Ledger {
         match self.database.lock().unwrap().query_row(
             "SELECT height FROM blocks ORDER BY height DESC LIMIT 1",
             params![],
-            |row| {
-                let body = row.get::<_, i64>(0).unwrap();
-
-                Ok(body as u32)
-            },
+            |row| row.get::<_, i64>(0),
         ) {
-            Ok(h) => Ok(h),
+            Ok(h) => Ok(h as u32),
             Err(e) => Err(LedgerError::Block(format!(
                 "Couldn't read block height from ledger: {}",
                 e
@@ -287,13 +281,7 @@ impl Ledger {
 
         mempool_txs
             .iter()
-            .find(|tx| {
-                if tx.compute_txid() == txid {
-                    true
-                } else {
-                    false
-                }
-            })
+            .find(|tx| tx.compute_txid() == txid)
             .cloned()
     }
 

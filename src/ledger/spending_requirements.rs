@@ -107,7 +107,7 @@ impl Ledger {
 
         let script = witness.pop().unwrap();
 
-        let witness_program = WitnessProgram::p2wsh(&Script::from_bytes(&script));
+        let witness_program = WitnessProgram::p2wsh(Script::from_bytes(&script));
         let sig_pub_key_expected = ScriptBuf::new_witness_program(&witness_program);
 
         if *txouts[input_idx].script_pubkey != sig_pub_key_expected {
@@ -159,7 +159,7 @@ impl Ledger {
             let h = sighashcache
                 .taproot_key_spend_signature_hash(
                     input_idx,
-                    &Prevouts::All(&txouts),
+                    &Prevouts::All(txouts),
                     signature.sighash_type,
                 )
                 .unwrap();
