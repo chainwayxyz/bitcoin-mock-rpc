@@ -12,8 +12,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Compile in debug mode
       run: cargo build --verbose --workspace --all-targets --all-features
+
+    - name: Save build artifacts
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-debug-build
 
   release_mode_build:
     name: Compile code in release mode
@@ -21,8 +33,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Compile in release mode
       run: cargo build --verbose --workspace --all-targets --all-features --release
+
+    - name: Save build artifacts
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-release-build
 
   debug_mode_test:
     name: Test code in debug mode
@@ -31,6 +55,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Restore cached build artifacts
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-debug-build
+
     - name: Run Cargo test in debug mode
       run: cargo test --verbose --workspace --all-targets --all-features
 
@@ -41,6 +77,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Restore cached build artifacts
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-release-build
+
     - name: Run Cargo test in release mode
       run: cargo test --verbose --workspace --all-targets --all-features --release
     
