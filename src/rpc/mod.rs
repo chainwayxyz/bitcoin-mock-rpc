@@ -8,7 +8,7 @@ use crate::{Client, RpcApiWrapper};
 use jsonrpsee::server::Server;
 use jsonrpsee::server::ServerHandle;
 use std::{io::Error, net::SocketAddr, net::TcpListener};
-use traits::{InnerRpc, RpcServer};
+use traits::RpcServer;
 
 mod traits;
 
@@ -56,10 +56,9 @@ pub async fn run_server(url: &str) -> Result<(SocketAddr, ServerHandle), LedgerE
         Ok(a) => a,
         Err(e) => return Err(LedgerError::Rpc(e.to_string())),
     };
-    let rpc = InnerRpc {
-        client: Client::new(url, bitcoincore_rpc::Auth::None).unwrap(),
-    };
-    let handle = server.start(rpc.into_rpc());
+
+    let client = Client::new(url, bitcoincore_rpc::Auth::None).unwrap();
+    let handle = server.start(client.into_rpc());
 
     // Run server, till' it's shut down manually.
     tokio::spawn(handle.clone().stopped());

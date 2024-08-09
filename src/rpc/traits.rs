@@ -9,11 +9,6 @@ use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::ErrorObjectOwned;
 
-/// Holds ledger connection.
-pub struct InnerRpc {
-    pub client: Client,
-}
-
 #[rpc(server)]
 pub trait Rpc {
     #[method(name = "sendrawtransaction")]
@@ -28,9 +23,9 @@ pub trait Rpc {
 }
 
 #[async_trait]
-impl RpcServer for InnerRpc {
+impl RpcServer for Client {
     async fn sendrawtransaction(&self, tx: String) -> Result<String, ErrorObjectOwned> {
-        if let Ok(res) = self.client.send_raw_transaction(tx) {
+        if let Ok(res) = self.send_raw_transaction(tx) {
             return Ok(res.to_string());
         };
 
@@ -44,7 +39,7 @@ impl RpcServer for InnerRpc {
         txid: Txid,
         block_hash: Option<BlockHash>,
     ) -> Result<String, ErrorObjectOwned> {
-        if let Ok(res) = self.client.get_raw_transaction(&txid, block_hash.as_ref()) {
+        if let Ok(res) = self.get_raw_transaction(&txid, block_hash.as_ref()) {
             let mut hex: Vec<u8> = Vec::new();
             if let Err(_) = res.consensus_encode(&mut hex) {
                 return Err(ErrorObjectOwned::from(
