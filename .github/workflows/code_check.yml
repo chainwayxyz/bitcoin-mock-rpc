@@ -6,8 +6,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  format_check:
-    name: Format Check
+  formatting:
+    name: Check formatting
     runs-on: ubuntu-latest
 
     steps:
@@ -16,7 +16,7 @@ jobs:
       run: cargo fmt --check
 
   linting:
-    name: Linting Check
+    name: Check linting
     runs-on: ubuntu-latest
 
     steps:
