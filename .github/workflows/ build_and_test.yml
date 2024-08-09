@@ -1,0 +1,46 @@
+name: Build And Test
+
+on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  debug_mode_build:
+    name: Compile code in debug mode
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Compile in debug mode
+      run: cargo build --verbose --workspace --all-targets --all-features
+
+  release_mode_build:
+    name: Compile code in release mode
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Compile in release mode
+      run: cargo build --verbose --workspace --all-targets --all-features --release
+
+  debug_mode_test:
+    name: Test code in debug mode
+    runs-on: ubuntu-latest
+    needs: debug_mode_build
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Cargo test in debug mode
+      run: cargo test --verbose --workspace --all-targets --all-features
+
+  release_mode_test:
+    name: Test code in release mode
+    runs-on: ubuntu-latest
+    needs: release_mode_build
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Cargo test in release mode
+      run: cargo test --verbose --workspace --all-targets --all-features --release
+    
