@@ -1,0 +1,25 @@
+name: Code Checks
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  format_check:
+    name: Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Cargo fmt
+      run: cargo fmt --check
+
+  linting:
+    name: Linting Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Cargo clippy
+      run: cargo clippy --no-deps
