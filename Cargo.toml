@@ -1,6 +1,6 @@
 [package]
 name = "bitcoin-mock-rpc"
-version = "0.1.0"
+version = "0.0.6"
 edition = "2021"
 
 [dependencies]
@@ -13,6 +13,7 @@ thiserror = "1.0.61"
 bitcoin-scriptexec = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-scriptexec" }
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 rs_merkle = "1.4"
-
-[dev-dependencies]
+jsonrpsee = { version = "0.24.2", features = ["server", "client", "macros"], default-features = false }
 tokio = { version = "1.38.0", features = ["full"]}
+tracing = "0.1.40"
+tower = "0.4.13"
