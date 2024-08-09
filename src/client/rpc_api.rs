@@ -53,7 +53,7 @@ impl RpcApi for Client {
         &self,
         tx: R,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
-        let tx: Transaction = encode::deserialize_hex(&tx.raw_hex()).unwrap();
+        let tx: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
 
         self.ledger.add_transaction(tx.clone())?;
 
