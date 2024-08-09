@@ -1,0 +1,25 @@
+name: Tests
+
+on: [push]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  debug_mode_test:
+    name: Test code
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Cargo test
+      run: cargo test --verbose --workspace --all-targets --all-features
+
+  release_mode_test:
+    name: Test code in release mode
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Cargo test in release mode
+      run: cargo test --verbose --workspace --all-targets --all-features --release
