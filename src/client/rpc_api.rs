@@ -22,7 +22,6 @@ use bitcoincore_rpc::{
     RpcApi,
 };
 use secp256k1::rand::{self, RngCore};
-use std::u32;
 
 impl RpcApi for Client {
     /// TL;DR: If this function is called for `cmd`, it's corresponding mock is
@@ -81,7 +80,7 @@ impl RpcApi for Client {
         let tx = self.get_raw_transaction(txid, _block_hash)?;
 
         let mut hex: Vec<u8> = Vec::new();
-        if let Err(_) = tx.consensus_encode(&mut hex) {
+        if tx.consensus_encode(&mut hex).is_err() {
             hex = vec![];
         };
 
@@ -150,7 +149,7 @@ impl RpcApi for Client {
         };
         let confirmations = match self.ledger.get_mempool_transaction(*txid) {
             Some(_) => None,
-            None => Some((current_block_height - tx_block_height + 1) as u32),
+            None => Some(current_block_height - tx_block_height + 1),
         };
 
         Ok(GetRawTransactionResult {

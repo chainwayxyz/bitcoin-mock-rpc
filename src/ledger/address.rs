@@ -46,6 +46,12 @@ impl UserCredential {
     }
 }
 
+impl Default for UserCredential {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ledger {
     /// Generates a random secret/public key pair and creates a new Bicoin
     /// address from them.

@@ -51,14 +51,12 @@ impl Ledger {
     #[inline]
     pub fn sequence_to_timelock(sequence: u32) -> Result<relative::LockTime, LedgerError> {
         match relative::LockTime::from_sequence(Sequence::from_consensus(sequence)) {
-            Ok(lt) => return Ok(lt),
-            Err(e) => {
-                return Err(LedgerError::Script(format!(
-                    "Couldn't convert sequence {} to timelock: {}",
-                    sequence, e
-                )))
-            }
-        };
+            Ok(lt) => Ok(lt),
+            Err(e) => Err(LedgerError::Script(format!(
+                "Couldn't convert sequence {} to timelock: {}",
+                sequence, e
+            ))),
+        }
     }
 
     /// Checks if a script is a CSV script. If it is, returns lock time.
