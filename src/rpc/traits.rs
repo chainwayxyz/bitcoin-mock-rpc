@@ -20,6 +20,12 @@ pub trait Rpc {
 #[async_trait]
 impl RpcServer for InnerRpc {
     async fn sendrawtransaction(&self, tx: String) -> Result<String, ErrorObjectOwned> {
-        Ok(self.client.send_raw_transaction(tx).unwrap().to_string())
+        if let Ok(res) = self.client.send_raw_transaction(tx) {
+            return Ok(res.to_string());
+        };
+
+        Err(ErrorObjectOwned::from(
+            jsonrpsee::types::ErrorCode::InvalidParams,
+        ))
     }
 }
