@@ -4,12 +4,12 @@
 //! interface.
 
 use crate::ledger::errors::LedgerError;
+use crate::{Client, RpcApiWrapper};
+use jsonrpsee::server::Server;
 use jsonrpsee::server::ServerHandle;
-use server::run_server;
 use std::{io::Error, net::SocketAddr, net::TcpListener};
-use traits::InnerRpc;
+use traits::{InnerRpc, RpcServer};
 
-mod server;
 mod traits;
 
 pub struct MockRpc {
@@ -44,6 +44,27 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<M
         socket_address,
         handle,
     })
+}
+
+pub async fn run_server(url: &str) -> Result<(SocketAddr, ServerHandle), LedgerError> {
+    let server = match Server::builder().build(url).await {
+        Ok(s) => s,
+        Err(e) => return Err(LedgerError::Rpc(e.to_string())),
+    };
+
+    let addr = match server.local_addr() {
+        Ok(a) => a,
+        Err(e) => return Err(LedgerError::Rpc(e.to_string())),
+    };
+    let rpc = InnerRpc {
+        client: Client::new(url, bitcoincore_rpc::Auth::None).unwrap(),
+    };
+    let handle = server.start(rpc.into_rpc());
+
+    // Run server, till' it's shut down manually.
+    tokio::spawn(handle.clone().stopped());
+
+    Ok((addr, handle))
 }
 
 /// Finds the first empty port for the given `host`.
