@@ -5,7 +5,7 @@
 import requests
 
 url = "http://127.0.0.1:1024"
-method = "send_raw_transaction"
+method = "sendrawtransaction"
 params = {"tx": "dummy"} 
 
 payload = {
