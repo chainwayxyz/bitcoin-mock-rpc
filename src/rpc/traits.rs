@@ -41,7 +41,7 @@ impl RpcServer for Client {
     ) -> Result<String, ErrorObjectOwned> {
         if let Ok(res) = self.get_raw_transaction(&txid, block_hash.as_ref()) {
             let mut hex: Vec<u8> = Vec::new();
-            if let Err(_) = res.consensus_encode(&mut hex) {
+            if res.consensus_encode(&mut hex).is_err() {
                 return Err(ErrorObjectOwned::from(
                     jsonrpsee::types::ErrorCode::InvalidParams,
                 ));

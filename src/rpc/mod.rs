@@ -28,10 +28,7 @@ pub struct MockRpc {
 ///
 /// URL on success, `std::io::Error` otherwise.
 pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<MockRpc, Error> {
-    let host = match host {
-        Some(h) => h,
-        None => "127.0.0.1",
-    };
+    let host = host.unwrap_or("127.0.0.1");
     let port = match port {
         Some(p) => p,
         None => find_empty_port(host)?,
@@ -69,7 +66,7 @@ pub async fn run_server(url: &str) -> Result<(SocketAddr, ServerHandle), LedgerE
 /// Finds the first empty port for the given `host`.
 fn find_empty_port(host: &str) -> Result<u16, Error> {
     for port in 1..0xFFFFu16 {
-        if let Ok(_) = TcpListener::bind((host, port)) {
+        if TcpListener::bind((host, port)).is_ok() {
             return Ok(port);
         }
     }
