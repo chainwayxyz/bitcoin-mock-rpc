@@ -4,6 +4,8 @@ on: [push]
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_TERM_VERBOSE: true
+  CARGOFLAGS: --workspace --all-targets --all-features
 
 jobs:
   debug_mode_build:
@@ -14,7 +16,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Compile in debug mode
-      run: cargo build --verbose --workspace --all-targets --all-features
+      run: cargo build $CARGOFLAGS
 
     - name: Save build artifacts
       uses: actions/cache/save@v4
@@ -35,7 +37,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Compile in release mode
-      run: cargo build --verbose --workspace --all-targets --all-features --release
+      run: cargo build $CARGOFLAGS --release
 
     - name: Save build artifacts
       uses: actions/cache/save@v4
@@ -68,7 +70,7 @@ jobs:
         key: ${{ runner.os }}-debug-build
 
     - name: Run Cargo test in debug mode
-      run: cargo test --verbose --workspace --all-targets --all-features
+      run: cargo test $CARGOFLAGS
 
   release_mode_test:
     name: Test code in release mode
@@ -90,5 +92,5 @@ jobs:
         key: ${{ runner.os }}-release-build
 
     - name: Run Cargo test in release mode
-      run: cargo test --verbose --workspace --all-targets --all-features --release
+      run: cargo test $CARGOFLAGS --release
     
