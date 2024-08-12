@@ -2,7 +2,7 @@
 
 use super::{decode_from_hex, encode_decode_to_rpc_error, encode_to_hex};
 use crate::Client;
-use bitcoin::{consensus::Decodable, BlockHash};
+use bitcoin::{consensus::Decodable, BlockHash, Txid};
 use bitcoincore_rpc::{Error, RpcApi};
 
 pub fn getbestblockhash(client: &Client) -> Result<String, Error> {
@@ -60,5 +60,21 @@ pub fn getblockheader(
     match verbose {
         None | Some(true) => Ok(serde_json::to_string(&header).unwrap()),
         Some(false) => Ok(encode_to_hex(header)),
+    }
+}
+
+pub fn gettxout(
+    client: &Client,
+    txid: String,
+    n: u32,
+    include_mempool: Option<bool>,
+) -> Result<String, Error> {
+    let txid = decode_from_hex::<Txid>(txid)?;
+
+    let txout = client.get_tx_out(&txid, n, include_mempool)?;
+
+    match txout {
+        Some(to) => Ok(serde_json::to_string_pretty(&to)?),
+        None => Ok("{}".to_string()),
     }
 }
