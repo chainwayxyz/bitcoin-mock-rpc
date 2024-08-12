@@ -34,6 +34,8 @@ pub fn gettransaction(
     Ok(serde_json::to_string_pretty(&tx)?)
 }
 
+// This has nothing to do with us. Ignore it.
+#[allow(clippy::too_many_arguments)]
 pub fn sendtoaddress(
     client: &Client,
     address: String,
