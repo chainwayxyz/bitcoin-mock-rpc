@@ -3,11 +3,15 @@
 //! This crate provides an adapter interface that aims to mimic real Bitcoin
 //! RPC interface. It builds on [`RpcApi`].
 
-mod blockchain;
-
 use bitcoin::hex::DisplayHex;
-pub use blockchain::*;
 
+mod blockchain;
+mod generating;
+
+pub use blockchain::*;
+pub use generating::*;
+
+/// Encodes given Rust struct to hex string.
 fn encode_to_hex<T>(strct: T) -> String
 where
     T: bitcoin::consensus::Encodable,
@@ -17,6 +21,8 @@ where
 
     encoded.to_hex_string(bitcoin::hex::Case::Upper)
 }
+
+/// Decodes given hex string to a Rust struct.
 fn decode_from_hex<T>(hex: String) -> Result<T, bitcoincore_rpc::Error>
 where
     T: bitcoin::consensus::Decodable,
@@ -24,11 +30,11 @@ where
     let mut hex = hex.as_bytes();
     match T::consensus_decode(&mut hex) {
         Ok(t) => Ok(t),
-        Err(e) => Err(encode_decode_to_rpc(e)),
+        Err(e) => Err(encode_decode_to_rpc_error(e)),
     }
 }
 
-fn encode_decode_to_rpc(error: bitcoin::consensus::encode::Error) -> bitcoincore_rpc::Error {
+fn encode_decode_to_rpc_error(error: bitcoin::consensus::encode::Error) -> bitcoincore_rpc::Error {
     bitcoincore_rpc::Error::BitcoinSerialization(bitcoin::consensus::encode::FromHexError::Decode(
         bitcoin::consensus::DecodeError::Consensus(error),
     ))

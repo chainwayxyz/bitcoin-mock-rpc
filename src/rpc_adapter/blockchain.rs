@@ -1,6 +1,6 @@
-//! # Blockchain Related RPC Functions
+//! # Blockchain RPCs
 
-use super::{decode_from_hex, encode_decode_to_rpc, encode_to_hex};
+use super::{decode_from_hex, encode_decode_to_rpc_error, encode_to_hex};
 use crate::Client;
 use bitcoin::{consensus::Decodable, BlockHash};
 use bitcoincore_rpc::{Error, RpcApi};
@@ -19,7 +19,7 @@ pub fn getblock(
     let mut blockhash = blockhash.as_bytes();
     let blockhash = match BlockHash::consensus_decode(&mut blockhash) {
         Ok(bh) => bh,
-        Err(e) => return Err(encode_decode_to_rpc(e)),
+        Err(e) => return Err(encode_decode_to_rpc_error(e)),
     };
 
     let res = client.get_block(&blockhash)?;
