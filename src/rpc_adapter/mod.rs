@@ -7,9 +7,11 @@ use bitcoin::hex::DisplayHex;
 
 mod blockchain;
 mod generating;
+mod rawtransactions;
 
 pub use blockchain::*;
 pub use generating::*;
+pub use rawtransactions::*;
 
 /// Encodes given Rust struct to hex string.
 fn encode_to_hex<T>(strct: T) -> String
