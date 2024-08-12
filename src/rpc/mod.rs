@@ -10,9 +10,8 @@ use jsonrpsee::server::ServerHandle;
 use std::{io::Error, net::SocketAddr, net::TcpListener};
 use traits::RpcServer;
 
+mod adapter;
 mod traits;
-pub mod adapter;
-
 pub struct MockRpc {
     pub socket_address: SocketAddr,
     pub handle: ServerHandle,

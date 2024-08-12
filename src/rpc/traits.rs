@@ -1,57 +1,91 @@
 //! # Traits
 
+use super::adapter;
 use crate::Client;
-use bitcoin::consensus::Encodable;
-use bitcoin::hex::DisplayHex;
-use bitcoin::{BlockHash, Txid};
-use bitcoincore_rpc::RpcApi;
 use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::ErrorObjectOwned;
 
 #[rpc(server)]
 pub trait Rpc {
-    #[method(name = "sendrawtransaction")]
-    async fn sendrawtransaction(&self, tx: String) -> Result<String, ErrorObjectOwned>;
+    #[method(name = "getbestblockhash")]
+    async fn getbestblockhash(&self) -> Result<String, ErrorObjectOwned>;
 
-    #[method(name = "getrawtransaction")]
-    async fn getrawtransaction(
+    #[method(name = "getblock")]
+    async fn getblock(
         &self,
-        txid: Txid,
-        block_hash: Option<BlockHash>,
+        blockhash: String,
+        verbosity: Option<usize>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "getblockcount")]
+    async fn getblockcount(&self) -> Result<usize, ErrorObjectOwned>;
+
+    #[method(name = "getblockhash")]
+    async fn getblockhash(&self, height: usize) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "getblockheader")]
+    async fn getblockheader(
+        &self,
+        blockhash: String,
+        verbose: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "gettxout")]
+    async fn gettxout(
+        &self,
+        txid: String,
+        n: u32,
+        include_mempool: Option<bool>,
     ) -> Result<String, ErrorObjectOwned>;
 }
 
 #[async_trait]
 impl RpcServer for Client {
-    async fn sendrawtransaction(&self, tx: String) -> Result<String, ErrorObjectOwned> {
-        if let Ok(res) = self.send_raw_transaction(tx) {
-            return Ok(res.to_string());
-        };
-
-        Err(ErrorObjectOwned::from(
-            jsonrpsee::types::ErrorCode::InvalidParams,
-        ))
+    async fn getbestblockhash(&self) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::getbestblockhash(self))
     }
 
-    async fn getrawtransaction(
+    async fn getblock(
         &self,
-        txid: Txid,
-        block_hash: Option<BlockHash>,
+        blockhash: String,
+        verbosity: Option<usize>,
     ) -> Result<String, ErrorObjectOwned> {
-        if let Ok(res) = self.get_raw_transaction(&txid, block_hash.as_ref()) {
-            let mut hex: Vec<u8> = Vec::new();
-            if res.consensus_encode(&mut hex).is_err() {
-                return Err(ErrorObjectOwned::from(
-                    jsonrpsee::types::ErrorCode::InvalidParams,
-                ));
-            };
+        to_jsonrpsee_error(adapter::getblock(self, blockhash, verbosity))
+    }
 
-            return Ok(hex.to_hex_string(bitcoin::hex::Case::Upper));
-        };
+    async fn getblockcount(&self) -> Result<usize, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::getblockcount(self))
+    }
 
-        Err(ErrorObjectOwned::from(
+    async fn getblockhash(&self, height: usize) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::getblockhash(self, height))
+    }
+
+    async fn getblockheader(
+        &self,
+        blockhash: String,
+        verbose: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::getblockheader(self, blockhash, verbose))
+    }
+
+    async fn gettxout(
+        &self,
+        txid: String,
+        n: u32,
+        include_mempool: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::gettxout(self, txid, n, include_mempool))
+    }
+}
+
+/// Helper for converting ledger error to [`jsonrpsee`] error.
+fn to_jsonrpsee_error<T>(input: Result<T, bitcoincore_rpc::Error>) -> Result<T, ErrorObjectOwned> {
+    match input {
+        Ok(res) => Ok(res),
+        Err(_) => Err(ErrorObjectOwned::from(
             jsonrpsee::types::ErrorCode::InvalidParams,
-        ))
+        )),
     }
 }
