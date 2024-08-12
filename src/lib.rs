@@ -9,6 +9,7 @@
 
 pub mod client;
 mod ledger;
+pub mod rpc_adapter;
 
 // Re-imports.
 pub use client::*;
