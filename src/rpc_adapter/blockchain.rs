@@ -31,16 +31,8 @@ pub fn getblock(
     }
 }
 
-pub fn getblockchaininfo(_client: &Client) -> Result<String, Error> {
-    Err(Error::UnexpectedStructure)
-}
-
 pub fn getblockcount(client: &Client) -> Result<usize, Error> {
     Ok(client.get_block_count()? as usize)
-}
-
-pub fn getblockfilter(_client: &Client, _blockhash: String) -> Result<usize, Error> {
-    Err(Error::UnexpectedStructure)
 }
 
 pub fn getblockhash(client: &Client, height: usize) -> Result<String, Error> {
