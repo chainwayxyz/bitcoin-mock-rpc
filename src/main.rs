@@ -8,7 +8,7 @@ async fn main() {
     println!("Bitcoin Mock Rpc (C) Chainway, 2024");
     println!(
         "Usage: {} [HOST] [PORT]",
-        env::args().collect::<Vec<String>>().get(0).unwrap()
+        env::args().collect::<Vec<String>>().first().unwrap()
     );
 
     let server_info = handle_args();
@@ -34,7 +34,7 @@ fn handle_args() -> (Option<String>, Option<u16>) {
     };
 
     if let Some(port) = args.get(2) {
-        ret.1 = Some(u16::from_str_radix(port, 10).unwrap());
+        ret.1 = Some(port.parse::<u16>().unwrap());
     };
 
     ret
