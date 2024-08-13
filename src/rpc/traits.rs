@@ -84,8 +84,6 @@ impl RpcServer for Client {
 fn to_jsonrpsee_error<T>(input: Result<T, bitcoincore_rpc::Error>) -> Result<T, ErrorObjectOwned> {
     match input {
         Ok(res) => Ok(res),
-        Err(_) => Err(ErrorObjectOwned::from(
-            jsonrpsee::types::ErrorCode::InvalidParams,
-        )),
+        Err(e) => Err(ErrorObjectOwned::owned(0x45, e.to_string(), None::<String>)),
     }
 }
