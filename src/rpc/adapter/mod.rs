@@ -1,7 +1,7 @@
 //! # RPC Adapter Interface
 //!
 //! This crate provides an adapter interface that aims to mimic real Bitcoin
-//! RPC interface. It builds on [`RpcApi`].
+//! RPC interface.
 
 use bitcoin::hex::DisplayHex;
 
