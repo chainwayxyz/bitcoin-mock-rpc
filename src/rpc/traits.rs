@@ -1,4 +1,7 @@
 //! # Traits
+//!
+//! This crate implements [`jsonrpsee`] traits, using [`adapter`] functions.
+//! This is the entry point for the RPC calls.
 
 use super::adapter;
 use crate::Client;
