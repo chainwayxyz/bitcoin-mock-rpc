@@ -2,6 +2,7 @@
 
 use super::adapter;
 use crate::Client;
+use bitcoin::BlockHash;
 use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::ErrorObjectOwned;
@@ -37,6 +38,58 @@ pub trait Rpc {
         txid: String,
         n: u32,
         include_mempool: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "generatetoaddress")]
+    async fn generatetoaddress(
+        &self,
+        nblocks: usize,
+        address: String,
+        maxtries: usize,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "getrawtransaction")]
+    async fn getrawtransaction(
+        &self,
+        txid: String,
+        verbose: Option<bool>,
+        blockhash: Option<BlockHash>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "sendrawtransaction")]
+    async fn sendrawtransaction(
+        &self,
+        hexstring: String,
+        maxfeerate: Option<usize>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "getnewaddress")]
+    async fn getnewaddress(
+        &self,
+        label: Option<String>,
+        address_type: Option<String>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "gettransaction")]
+    async fn gettransaction(
+        &self,
+        txid: String,
+        include_watchonly: Option<bool>,
+        verbose: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "sendtoaddress")]
+    async fn sendtoaddress(
+        &self,
+        address: String,
+        amount: String,
+        comment: Option<&str>,
+        comment_to: Option<&str>,
+        subtractfeefromamount: Option<bool>,
+        replaceable: Option<bool>,
+        conf_target: Option<u32>,
+        estimate_mode: Option<&str>,
+        avoid_reuse: Option<bool>,
     ) -> Result<String, ErrorObjectOwned>;
 }
 
@@ -77,6 +130,80 @@ impl RpcServer for Client {
         include_mempool: Option<bool>,
     ) -> Result<String, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::gettxout(self, txid, n, include_mempool))
+    }
+
+    async fn generatetoaddress(
+        &self,
+        nblocks: usize,
+        address: String,
+        maxtries: usize,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::generatetoaddress(self, nblocks, address, maxtries))
+    }
+
+    async fn getrawtransaction(
+        &self,
+        txid: String,
+        verbose: Option<bool>,
+        blockhash: Option<BlockHash>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::getrawtransaction(self, txid, verbose, blockhash))
+    }
+
+    async fn sendrawtransaction(
+        &self,
+        hexstring: String,
+        maxfeerate: Option<usize>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::sendrawtransaction(self, hexstring, maxfeerate))
+    }
+
+    async fn getnewaddress(
+        &self,
+        label: Option<String>,
+        address_type: Option<String>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::getnewaddress(self, label, address_type))
+    }
+
+    async fn gettransaction(
+        &self,
+        txid: String,
+        include_watchonly: Option<bool>,
+        verbose: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::gettransaction(
+            self,
+            txid,
+            include_watchonly,
+            verbose,
+        ))
+    }
+
+    async fn sendtoaddress(
+        &self,
+        address: String,
+        amount: String,
+        comment: Option<&str>,
+        comment_to: Option<&str>,
+        subtractfeefromamount: Option<bool>,
+        replaceable: Option<bool>,
+        conf_target: Option<u32>,
+        estimate_mode: Option<&str>,
+        avoid_reuse: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::sendtoaddress(
+            self,
+            address,
+            amount,
+            comment,
+            comment_to,
+            subtractfeefromamount,
+            replaceable,
+            conf_target,
+            estimate_mode,
+            avoid_reuse,
+        ))
     }
 }
 
