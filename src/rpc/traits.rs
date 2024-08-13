@@ -48,7 +48,7 @@ pub trait Rpc {
         &self,
         nblocks: usize,
         address: String,
-        maxtries: usize,
+        maxtries: Option<usize>,
     ) -> Result<String, ErrorObjectOwned>;
 
     #[method(name = "getrawtransaction")]
@@ -139,7 +139,7 @@ impl RpcServer for Client {
         &self,
         nblocks: usize,
         address: String,
-        maxtries: usize,
+        maxtries: Option<usize>,
     ) -> Result<String, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::generatetoaddress(self, nblocks, address, maxtries))
     }
