@@ -11,7 +11,9 @@ use std::{io::Error, net::SocketAddr, net::TcpListener};
 use traits::RpcServer;
 
 mod adapter;
+#[allow(clippy::too_many_arguments)]
 mod traits;
+
 pub struct MockRpc {
     pub socket_address: SocketAddr,
     pub handle: ServerHandle,
