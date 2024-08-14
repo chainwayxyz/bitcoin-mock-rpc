@@ -29,7 +29,7 @@ pub struct MockRpc {
 /// # Returns
 ///
 /// URL on success, `std::io::Error` otherwise.
-pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<MockRpc, Error> {
+pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<SocketAddr, Error> {
     let host = host.unwrap_or("127.0.0.1");
     let port = match port {
         Some(p) => p,
@@ -37,15 +37,10 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<M
     };
     let url = format!("{}:{}", host, port);
 
-    let (socket_address, handle) = run_server(url.as_str()).await.unwrap();
-
-    Ok(MockRpc {
-        socket_address,
-        handle,
-    })
+    Ok(start_server(url.as_str()).await.unwrap())
 }
 
-pub async fn run_server(url: &str) -> Result<(SocketAddr, ServerHandle), LedgerError> {
+pub async fn start_server(url: &str) -> Result<SocketAddr, LedgerError> {
     let server = match Server::builder().build(url).await {
         Ok(s) => s,
         Err(e) => return Err(LedgerError::Rpc(e.to_string())),
@@ -59,10 +54,9 @@ pub async fn run_server(url: &str) -> Result<(SocketAddr, ServerHandle), LedgerE
     let client = Client::new(url, bitcoincore_rpc::Auth::None).unwrap();
     let handle = server.start(client.into_rpc());
 
-    // Run server, till' it's shut down manually.
-    tokio::spawn(handle.clone().stopped());
+    tokio::spawn(handle.stopped());
 
-    Ok((addr, handle))
+    Ok(addr)
 }
 
 /// Finds the first empty port for the given `host`.
@@ -94,7 +88,7 @@ mod tests {
 
     #[tokio::test]
     async fn spawn_rpc_server() {
-        let server = super::spawn_rpc_server(None, None).await.unwrap();
-        println!("Server started at {}", server.socket_address);
+        let address = super::spawn_rpc_server(None, None).await.unwrap();
+        println!("Server started at {}", address);
     }
 }

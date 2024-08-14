@@ -5,20 +5,22 @@ use bitcoincore_rpc::RpcApi;
 
 #[tokio::test]
 async fn create_connection() {
-    let server = spawn_rpc_server(None, None).await.unwrap();
-    let url = server.socket_address.to_string();
+    let address = spawn_rpc_server(None, None).await.unwrap();
+    let url = address.to_string();
 
     let _should_not_panic =
         bitcoincore_rpc::Client::new(url.as_str(), bitcoincore_rpc::Auth::None).unwrap();
+    println!("Server started at {url}");
 }
 
 #[tokio::test]
 #[ignore = "causes infinite loop"]
-async fn generate_to_address() {
-    let server = spawn_rpc_server(None, None).await.unwrap();
-    let url = server.socket_address.to_string();
+async fn address_related() {
+    let address = spawn_rpc_server(None, None).await.unwrap();
+    let url = address.to_string();
 
     let client = bitcoincore_rpc::Client::new(url.as_str(), bitcoincore_rpc::Auth::None).unwrap();
+    println!("Server started at {url}");
 
     let address = client.get_new_address(None, None).unwrap();
 
