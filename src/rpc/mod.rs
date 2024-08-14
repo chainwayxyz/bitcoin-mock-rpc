@@ -37,19 +37,13 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<S
     };
     let url = format!("{}:{}", host, port);
 
-    Ok(start_server(url.as_str()).await.unwrap())
+    Ok(start_server(url.as_str()).await?)
 }
 
-pub async fn start_server(url: &str) -> Result<SocketAddr, LedgerError> {
-    let server = match Server::builder().build(url).await {
-        Ok(s) => s,
-        Err(e) => return Err(LedgerError::Rpc(e.to_string())),
-    };
+async fn start_server(url: &str) -> Result<SocketAddr, Error> {
+    let server = Server::builder().build(url).await?;
 
-    let addr = match server.local_addr() {
-        Ok(a) => a,
-        Err(e) => return Err(LedgerError::Rpc(e.to_string())),
-    };
+    let addr = server.local_addr()?;
 
     let client = Client::new(url, bitcoincore_rpc::Auth::None).unwrap();
     let handle = server.start(client.into_rpc());
