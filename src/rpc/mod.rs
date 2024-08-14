@@ -37,7 +37,7 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<S
     };
     let url = format!("{}:{}", host, port);
 
-    Ok(start_server(url.as_str()).await?)
+    start_server(url.as_str()).await
 }
 
 async fn start_server(url: &str) -> Result<SocketAddr, Error> {

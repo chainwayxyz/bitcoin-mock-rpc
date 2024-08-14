@@ -23,7 +23,6 @@ async fn create_connection() {
 async fn address_related() {
     let address = spawn_rpc_server(None, None).await.unwrap();
     let url = address.to_string();
-    // let url = "s".to_string();
     println!("Server started at {url}");
 
     let client = bitcoincore_rpc::Client::new(url.as_str(), bitcoincore_rpc::Auth::None).unwrap();
