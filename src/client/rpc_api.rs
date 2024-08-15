@@ -286,6 +286,8 @@ impl RpcApi for Client {
         block_num: u64,
         address: &Address<NetworkChecked>,
     ) -> bitcoincore_rpc::Result<Vec<bitcoin::BlockHash>> {
+        let mut hashes: Vec<BlockHash> = Vec::new();
+
         for _ in 0..block_num {
             self.send_to_address(
                 address,
@@ -298,10 +300,10 @@ impl RpcApi for Client {
                 None,
             )?;
 
-            self.ledger.mine_block()?;
+            hashes.push(self.ledger.mine_block()?);
         }
 
-        Ok(vec![BlockHash::all_zeros(); block_num as usize])
+        Ok(hashes)
     }
 
     /// This function is intended for retrieving information about a txout's

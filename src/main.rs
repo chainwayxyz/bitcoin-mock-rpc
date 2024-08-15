@@ -1,7 +1,7 @@
 //! # RPC Server Starter
 
 use bitcoin_mock_rpc::rpc::spawn_rpc_server;
-use std::env;
+use std::{env, time::Duration};
 
 #[tokio::main]
 async fn main() {
@@ -12,15 +12,13 @@ async fn main() {
     );
 
     let server_info = handle_args();
-    let server = spawn_rpc_server(server_info.0.as_deref(), server_info.1)
+    let address = spawn_rpc_server(server_info.0.as_deref(), server_info.1)
         .await
         .unwrap();
-    println!("Server started at {}", server.socket_address);
+    println!("Server started at {}", address);
 
     loop {
-        if server.handle.is_stopped() {
-            break;
-        }
+        std::thread::sleep(Duration::from_secs(100));
     }
 }
 

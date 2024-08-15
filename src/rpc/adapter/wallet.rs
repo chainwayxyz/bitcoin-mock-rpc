@@ -83,3 +83,18 @@ pub fn sendtoaddress(
 
     Ok(encode_to_hex::<Txid>(txid))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Client, RpcApiWrapper};
+    use bitcoin::Address;
+    use std::str::FromStr;
+
+    #[test]
+    fn getnewaddress() {
+        let client = Client::new("getnewaddress", bitcoincore_rpc::Auth::None).unwrap();
+
+        let address = super::getnewaddress(&client, None, None).unwrap();
+        let _should_not_panic = Address::from_str(&address).unwrap();
+    }
+}
