@@ -2,13 +2,15 @@
 
 use super::{errors::LedgerError, spending_requirements::SpendingRequirementsReturn, Ledger};
 use bitcoin::{
-    absolute,
+    absolute::{self, LockTime},
     consensus::{Decodable, Encodable},
-    hashes::sha256d,
-    Amount, BlockHash, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
+    hashes::{sha256d, Hash},
+    Address, Amount, BlockHash, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid,
+    Witness,
 };
 use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use rusqlite::params;
+use secp256k1::rand::{self, Rng};
 
 impl Ledger {
     /// Adds transaction to blockchain, after verifying.
@@ -254,6 +256,39 @@ impl Ledger {
             input: tx_ins,
             output: tx_outs,
         }
+    }
+
+    pub fn create_coinbase_transaction(
+        &self,
+        address: &Address,
+    ) -> Result<Transaction, LedgerError> {
+        let current_block_height = self.get_block_height()? + 1;
+        let mut script_sig = ScriptBuf::new();
+        script_sig.push_slice(current_block_height.to_be_bytes());
+        // Insert random numbers, just to make sure coinbase transaction's txid
+        // is unique.
+        script_sig.push_slice(rand::thread_rng().gen::<u32>().to_be_bytes());
+
+        let mut witness = Witness::new();
+        witness.push([0u8; 32]);
+
+        Ok(Transaction {
+            version: bitcoin::transaction::Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint {
+                    txid: Txid::all_zeros(),
+                    vout: u32::MAX,
+                },
+                script_sig,
+                sequence: Sequence::ZERO,
+                witness,
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(crate::ledger::BLOCK_REWARD),
+                script_pubkey: address.script_pubkey(),
+            }],
+        })
     }
 }
 
