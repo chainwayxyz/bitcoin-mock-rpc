@@ -76,7 +76,7 @@ impl Ledger {
     }
 
     fn get_database_path(path: &str) -> String {
-        env::temp_dir().to_str().unwrap().to_owned() + "/" + path
+        env::temp_dir().to_str().unwrap().to_owned() + "/bitcoin_mock_rpc_" + path
     }
 
     fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
