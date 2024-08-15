@@ -1,23 +1,69 @@
 # Bitcoin Mock Remote Procedure Call
 
-This library is a mock of [bitcoincore-rpc](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
-library, which is a wrapper of Bitcoin RPC for Rust. This library aims to mock
-`RpcApi` trait interface of bitcoincore-rpc and provide a separate mock
-blockchain for every unit and integration test.
+Bitcoin-mock-rpc is a mock Bitcoin ledger with RPC interface and without wallet
+support. Meaning there are only checks for consensus details of an operation.
+This library can be used to test Bitcoin applications, without needing to set
+Bitcoin but with a **sandboxed environment**, for each test.
 
-## Differences Between Real Bitcoin RPC
+Bitcoin-mock-rpc is built on [bitcoincore-rpc's](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
+`RpcApi` trait. Meaning no real servers are needed for Rust applications. There
+is also a RPC server that can communicate with any application: No rust
+dependencies!
+
+This library is aimed to help development of [Clementine](https://github.com/chainwayxyz/clementine).
+Therefore, it's usage of this library can be taken as a reference.
+
+## Differences Between Real Bitcoin RPC and Feature Set
+
+This library is currently **under heavy development**. And it is not expected to
+provide a full Bitcoin experience. Code needs to be checked for what really is
+available as futures. Also, [changelog](CHANGELOG.md) is a great summary for
+what's available.
 
 Some of the RPC functions behave similarly with real RPC while some of them are
-not. To check if an RPC function behaves different than the real one, please
-check function comments in [`src/client/rpc_api.rs`](src/client/rpc_api.rs).
+not (mostly wallet operations). To check if an RPC function behaves different
+than the real one, please check function comments in
+[`src/client/rpc_api.rs`](src/client/rpc_api.rs).
 
 ## Usage
 
-This mock won't provide a CLI tool. Instead, you should use this in your Rust
-code. You can use generics as your RPC struct and use this mock in your tests
-and real RPC interface in your application code.
+### RPC Server
 
-Example:
+RPC server can be spawned as long as there are available ports for them. Each
+server will have an independent blockchain.
+
+To run from CLI:
+
+```bash
+$ cargo run
+Bitcoin Mock Rpc (C) Chainway, 2024
+Usage: target/debug/bitcoin-mock-rpc [HOST] [PORT]
+Server started at 127.0.0.1:1024
+#                 ^^^^^^^^^^^^^^
+#         Use this address in applications
+```
+
+To run in a Rust application:
+
+```rust
+#[test]
+fn test() {
+    // Calling `spawn_rpc_server` in a different test while this test is running
+    // is OK and will spawn another blockchain. If parameters are the same
+    // however, they will operate on the same blockchain. Note: (None, None)
+    // will result to pick random values.
+    let address = bitcoin_mock_rpc::spawn_rpc_server(None, None).await.unwrap();
+
+    let rpc =
+        bitcoincore_rpc::Client::new(&address.to_string(), bitcoincore_rpc::Auth::None).unwrap();
+
+    // Use `bitcoincore_rpc` as is from now on. No code change is needed.
+}
+```
+
+### `RpcApiWrapper` Trait For Rust Applications
+
+`RpcApiWrapper` trait can be used to select between real and mock RPC:
 
 ```rust
 struct MyStruct<R: RpcApiWrapper> {
@@ -28,7 +74,7 @@ struct MyStruct<R: RpcApiWrapper> {
 fn my_func() {
     let strct = MyStruct {
         data: 0x45,
-        // This will connect Bitcoin RPC.
+        // This will connect to Bitcoin RPC.
         rpc: bitcoincore_rpc::Client::new(/** parameters here **/),
     };
 
@@ -39,16 +85,13 @@ fn my_func() {
 fn test() {
     let strct = MyStruct {
         data: 0x1F,
-        // This will create a mock blockchain, on memory.
+        // This will connect to mock RPC.
         rpc: bitcoin_mock_rpc::Client::new(/** parameters here **/),
     };
 
     // Do stuff...
 }
 ```
-
-This library is aimed to help development of [clementine](https://github.com/chainwayxyz/clementine).
-Therefore, it's usage of this library can be taken as a reference.
 
 ## Testing
 
@@ -60,8 +103,11 @@ cargo test
 
 ## Documentation
 
-No external documentation is provided. Please read comments in code for
-documentation.
+No external documentation is provided. Please read code comments or run:
+
+```bash
+cargo doc
+```
 
 ## License
 
