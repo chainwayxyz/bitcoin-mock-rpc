@@ -6,20 +6,49 @@ from requests.auth import HTTPBasicAuth
 import requests
 
 url = "http://127.0.0.1:1024"
-# url = "http://127.0.0.1:18443"
-
 auth = HTTPBasicAuth("admin", "admin")
 
-method = "getrawtransaction"
-params = {"txid": "8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87"}
-
+method = "getnewaddress"
+params = {}
 payload = {
     "jsonrpc": "2.0",
     "method": method,
     "params": params,
     "id": 1,
 }
+response = requests.post(url, json=payload, auth=auth).json()
+address = response["result"]
+print("Address:", response)
 
-response = requests.post(url, json=payload, auth=auth)
+method = "getblockcount"
+params = {}
+payload = {
+    "jsonrpc": "2.0",
+    "method": method,
+    "params": params,
+    "id": 1,
+}
+response = requests.post(url, json=payload, auth=auth).json()
+print("Block count:", response)
 
-print(response.json())
+method = "generatetoaddress"
+params = {"nblocks": 2, "address": address}
+payload = {
+    "jsonrpc": "2.0",
+    "method": method,
+    "params": params,
+    "id": 1,
+}
+response = requests.post(url, json=payload, auth=auth).json()
+print("Generate to address:", response)
+
+method = "getblockcount"
+params = {}
+payload = {
+    "jsonrpc": "2.0",
+    "method": method,
+    "params": params,
+    "id": 1,
+}
+response = requests.post(url, json=payload, auth=auth).json()
+print("Block count:", response)
