@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7] - 2024-08-15
+
 ### Added
 
 - 4 new RPC functions
   - getbestblockhash, getblock, getblockheader and getblockcount
+- RPC interface
+  - Can be used as a standalone binary (much like the real Bitcoin)
+  - Can be spawned multiple times independently in a binary (for sandboxed tests)
 
 ## [0.0.6] - 2024-08-06
 
@@ -100,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generate_to_address`
   - `get_balance`
 
-[Unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.6...HEAD
+[Unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.7...HEAD
+[0.0.7]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.3...v0.0.4
