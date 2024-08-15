@@ -2,10 +2,14 @@
 
 use super::errors::LedgerError;
 use super::Ledger;
+use bitcoin::absolute::LockTime;
 use bitcoin::block::{Header, Version};
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::hashes::{sha256, Hash};
-use bitcoin::{Block, BlockHash, CompactTarget, Transaction, TxMerkleNode, Txid};
+use bitcoin::{
+    Address, Amount, Block, BlockHash, CompactTarget, OutPoint, ScriptBuf, Sequence, Transaction,
+    TxIn, TxMerkleNode, TxOut, Txid, Witness,
+};
 use rs_merkle::{Hasher, MerkleTree};
 use rusqlite::params;
 use std::str::FromStr;
@@ -26,11 +30,37 @@ impl Hasher for Hash256 {
 impl Ledger {
     /// Mines current transactions that are in mempool to a block.
     ///
+    /// # Parameters
+    ///
+    /// - address: Coinbase transaction address.
+    ///
     /// # Panics
     ///
     /// Will panic if there was a problem writing data to ledger.
-    pub fn mine_block(&self) -> Result<BlockHash, LedgerError> {
-        let transactions = self.get_mempool_transactions();
+    pub fn mine_block(&self, address: &Address) -> Result<BlockHash, LedgerError> {
+        let mut script_sig = ScriptBuf::new();
+        script_sig.push_slice([0]);
+        let coinbase_transaction = Transaction {
+            version: bitcoin::transaction::Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint {
+                    txid: Txid::all_zeros(),
+                    vout: u32::MAX,
+                },
+                script_sig,
+                sequence: Sequence::ZERO,
+                witness: Witness::new(),
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(100_000_000),
+                script_pubkey: address.script_pubkey(),
+            }],
+        };
+
+        let mut transactions = self.get_mempool_transactions();
+        transactions.insert(0, coinbase_transaction);
+
         let block = self.create_block(transactions)?;
 
         self.clean_mempool();
@@ -96,9 +126,17 @@ impl Ledger {
             return Err(LedgerError::Block(format!("Couldn't encode block: {}", e)));
         };
 
+        let coinbase_txid = block.txdata.first().unwrap().compute_txid().to_string();
+
         if let Err(e) = self.database.lock().unwrap().execute(
-            "INSERT INTO blocks (height, time, hash, body) VALUES (?1, ?2, ?3, ?4)",
-            params![current_block_height, current_block_time, hash, body],
+            "INSERT INTO blocks (height, time, hash, coinbase, body) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                current_block_height,
+                current_block_time,
+                hash,
+                coinbase_txid,
+                body
+            ],
         ) {
             return Err(LedgerError::Block(format!(
                 "Couldn't add block {:?} to ledger: {}",
@@ -333,13 +371,14 @@ impl Ledger {
 
 #[cfg(test)]
 mod tests {
-    use crate::ledger::Ledger;
+    use crate::ledger::{self, Ledger};
     use bitcoin::{hashes::sha256d::Hash, Amount, ScriptBuf, Transaction, TxMerkleNode, Txid};
     use std::str::FromStr;
 
     #[test]
     fn mine_blocks_and_mempool() {
         let ledger = Ledger::new("mine_blocks_and_mempool");
+        let address = ledger::Ledger::generate_credential_from_witness().address;
 
         let current_height = ledger.get_block_height().unwrap();
         assert_eq!(current_height, 0);
@@ -353,7 +392,7 @@ mod tests {
             tx
         );
 
-        ledger.mine_block().unwrap();
+        ledger.mine_block(&address).unwrap();
 
         let current_height = ledger.get_block_height().unwrap();
         assert_eq!(current_height, 1);
@@ -367,9 +406,10 @@ mod tests {
     #[test]
     fn create_add_get_block_with_height() {
         let ledger = Ledger::new("create_add_get_block_with_height");
+        let address = ledger::Ledger::generate_credential_from_witness().address;
 
-        ledger.mine_block().unwrap();
-        ledger.mine_block().unwrap();
+        ledger.mine_block(&address).unwrap();
+        ledger.mine_block(&address).unwrap();
 
         let mut transactions: Vec<Transaction> = Vec::new();
         for i in 0..0x45 {
@@ -392,7 +432,8 @@ mod tests {
     #[test]
     fn create_add_get_block_with_hash() {
         let ledger = Ledger::new("create_add_get_block_with_hash");
-        ledger.mine_block().unwrap();
+        let address = ledger::Ledger::generate_credential_from_witness().address;
+        ledger.mine_block(&address).unwrap();
 
         let mut transactions: Vec<Transaction> = Vec::new();
         for i in 0..0x1F {

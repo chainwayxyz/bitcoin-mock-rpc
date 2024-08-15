@@ -94,14 +94,15 @@ impl Ledger {
             "
             CREATE TABLE blocks
             (
-                height  INTEGER  NOT NULL,
-                time    INTEGER  NOT NULL,
-                hash    BLOB     NOT NULL,
-                body    BLOB     NOT NULL
+                height    INTEGER  NOT NULL,
+                time      INTEGER  NOT NULL,
+                hash      BLOB     NOT NULL,
+                coinbase  TEXT     NOT NULL,
+                body      BLOB     NOT NULL
 
                 CONSTRAINT height PRIMARY KEY
             );
-            INSERT INTO blocks (height, time, hash, body) VALUES (0, 500000000, 0, 0);
+            INSERT INTO blocks (height, time, hash, coinbase, body) VALUES (0, 500000000, 0, 0, 0);
 
             CREATE TABLE mempool
             (
