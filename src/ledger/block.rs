@@ -12,6 +12,7 @@ use bitcoin::{
 };
 use rs_merkle::{Hasher, MerkleTree};
 use rusqlite::params;
+use secp256k1::rand::{self, Rng};
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -38,8 +39,13 @@ impl Ledger {
     ///
     /// Will panic if there was a problem writing data to ledger.
     pub fn mine_block(&self, address: &Address) -> Result<BlockHash, LedgerError> {
+        let current_block_height = self.get_block_height()? + 1;
         let mut script_sig = ScriptBuf::new();
-        script_sig.push_slice([0]);
+        script_sig.push_slice(current_block_height.to_be_bytes());
+        // Insert random numbers, just to make sure coinbase transaction's txid
+        // is unique.
+        script_sig.push_slice(rand::thread_rng().gen::<u32>().to_be_bytes());
+
         let coinbase_transaction = Transaction {
             version: bitcoin::transaction::Version::TWO,
             lock_time: LockTime::ZERO,
@@ -59,7 +65,9 @@ impl Ledger {
         };
 
         let mut transactions = self.get_mempool_transactions();
-        transactions.insert(0, coinbase_transaction);
+        transactions.insert(0, coinbase_transaction.clone());
+
+        self.add_transaction_unconditionally(coinbase_transaction)?;
 
         let block = self.create_block(transactions)?;
 

@@ -288,17 +288,6 @@ impl RpcApi for Client {
         let mut hashes: Vec<BlockHash> = Vec::new();
 
         for _ in 0..block_num {
-            self.send_to_address(
-                address,
-                Amount::from_sat(crate::ledger::BLOCK_REWARD),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )?;
-
             hashes.push(self.ledger.mine_block(address)?);
         }
 
