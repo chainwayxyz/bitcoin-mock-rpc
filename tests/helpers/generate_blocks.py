@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# JSON RPC call example.
+# Gets a new address and generates blocks to that address.
 
 from requests.auth import HTTPBasicAuth
 import requests
