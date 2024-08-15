@@ -8,7 +8,7 @@ use bitcoincore_rpc::{Error, RpcApi};
 pub fn getbestblockhash(client: &Client) -> Result<String, Error> {
     let res = client.get_best_block_hash()?;
 
-    Ok(res.to_string())
+    Ok(encode_to_hex(res))
 }
 
 pub fn getblock(
@@ -68,5 +68,40 @@ pub fn gettxout(
     match txout {
         Some(to) => Ok(serde_json::to_string_pretty(&to)?),
         None => Ok("{}".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Client, RpcApiWrapper};
+    use bitcoin::consensus::Decodable;
+    use bitcoin::BlockHash;
+    use bitcoincore_rpc::RpcApi;
+
+    #[test]
+    fn getbestblockhash() {
+        let client = Client::new("getbestblockhash", bitcoincore_rpc::Auth::None).unwrap();
+
+        // No blocks created, no blocks are available to return.
+        assert!(super::getbestblockhash(&client).is_err());
+
+        let address = client.get_new_address(None, None).unwrap().assume_checked();
+        client.generate_to_address(101, &address).unwrap();
+
+        let block = super::getbestblockhash(&client).unwrap();
+        let hash = BlockHash::consensus_decode(&mut block.as_bytes()).unwrap();
+        println!("Block hash: {:?}", hash);
+    }
+
+    #[test]
+    fn getblockcount() {
+        let client = Client::new("getblockcount", bitcoincore_rpc::Auth::None).unwrap();
+
+        assert_eq!(super::getblockcount(&client).unwrap(), 0);
+
+        let address = client.get_new_address(None, None).unwrap().assume_checked();
+        client.generate_to_address(101, &address).unwrap();
+
+        assert_eq!(super::getblockcount(&client).unwrap(), 101);
     }
 }
