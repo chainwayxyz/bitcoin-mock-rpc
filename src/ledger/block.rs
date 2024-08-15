@@ -53,7 +53,7 @@ impl Ledger {
                 witness: Witness::new(),
             }],
             output: vec![TxOut {
-                value: Amount::from_sat(100_000_000),
+                value: Amount::from_sat(crate::ledger::BLOCK_REWARD),
                 script_pubkey: address.script_pubkey(),
             }],
         };

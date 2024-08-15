@@ -278,9 +278,8 @@ impl RpcApi for Client {
         Ok(address.as_unchecked().to_owned())
     }
 
-    /// Generates `block_num` amount of block rewards to `address`. Block reward
-    /// is fixed to 1 BTC, regardless of which and how many blocks are
-    /// generated. Also mines current mempool transactions to a block.
+    /// Generates `block_num` amount of block rewards to `address`. Also mines
+    /// current mempool transactions to a block.
     fn generate_to_address(
         &self,
         block_num: u64,
@@ -291,7 +290,7 @@ impl RpcApi for Client {
         for _ in 0..block_num {
             self.send_to_address(
                 address,
-                Amount::from_sat(100_000_000),
+                Amount::from_sat(crate::ledger::BLOCK_REWARD),
                 None,
                 None,
                 None,
