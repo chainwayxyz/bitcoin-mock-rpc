@@ -300,7 +300,7 @@ impl RpcApi for Client {
                 None,
             )?;
 
-            hashes.push(self.ledger.mine_block(&address)?);
+            hashes.push(self.ledger.mine_block(address)?);
         }
 
         Ok(hashes)
