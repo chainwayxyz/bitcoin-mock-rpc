@@ -258,6 +258,11 @@ impl Ledger {
         }
     }
 
+    /// Creates the special coinbase transaction.
+    ///
+    /// # Parameters
+    ///
+    /// - address: Miner's address
     pub fn create_coinbase_transaction(
         &self,
         address: &Address,
