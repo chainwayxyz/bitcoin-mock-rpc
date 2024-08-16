@@ -34,9 +34,11 @@ impl Ledger {
     ///
     /// Will panic if there was a problem writing data to ledger.
     pub fn mine_block(&self, address: &Address) -> Result<BlockHash, LedgerError> {
-        let coinbase_transaction = self.create_coinbase_transaction(address)?;
-
         let mut transactions = self.get_mempool_transactions();
+        let coinbase_transaction = self.create_coinbase_transaction(
+            address,
+            transactions.iter().map(|tx| tx.compute_wtxid()).collect(),
+        )?;
         transactions.insert(0, coinbase_transaction.clone());
 
         self.add_transaction_unconditionally(coinbase_transaction)?;
@@ -183,7 +185,10 @@ impl Ledger {
         }
     }
 
-    fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
+    /// Calculates given txid's merkle root.
+    ///
+    /// TODO: Don't accept txid as argument, accept more generic types.
+    pub fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
         let mut leaves: Vec<_> = txids
             .iter()
             .map(|txid| {
