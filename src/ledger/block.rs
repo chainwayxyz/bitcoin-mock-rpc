@@ -356,8 +356,10 @@ impl Ledger {
 
 #[cfg(test)]
 mod tests {
-    use crate::ledger::{self, Ledger};
-    use bitcoin::{hashes::sha256d::Hash, Amount, ScriptBuf, Transaction, TxMerkleNode, Txid};
+    use crate::ledger::{self, Ledger, BLOCK_REWARD};
+    use bitcoin::{
+        hashes::sha256d::Hash, Amount, OutPoint, ScriptBuf, Transaction, TxMerkleNode, Txid,
+    };
     use std::str::FromStr;
 
     #[test]
@@ -386,6 +388,31 @@ mod tests {
         if let Some(_) = ledger.get_mempool_transaction(tx.compute_txid()) {
             assert!(false);
         }
+    }
+
+    #[test]
+    fn mine_and_check_coinbase_transaction() {
+        let ledger = Ledger::new("mine_and_check_coinbase_transaction");
+        let address = ledger::Ledger::generate_credential_from_witness().address;
+
+        ledger.mine_block(&address).unwrap();
+
+        // Because there is no transactions are mined, there should be only a
+        // coinbase transaction.
+        let txs = ledger.get_transactions();
+        let coinbase_tx = txs.first().unwrap();
+
+        assert_eq!(
+            coinbase_tx.input.first().unwrap().previous_output,
+            OutPoint {
+                txid: <Txid as bitcoin::hashes::Hash>::all_zeros(),
+                vout: u32::MAX
+            }
+        );
+        assert_eq!(
+            coinbase_tx.output.first().unwrap().value,
+            Amount::from_sat(BLOCK_REWARD)
+        );
     }
 
     #[test]
