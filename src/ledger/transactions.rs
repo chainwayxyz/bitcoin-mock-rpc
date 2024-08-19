@@ -282,8 +282,10 @@ impl Ledger {
         let mut witness = Witness::new();
         witness.push([0u8; 32]);
 
-        // Convert wtxid's to txid, because `calculate_merkle_root` expects
-        // txid. TODO: Don't convert wtxid to txid.
+        // Calculate merkle root of input wTXIDs.
+        //
+        // Convert wTXIDs to TXIDs because `calculate_merkle_root` expects
+        // TXID type. TODO: Don't convert wTXID to TXID.
         let mut wtxids: Vec<Txid> = wtxids
             .iter()
             .map(|wtxid| Txid::from_raw_hash(Hash::from_byte_array(wtxid.to_byte_array())))
@@ -294,7 +296,6 @@ impl Ledger {
         // Prepare wTXID commitment.
         let concat = serialize_hex::<TxMerkleNode>(&merkle_root)
             + "0000000000000000000000000000000000000000000000000000000000000000";
-
         let mut hex: [u8; 64] = [0; 64];
         let mut tmp = 0;
         concat.chars().enumerate().for_each(|(idx, char)| {
@@ -527,23 +528,35 @@ mod tests {
             .create_coinbase_transaction(&address, wtxids)
             .unwrap();
 
-        let mut hex: [u8; 36] = [0; 36];
-        let mut tmp = 0;
-        "aa21a9ed6502e8637ba29cd8a820021915339c7341223d571e5e8d66edd83786d387e715"
-            .chars()
-            .enumerate()
-            .for_each(|(idx, char)| {
-                if idx % 2 == 0 {
-                    tmp = char.to_digit(16).unwrap() as u8 * 16;
-                } else {
-                    tmp += char.to_digit(16).unwrap() as u8;
-                    hex[idx / 2] = tmp;
-                }
-            });
-        let mut expected_script_pubkey = ScriptBuf::new();
-        expected_script_pubkey.push_opcode(OP_RETURN);
-        expected_script_pubkey.push_slice(hex);
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(
+            tx.input.first().unwrap().previous_output,
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: u32::MAX
+            }
+        );
 
+        let expected_script_pubkey = {
+            let mut hex: [u8; 36] = [0; 36];
+            let mut tmp = 0;
+            "aa21a9ed6502e8637ba29cd8a820021915339c7341223d571e5e8d66edd83786d387e715"
+                .chars()
+                .enumerate()
+                .for_each(|(idx, char)| {
+                    if idx % 2 == 0 {
+                        tmp = char.to_digit(16).unwrap() as u8 * 16;
+                    } else {
+                        tmp += char.to_digit(16).unwrap() as u8;
+                        hex[idx / 2] = tmp;
+                    }
+                });
+            let mut expected_script_pubkey = ScriptBuf::new();
+            expected_script_pubkey.push_opcode(OP_RETURN);
+            expected_script_pubkey.push_slice(hex);
+
+            expected_script_pubkey
+        };
         assert_eq!(
             tx.output.get(1).unwrap().script_pubkey,
             expected_script_pubkey
