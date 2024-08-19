@@ -17,7 +17,6 @@ use bitcoin::{
 use bitcoin_scriptexec::{ExecCtx, TxTemplate};
 use rs_merkle::Hasher;
 use rusqlite::params;
-use secp256k1::rand::{self, Rng};
 
 impl Ledger {
     /// Adds transaction to blockchain, after verifying.
@@ -279,9 +278,6 @@ impl Ledger {
         let current_block_height = self.get_block_height()? + 1;
         let mut script_sig = ScriptBuf::new();
         script_sig.push_slice(current_block_height.to_be_bytes());
-        // Insert random numbers, just to make sure coinbase transaction's txid
-        // is unique.
-        script_sig.push_slice(rand::thread_rng().gen::<u32>().to_be_bytes());
 
         let mut witness = Witness::new();
         witness.push([0u8; 32]);
