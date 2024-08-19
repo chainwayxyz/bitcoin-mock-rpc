@@ -23,8 +23,8 @@
 /// Will panic if input `hex` length is more than 2 times of `output` length.
 pub fn hex_to_array(hex: &str, output: &mut [u8]) {
     // Clean output.
-    for i in 0..output.len() {
-        output[i] = 0;
+    for item in &mut *output {
+        *item = 0;
     }
 
     let len = hex.len();
