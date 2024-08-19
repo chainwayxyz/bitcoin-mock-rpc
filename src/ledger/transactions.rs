@@ -5,7 +5,10 @@ use crate::ledger::block::Hash256;
 use super::{errors::LedgerError, spending_requirements::SpendingRequirementsReturn, Ledger};
 use bitcoin::{
     absolute::{self, LockTime},
-    consensus::{encode::serialize_hex, Decodable, Encodable},
+    consensus::{
+        encode::{deserialize_hex, serialize_hex},
+        Decodable, Encodable,
+    },
     hashes::{sha256d, Hash},
     opcodes::all::OP_RETURN,
     Address, Amount, BlockHash, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxMerkleNode,
@@ -292,14 +295,24 @@ impl Ledger {
         wtxids.insert(0, Txid::all_zeros());
         let merkle_root = self.calculate_merkle_root(wtxids)?;
 
+        // Prepare wTXID commitment.
         let concat = serialize_hex::<TxMerkleNode>(&merkle_root)
             + "0000000000000000000000000000000000000000000000000000000000000000";
         let wtxid_commitment = Hash256::hash(concat.as_bytes());
 
-        let mut hex: [u8; 36] = [0; 36];
-        wtxid_commitment.iter().enumerate().for_each(|(idx, char)| {
+        // Assign wTXID commitment header.
+        let header = deserialize_hex::<[u8; 4]>("aa21a9ed").unwrap();
+        let mut hex: [u8; 36] = [0u8; 36];
+        header.iter().enumerate().for_each(|(idx, char)| {
             hex[idx] = *char;
         });
+
+        // Assign wTXID commitment.
+        wtxid_commitment.iter().enumerate().for_each(|(idx, char)| {
+            hex[idx + 4] = *char;
+        });
+
+        // Prepare script pubkey.
         let mut script_pubkey = ScriptBuf::new();
         script_pubkey.push_opcode(OP_RETURN);
         script_pubkey.push_slice(hex);
@@ -490,7 +503,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "bug hunting not finished"]
     fn create_coinbase_transaction() {
         let ledger = Ledger::new("create_coinbase_transaction");
 
