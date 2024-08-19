@@ -1,7 +1,7 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, spending_requirements::SpendingRequirementsReturn, Ledger};
-use crate::{ledger::block::Hash256, utils::hex_to_array};
+use crate::utils::{self, hex_to_array, Hash256};
 use bitcoin::{
     absolute::{self, LockTime},
     consensus::{
@@ -290,7 +290,7 @@ impl Ledger {
             .map(|wtxid| Txid::from_raw_hash(Hash::from_byte_array(wtxid.to_byte_array())))
             .collect();
         wtxids.insert(0, Txid::all_zeros());
-        let merkle_root = self.calculate_merkle_root(wtxids)?;
+        let merkle_root = utils::calculate_merkle_root(wtxids)?;
 
         // Prepare wTXID commitment.
         let concat = serialize_hex::<TxMerkleNode>(&merkle_root)
