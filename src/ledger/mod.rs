@@ -17,6 +17,10 @@ mod script;
 mod spending_requirements;
 mod transactions;
 
+/// Block reward is fixed to 50 BTC, regardless of which and how many blocks are
+/// generated.
+pub(crate) const BLOCK_REWARD: u64 = 5_000_000_000;
+
 /// Mock Bitcoin ledger.
 #[derive(Clone)]
 pub struct Ledger {
@@ -72,7 +76,7 @@ impl Ledger {
     }
 
     fn get_database_path(path: &str) -> String {
-        env::temp_dir().to_str().unwrap().to_owned() + "/" + path
+        env::temp_dir().to_str().unwrap().to_owned() + "/bitcoin_mock_rpc_" + path
     }
 
     fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
@@ -94,14 +98,15 @@ impl Ledger {
             "
             CREATE TABLE blocks
             (
-                height  INTEGER  NOT NULL,
-                time    INTEGER  NOT NULL,
-                hash    BLOB     NOT NULL,
-                body    BLOB     NOT NULL
+                height    INTEGER  NOT NULL,
+                time      INTEGER  NOT NULL,
+                hash      BLOB     NOT NULL,
+                coinbase  TEXT     NOT NULL,
+                body      BLOB     NOT NULL
 
                 CONSTRAINT height PRIMARY KEY
             );
-            INSERT INTO blocks (height, time, hash, body) VALUES (0, 500000000, 0, 0);
+            INSERT INTO blocks (height, time, hash, coinbase, body) VALUES (0, 500000000, 0, 0, 0);
 
             CREATE TABLE mempool
             (

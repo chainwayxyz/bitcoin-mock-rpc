@@ -278,9 +278,8 @@ impl RpcApi for Client {
         Ok(address.as_unchecked().to_owned())
     }
 
-    /// Generates `block_num` amount of block rewards to `address`. Block reward
-    /// is fixed to 1 BTC, regardless of which and how many blocks are
-    /// generated. Also mines current mempool transactions to a block.
+    /// Generates `block_num` amount of block rewards to `address`. Also mines
+    /// current mempool transactions to a block.
     fn generate_to_address(
         &self,
         block_num: u64,
@@ -289,18 +288,7 @@ impl RpcApi for Client {
         let mut hashes: Vec<BlockHash> = Vec::new();
 
         for _ in 0..block_num {
-            self.send_to_address(
-                address,
-                Amount::from_sat(100_000_000),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )?;
-
-            hashes.push(self.ledger.mine_block()?);
+            hashes.push(self.ledger.mine_block(address)?);
         }
 
         Ok(hashes)
@@ -447,7 +435,7 @@ mod tests {
         assert_eq!(info.confirmations, None);
 
         // Mining blocks should enable more transaction information.
-        rpc.ledger.mine_block().unwrap();
+        rpc.ledger.mine_block(&address).unwrap();
         let info = rpc.get_raw_transaction_info(&txid, None).unwrap();
         assert_eq!(info.txid, txid);
         assert_eq!(
@@ -469,9 +457,9 @@ mod tests {
         assert_eq!(info.confirmations, None);
 
         // Mining blocks should enable more transaction information.
-        rpc.ledger.mine_block().unwrap();
-        rpc.ledger.mine_block().unwrap();
-        rpc.ledger.mine_block().unwrap();
+        rpc.ledger.mine_block(&address).unwrap();
+        rpc.ledger.mine_block(&address).unwrap();
+        rpc.ledger.mine_block(&address).unwrap();
         let info = rpc.get_raw_transaction_info(&txid, None).unwrap();
         assert_eq!(info.txid, txid);
         assert_eq!(
@@ -595,10 +583,11 @@ mod tests {
     #[test]
     fn get_best_block_hash() {
         let rpc = Client::new("get_best_block_hash", bitcoincore_rpc::Auth::None).unwrap();
+        let address = Ledger::generate_credential_from_witness().address;
 
         let tx = rpc.ledger.create_transaction(vec![], vec![]);
         rpc.ledger.add_transaction_unconditionally(tx).unwrap();
-        let block_hash = rpc.ledger.mine_block().unwrap();
+        let block_hash = rpc.ledger.mine_block(&address).unwrap();
 
         let best_block_hash = rpc.get_best_block_hash().unwrap();
 
@@ -608,10 +597,11 @@ mod tests {
     #[test]
     fn get_block() {
         let rpc = Client::new("get_block", bitcoincore_rpc::Auth::None).unwrap();
+        let address = Ledger::generate_credential_from_witness().address;
 
         let tx = rpc.ledger.create_transaction(vec![], vec![]);
         rpc.ledger.add_transaction_unconditionally(tx).unwrap();
-        let block_hash = rpc.ledger.mine_block().unwrap();
+        let block_hash = rpc.ledger.mine_block(&address).unwrap();
         let block = rpc.ledger.get_block_with_hash(block_hash).unwrap();
 
         let read_block = rpc.get_block(&block_hash).unwrap();
@@ -622,10 +612,11 @@ mod tests {
     #[test]
     fn get_block_header() {
         let rpc = Client::new("get_block_header", bitcoincore_rpc::Auth::None).unwrap();
+        let address = Ledger::generate_credential_from_witness().address;
 
         let tx = rpc.ledger.create_transaction(vec![], vec![]);
         rpc.ledger.add_transaction_unconditionally(tx).unwrap();
-        let block_hash = rpc.ledger.mine_block().unwrap();
+        let block_hash = rpc.ledger.mine_block(&address).unwrap();
         let block = rpc.ledger.get_block_with_hash(block_hash).unwrap();
 
         let block_header = rpc.get_block_header(&block_hash).unwrap();
@@ -636,12 +627,13 @@ mod tests {
     #[test]
     fn get_block_count() {
         let rpc = Client::new("get_block_count", bitcoincore_rpc::Auth::None).unwrap();
+        let address = Ledger::generate_credential_from_witness().address;
 
         assert_eq!(rpc.get_block_count().unwrap(), 0);
 
         let tx = rpc.ledger.create_transaction(vec![], vec![]);
         rpc.ledger.add_transaction_unconditionally(tx).unwrap();
-        rpc.ledger.mine_block().unwrap();
+        rpc.ledger.mine_block(&address).unwrap();
 
         assert_eq!(rpc.get_block_count().unwrap(), 1);
     }

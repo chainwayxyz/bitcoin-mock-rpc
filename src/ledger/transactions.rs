@@ -1,13 +1,20 @@
 //! # Transaction Related Ledger Operations
 
 use super::{errors::LedgerError, spending_requirements::SpendingRequirementsReturn, Ledger};
+use crate::utils::{self, hex_to_array, Hash256};
 use bitcoin::{
-    absolute,
-    consensus::{Decodable, Encodable},
-    hashes::sha256d,
-    Amount, BlockHash, OutPoint, ScriptBuf, Transaction, TxIn, TxOut, Txid,
+    absolute::{self, LockTime},
+    consensus::{
+        encode::{deserialize_hex, serialize_hex},
+        Decodable, Encodable,
+    },
+    hashes::{sha256d, Hash},
+    opcodes::all::OP_RETURN,
+    Address, Amount, BlockHash, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxMerkleNode,
+    TxOut, Txid, Witness, Wtxid,
 };
 use bitcoin_scriptexec::{ExecCtx, TxTemplate};
+use rs_merkle::Hasher;
 use rusqlite::params;
 
 impl Ledger {
@@ -255,12 +262,92 @@ impl Ledger {
             output: tx_outs,
         }
     }
+
+    /// Creates the special coinbase transaction.
+    ///
+    /// # Parameters
+    ///
+    /// - address: Miner's address
+    /// - wtxid_merkle_root: Merkle root of all the transaction wTXID's
+    pub fn create_coinbase_transaction(
+        &self,
+        address: &Address,
+        wtxids: Vec<Wtxid>,
+    ) -> Result<Transaction, LedgerError> {
+        let current_block_height = self.get_block_height()? + 1;
+        let mut script_sig = ScriptBuf::new();
+        script_sig.push_slice(current_block_height.to_be_bytes());
+
+        let mut witness = Witness::new();
+        witness.push([0u8; 32]);
+
+        // Insert all zeroed wTXID to the list (coinbase transaction).
+        let mut wtxids = wtxids.clone();
+        wtxids.insert(0, Wtxid::all_zeros());
+
+        // Calculate merkle root of input wTXIDs.
+        let merkle_root = utils::calculate_merkle_root(wtxids)?;
+
+        // Prepare wTXID commitment.
+        let concat = serialize_hex::<TxMerkleNode>(&merkle_root)
+            + "0000000000000000000000000000000000000000000000000000000000000000";
+        let mut hex: [u8; 64] = [0; 64];
+        hex_to_array(&concat, &mut hex);
+        let wtxid_commitment = Hash256::hash(hex.as_slice());
+
+        // Assign wTXID commitment header.
+        let header = deserialize_hex::<[u8; 4]>("aa21a9ed").unwrap();
+        let mut hex: [u8; 36] = [0u8; 36];
+        header.iter().enumerate().for_each(|(idx, char)| {
+            hex[idx] = *char;
+        });
+
+        // Assign wTXID commitment.
+        wtxid_commitment.iter().enumerate().for_each(|(idx, char)| {
+            hex[idx + 4] = *char;
+        });
+
+        // Prepare script pubkey.
+        let mut script_pubkey = ScriptBuf::new();
+        script_pubkey.push_opcode(OP_RETURN);
+        script_pubkey.push_slice(hex);
+
+        Ok(Transaction {
+            version: bitcoin::transaction::Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint {
+                    txid: Txid::all_zeros(),
+                    vout: u32::MAX,
+                },
+                script_sig,
+                sequence: Sequence::ZERO,
+                witness,
+            }],
+            output: vec![
+                TxOut {
+                    value: Amount::from_sat(crate::ledger::BLOCK_REWARD),
+                    script_pubkey: address.script_pubkey(),
+                },
+                TxOut {
+                    value: Amount::from_sat(0),
+                    script_pubkey,
+                },
+            ],
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ledger::Ledger;
-    use bitcoin::{hashes::Hash, Amount, OutPoint, ScriptBuf, TxIn, Txid};
+    use crate::{
+        ledger::{self, Ledger},
+        utils::hex_to_array,
+    };
+    use bitcoin::{
+        hashes::Hash, opcodes::all::OP_RETURN, Amount, OutPoint, ScriptBuf, TxIn, Txid, Wtxid,
+    };
+    use std::str::FromStr;
 
     /// Tests transaction operations over ledger, without any rule checks.
     #[test]
@@ -411,5 +498,51 @@ mod tests {
         ledger
             .get_transaction_block_height(&Txid::all_zeros())
             .unwrap();
+    }
+
+    #[test]
+    fn create_coinbase_transaction() {
+        let ledger = Ledger::new("create_coinbase_transaction");
+
+        let address = ledger::Ledger::generate_credential().address;
+        let wtxids: Vec<Wtxid> = vec![
+            Wtxid::from_str("8700d546b39e1a0faf34c98067356206db50fdef24e2f70b431006c59d548ea2")
+                .unwrap(),
+            Wtxid::from_str("c54bab5960d3a416c40464fa67af1ddeb63a2ce60a0b3c36f11896ef26cbcb87")
+                .unwrap(),
+            Wtxid::from_str("e51de361009ef955f182922647622f9662d1a77ca87c4eb2fd7996b2fe0d7785")
+                .unwrap(),
+        ];
+
+        let tx = ledger
+            .create_coinbase_transaction(&address, wtxids)
+            .unwrap();
+
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(
+            tx.input.first().unwrap().previous_output,
+            OutPoint {
+                txid: Txid::all_zeros(),
+                vout: u32::MAX
+            }
+        );
+
+        let expected_script_pubkey = {
+            let mut hex: [u8; 36] = [0; 36];
+            hex_to_array(
+                "aa21a9ed6502e8637ba29cd8a820021915339c7341223d571e5e8d66edd83786d387e715",
+                &mut hex,
+            );
+
+            let mut expected_script_pubkey = ScriptBuf::new();
+            expected_script_pubkey.push_opcode(OP_RETURN);
+            expected_script_pubkey.push_slice(hex);
+
+            expected_script_pubkey
+        };
+        assert_eq!(
+            tx.output.get(1).unwrap().script_pubkey,
+            expected_script_pubkey
+        );
     }
 }

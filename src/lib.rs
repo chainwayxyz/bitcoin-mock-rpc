@@ -10,6 +10,7 @@
 pub mod client;
 mod ledger;
 pub mod rpc;
+mod utils;
 
 // Re-imports.
 pub use client::*;

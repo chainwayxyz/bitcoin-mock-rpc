@@ -161,9 +161,9 @@ mod tests {
         let txid = ledger.add_transaction_unconditionally(tx.clone()).unwrap();
         assert_eq!(ledger.get_transaction_block_height(&txid).unwrap(), 1);
 
-        ledger.mine_block().unwrap();
-        ledger.mine_block().unwrap();
-        ledger.mine_block().unwrap();
+        ledger.mine_block(&credential.address).unwrap();
+        ledger.mine_block(&credential.address).unwrap();
+        ledger.mine_block(&credential.address).unwrap();
         assert_eq!(ledger.get_block_height().unwrap(), 3);
 
         let script = Builder::new()
@@ -176,7 +176,7 @@ mod tests {
         ledger.check_sequence(utxo, script, 2).unwrap();
 
         for _ in 0..3 {
-            ledger.mine_block().unwrap();
+            ledger.mine_block(&credential.address).unwrap();
         }
         assert_eq!(ledger.get_block_height().unwrap(), 6);
 
@@ -190,7 +190,7 @@ mod tests {
         ledger.check_sequence(utxo, script, 2).unwrap();
 
         for _ in 0..3 {
-            ledger.mine_block().unwrap();
+            ledger.mine_block(&credential.address).unwrap();
         }
         assert_eq!(ledger.get_block_height().unwrap(), 9);
         let script = Builder::new()
@@ -205,7 +205,7 @@ mod tests {
         }
 
         for _ in 0..0x100 {
-            ledger.mine_block().unwrap();
+            ledger.mine_block(&credential.address).unwrap();
         }
         assert_eq!(ledger.get_block_height().unwrap(), 9 + 0x100);
         let script = Builder::new()
@@ -233,7 +233,7 @@ mod tests {
         };
 
         ledger.add_transaction_unconditionally(tx.clone()).unwrap();
-        ledger.mine_block().unwrap();
+        ledger.mine_block(&credential.address).unwrap();
 
         let sequence = Sequence::from_512_second_intervals(2);
         let script = Builder::new()
@@ -247,7 +247,7 @@ mod tests {
             .check_sequence(utxo, script, sequence.to_consensus_u32())
             .unwrap();
 
-        ledger.mine_block().unwrap();
+        ledger.mine_block(&credential.address).unwrap();
 
         let sequence = Sequence::from_512_second_intervals(0x45);
         let script = Builder::new()
@@ -265,7 +265,7 @@ mod tests {
             assert!(false);
         };
 
-        ledger.mine_block().unwrap();
+        ledger.mine_block(&credential.address).unwrap();
 
         let sequence = Sequence::from_512_second_intervals(300);
         let script = Builder::new()
