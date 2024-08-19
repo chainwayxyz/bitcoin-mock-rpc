@@ -281,15 +281,11 @@ impl Ledger {
         let mut witness = Witness::new();
         witness.push([0u8; 32]);
 
+        // Insert all zeroed wTXID to the list (coinbase transaction).
+        let mut wtxids = wtxids.clone();
+        wtxids.insert(0, Wtxid::all_zeros());
+
         // Calculate merkle root of input wTXIDs.
-        //
-        // Convert wTXIDs to TXIDs because `calculate_merkle_root` expects
-        // TXID type. TODO: Don't convert wTXID to TXID.
-        let mut wtxids: Vec<Txid> = wtxids
-            .iter()
-            .map(|wtxid| Txid::from_raw_hash(Hash::from_byte_array(wtxid.to_byte_array())))
-            .collect();
-        wtxids.insert(0, Txid::all_zeros());
         let merkle_root = utils::calculate_merkle_root(wtxids)?;
 
         // Prepare wTXID commitment.
