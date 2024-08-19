@@ -2,26 +2,14 @@
 
 use super::errors::LedgerError;
 use super::Ledger;
+use crate::utils;
 use bitcoin::block::{Header, Version};
 use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::hashes::{sha256, Hash};
-use bitcoin::{Address, Block, BlockHash, CompactTarget, Transaction, TxMerkleNode, Txid};
-use rs_merkle::{Hasher, MerkleTree};
+use bitcoin::hashes::Hash;
+use bitcoin::{Address, Block, BlockHash, CompactTarget, Transaction, Txid};
 use rusqlite::params;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-/// Bitcoin merkle root hashing algorithm.
-#[derive(Clone)]
-pub struct Hash256 {}
-impl Hasher for Hash256 {
-    type Hash = [u8; 32];
-
-    /// Double SHA256 for merkle root calculation.
-    fn hash(data: &[u8]) -> [u8; 32] {
-        sha256::Hash::hash(&sha256::Hash::hash(data).to_byte_array()).to_byte_array()
-    }
-}
 
 impl Ledger {
     /// Mines current transactions that are in mempool to a block.
@@ -69,7 +57,7 @@ impl Ledger {
         };
 
         let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
-        let merkle_root = self.calculate_merkle_root(txids)?;
+        let merkle_root = utils::calculate_merkle_root(txids)?;
 
         Ok(Block {
             header: Header {
@@ -183,51 +171,6 @@ impl Ledger {
                 e
             ))),
         }
-    }
-
-    /// Calculates given txid's merkle root.
-    ///
-    /// TODO: Don't accept txid as argument, accept more generic types.
-    pub fn calculate_merkle_root(&self, txids: Vec<Txid>) -> Result<TxMerkleNode, LedgerError> {
-        let mut leaves: Vec<_> = txids
-            .iter()
-            .map(|txid| {
-                let mut hex: Vec<u8> = Vec::new();
-                txid.consensus_encode(&mut hex).unwrap();
-
-                let mut arr: [u8; 32] = [32; 32];
-                arr[..hex.len()].copy_from_slice(&hex[..]);
-
-                arr
-            })
-            .collect();
-
-        // If there are odd numbered transactions, we must concatenate and hash
-        // with itself. Hashing is done by the MerkleTree library. We only need
-        // to add an extra TXID to the list.
-        let len = leaves.len();
-        if len % 2 == 1 {
-            leaves.push(leaves[len - 1]);
-        }
-
-        let merkle_tree = MerkleTree::<Hash256>::from_leaves(leaves.as_slice());
-
-        let root = match merkle_tree.root() {
-            Some(r) => r,
-            None => return Ok(TxMerkleNode::all_zeros()),
-        };
-
-        let hash = match Hash::from_slice(root.as_slice()) {
-            Ok(h) => h,
-            Err(e) => {
-                return Err(LedgerError::Transaction(format!(
-                    "Couldn't convert root {:?} to hash: {}",
-                    root, e
-                )))
-            }
-        };
-
-        Ok(TxMerkleNode::from_raw_hash(hash))
     }
 
     /// Returns current block height.
@@ -357,10 +300,7 @@ impl Ledger {
 #[cfg(test)]
 mod tests {
     use crate::ledger::{self, Ledger, BLOCK_REWARD};
-    use bitcoin::{
-        hashes::sha256d::Hash, Amount, OutPoint, ScriptBuf, Transaction, TxMerkleNode, Txid,
-    };
-    use std::str::FromStr;
+    use bitcoin::{Amount, OutPoint, ScriptBuf, Transaction, Txid};
 
     #[test]
     fn mine_blocks_and_mempool() {
@@ -463,59 +403,5 @@ mod tests {
         let read_block = ledger.get_block_with_hash(block_hash).unwrap();
 
         assert_eq!(block, read_block);
-    }
-
-    #[test]
-    fn merkle_tree_even_numbered() {
-        let ledger = Ledger::new("merkle_tree_even_numbered");
-
-        let txids = [
-            Txid::from_str("8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87")
-                .unwrap(),
-            Txid::from_str("fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4")
-                .unwrap(),
-            Txid::from_str("6359f0868171b1d194cbee1af2f16ea598ae8fad666d9b012c8ed2b79a236ec4")
-                .unwrap(),
-            Txid::from_str("e9a66845e05d5abc0ad04ec80f774a7e585c6e8db975962d069a522137b80c1d")
-                .unwrap(),
-        ];
-
-        let merkle_root = ledger
-            .calculate_merkle_root(txids.to_vec().clone())
-            .unwrap();
-
-        assert_eq!(
-            TxMerkleNode::from_raw_hash(
-                Hash::from_str("f3e94742aca4b5ef85488dc37c06c3282295ffec960994b2c0d5ac2a25a95766")
-                    .unwrap()
-            ),
-            merkle_root
-        );
-    }
-
-    #[test]
-    fn merkle_tree_odd_numbered() {
-        let ledger = Ledger::new("merkle_tree_odd_numbered");
-
-        let txids = [
-            Txid::from_str("ff4861ebd4709ba120b8cb418385cc3ff5184a917fb91f7dff03ecb521ca192e")
-                .unwrap(),
-            Txid::from_str("97a3dd8b297a0e46f274036a5f78b43c16286e3a34271ca6be7a1b51bba16a71")
-                .unwrap(),
-            Txid::from_str("02d08b73223be820351d0edc2a40046e320efacb3ab665dedf36ae178086565e")
-                .unwrap(),
-        ];
-
-        let merkle_root = ledger
-            .calculate_merkle_root(txids.to_vec().clone())
-            .unwrap();
-
-        assert_eq!(
-            TxMerkleNode::from_raw_hash(
-                Hash::from_str("8c1c8ff245b6d8bbbde4e8fc6686c6b57d2911fc5ec9743658f0f04868377df3")
-                    .unwrap()
-            ),
-            merkle_root
-        );
     }
 }
