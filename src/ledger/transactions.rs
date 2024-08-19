@@ -1,8 +1,7 @@
 //! # Transaction Related Ledger Operations
 
-use crate::ledger::block::Hash256;
-
 use super::{errors::LedgerError, spending_requirements::SpendingRequirementsReturn, Ledger};
+use crate::{ledger::block::Hash256, utils::hex_to_array};
 use bitcoin::{
     absolute::{self, LockTime},
     consensus::{
@@ -297,15 +296,7 @@ impl Ledger {
         let concat = serialize_hex::<TxMerkleNode>(&merkle_root)
             + "0000000000000000000000000000000000000000000000000000000000000000";
         let mut hex: [u8; 64] = [0; 64];
-        let mut tmp = 0;
-        concat.chars().enumerate().for_each(|(idx, char)| {
-            if idx % 2 == 0 {
-                tmp = char.to_digit(16).unwrap() as u8 * 16;
-            } else {
-                tmp += char.to_digit(16).unwrap() as u8;
-                hex[idx / 2] = tmp;
-            }
-        });
+        hex_to_array(&concat, &mut hex);
         let wtxid_commitment = Hash256::hash(hex.as_slice());
 
         // Assign wTXID commitment header.
@@ -353,7 +344,10 @@ impl Ledger {
 
 #[cfg(test)]
 mod tests {
-    use crate::ledger::{self, Ledger};
+    use crate::{
+        ledger::{self, Ledger},
+        utils::hex_to_array,
+    };
     use bitcoin::{
         hashes::Hash, opcodes::all::OP_RETURN, Amount, OutPoint, ScriptBuf, TxIn, Txid, Wtxid,
     };
@@ -539,18 +533,11 @@ mod tests {
 
         let expected_script_pubkey = {
             let mut hex: [u8; 36] = [0; 36];
-            let mut tmp = 0;
-            "aa21a9ed6502e8637ba29cd8a820021915339c7341223d571e5e8d66edd83786d387e715"
-                .chars()
-                .enumerate()
-                .for_each(|(idx, char)| {
-                    if idx % 2 == 0 {
-                        tmp = char.to_digit(16).unwrap() as u8 * 16;
-                    } else {
-                        tmp += char.to_digit(16).unwrap() as u8;
-                        hex[idx / 2] = tmp;
-                    }
-                });
+            hex_to_array(
+                "aa21a9ed6502e8637ba29cd8a820021915339c7341223d571e5e8d66edd83786d387e715",
+                &mut hex,
+            );
+
             let mut expected_script_pubkey = ScriptBuf::new();
             expected_script_pubkey.push_opcode(OP_RETURN);
             expected_script_pubkey.push_slice(hex);
