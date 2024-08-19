@@ -298,7 +298,18 @@ impl Ledger {
         // Prepare wTXID commitment.
         let concat = serialize_hex::<TxMerkleNode>(&merkle_root)
             + "0000000000000000000000000000000000000000000000000000000000000000";
-        let wtxid_commitment = Hash256::hash(concat.as_bytes());
+
+        let mut hex: [u8; 64] = [0; 64];
+        let mut tmp = 0;
+        concat.chars().enumerate().for_each(|(idx, char)| {
+            if idx % 2 == 0 {
+                tmp = char.to_digit(16).unwrap() as u8 * 16;
+            } else {
+                tmp += char.to_digit(16).unwrap() as u8;
+                hex[idx / 2] = tmp;
+            }
+        });
+        let wtxid_commitment = Hash256::hash(hex.as_slice());
 
         // Assign wTXID commitment header.
         let header = deserialize_hex::<[u8; 4]>("aa21a9ed").unwrap();
@@ -519,7 +530,6 @@ mod tests {
         let tx = ledger
             .create_coinbase_transaction(&address, wtxids)
             .unwrap();
-        // println!("Coinbase transaction: {tx:#?}");
 
         let mut hex: [u8; 36] = [0; 36];
         let mut tmp = 0;
@@ -537,6 +547,7 @@ mod tests {
         let mut expected_script_pubkey = ScriptBuf::new();
         expected_script_pubkey.push_opcode(OP_RETURN);
         expected_script_pubkey.push_slice(hex);
+
         assert_eq!(
             tx.output.get(1).unwrap().script_pubkey,
             expected_script_pubkey
