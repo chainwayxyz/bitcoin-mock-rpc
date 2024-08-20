@@ -21,6 +21,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if there was a problem writing data to ledger.
+    #[tracing::instrument]
     pub fn mine_block(&self, address: &Address) -> Result<BlockHash, LedgerError> {
         let mut transactions = self.get_mempool_transactions();
         let coinbase_transaction = self.create_coinbase_transaction(
@@ -28,6 +29,7 @@ impl Ledger {
             transactions.iter().map(|tx| tx.compute_wtxid()).collect(),
         )?;
         transactions.insert(0, coinbase_transaction.clone());
+        tracing::debug!("Number of transactions in block: {}", transactions.len());
 
         self.add_transaction_unconditionally(coinbase_transaction)?;
 
@@ -56,8 +58,11 @@ impl Ledger {
             }
         };
 
+        tracing::trace!("Transactions in block: {:?}", transactions);
         let txids: Vec<Txid> = transactions.iter().map(|tx| tx.compute_txid()).collect();
+        tracing::trace!("TxIds in block: {:?}", txids);
         let merkle_root = utils::calculate_merkle_root(txids)?;
+        tracing::trace!("Merkle root of the TxIds: {:?}", merkle_root);
 
         Ok(Block {
             header: Header {
@@ -87,9 +92,16 @@ impl Ledger {
 
         let current_block_height = prev_block_height + 1;
         let current_block_time = prev_block_time + (10 * 60);
+        tracing::debug!(
+            "New block's height: {}, time: {}",
+            current_block_height,
+            current_block_time
+        );
 
         let mut hash: Vec<u8> = Vec::new();
-        block.block_hash().consensus_encode(&mut hash).unwrap();
+        let block_hash = block.block_hash();
+        block_hash.consensus_encode(&mut hash).unwrap();
+        tracing::debug!("New block's hash: {}", block_hash);
 
         let mut body: Vec<u8> = Vec::new();
         if let Err(e) = block.consensus_encode(&mut body) {
@@ -97,6 +109,7 @@ impl Ledger {
         };
 
         let coinbase_txid = block.txdata.first().unwrap().compute_txid().to_string();
+        tracing::trace!("New block's coinbase TxId: {}", coinbase_txid);
 
         if let Err(e) = self.database.lock().unwrap().execute(
             "INSERT INTO blocks (height, time, hash, coinbase, body) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -192,6 +205,23 @@ impl Ledger {
         }
     }
 
+    /// Adds a transactions to the mempool.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if there is a problem with database.
+    pub fn add_mempool_transaction(&self, txid: Txid) -> Result<(), LedgerError> {
+        match self.database.lock().unwrap().execute(
+            "INSERT INTO mempool (txid) VALUES (?1)",
+            params![txid.to_string()],
+        ) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(LedgerError::Transaction(format!(
+                "Couldn't add transaction with txid {} to mempool: {}",
+                txid, e
+            ))),
+        }
+    }
     /// Gets all the transactions that are in the mempool.
     ///
     /// # Panics
@@ -219,24 +249,6 @@ impl Ledger {
             .map(|txid| self.get_transaction(*txid).unwrap())
             .collect::<Vec<Transaction>>()
     }
-    /// Adds a transactions to the mempool.
-    ///
-    /// # Panics
-    ///
-    /// Will panic if there is a problem with database.
-    pub fn add_mempool_transaction(&self, txid: Txid) -> Result<(), LedgerError> {
-        match self.database.lock().unwrap().execute(
-            "INSERT INTO mempool (txid) VALUES (?1)",
-            params![txid.to_string()],
-        ) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(LedgerError::Transaction(format!(
-                "Couldn't add transaction with txid {} to mempool: {}",
-                txid, e
-            ))),
-        }
-    }
-
     /// Gets a mempool transaction, if it's in the mempool.
     ///
     /// # Panics
@@ -299,7 +311,10 @@ impl Ledger {
 
 #[cfg(test)]
 mod tests {
-    use crate::ledger::{self, Ledger, BLOCK_REWARD};
+    use crate::{
+        ledger::{self, Ledger},
+        utils::BLOCK_REWARD,
+    };
     use bitcoin::{Amount, OutPoint, ScriptBuf, Transaction, Txid};
 
     #[test]
