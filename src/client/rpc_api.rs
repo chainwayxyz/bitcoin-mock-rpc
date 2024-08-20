@@ -19,7 +19,7 @@ use bitcoincore_rpc::{
         GetRawTransactionResultVoutScriptPubKey, GetTransactionResult, GetTransactionResultDetail,
         GetTransactionResultDetailCategory, GetTxOutResult, WalletTxInfo,
     },
-    RpcApi,
+    Error, RpcApi,
 };
 use secp256k1::rand::{self, RngCore};
 
@@ -41,11 +41,10 @@ impl RpcApi for Client {
         cmd: &str,
         args: &[serde_json::Value],
     ) -> bitcoincore_rpc::Result<T> {
-        unimplemented!(
+        Err(Error::ReturnedError(format!(
             "Unimplemented mock RPC cmd: {}, with args: {:?}. Please consider implementing it.",
-            cmd,
-            args
-        );
+            cmd, args
+        )))
     }
 
     fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
@@ -565,7 +564,12 @@ mod tests {
         // Wallet has funds now. It should not be rejected.
         let txin = TxIn {
             previous_output: OutPoint {
-                txid: rpc.ledger.get_transactions().get(0).unwrap().compute_txid(),
+                txid: rpc
+                    .ledger
+                    ._get_transactions()
+                    .get(0)
+                    .unwrap()
+                    .compute_txid(),
                 vout: 0,
             },
             witness: credential.witness.unwrap(),
