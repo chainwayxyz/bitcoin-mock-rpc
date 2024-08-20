@@ -11,6 +11,10 @@ use bitcoin::{
 use rs_merkle::{Hasher, MerkleTree};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
+/// Block reward is fixed to 50 BTC, regardless of which and how many blocks are
+/// generated.
+pub(crate) const BLOCK_REWARD: u64 = 5_000_000_000;
+
 /// Bitcoin merkle root hashing algorithm.
 #[derive(Clone)]
 pub struct Hash256 {}

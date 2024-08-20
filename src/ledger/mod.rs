@@ -17,12 +17,8 @@ mod script;
 mod spending_requirements;
 mod transactions;
 
-/// Block reward is fixed to 50 BTC, regardless of which and how many blocks are
-/// generated.
-pub(crate) const BLOCK_REWARD: u64 = 5_000_000_000;
-
 /// Mock Bitcoin ledger.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Ledger {
     /// Database connection.
     database: Arc<Mutex<Connection>>,

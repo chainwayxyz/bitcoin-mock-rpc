@@ -326,7 +326,7 @@ impl Ledger {
             }],
             output: vec![
                 TxOut {
-                    value: Amount::from_sat(crate::ledger::BLOCK_REWARD),
+                    value: Amount::from_sat(crate::utils::BLOCK_REWARD),
                     script_pubkey: address.script_pubkey(),
                 },
                 TxOut {
