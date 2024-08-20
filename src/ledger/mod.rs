@@ -10,6 +10,8 @@ use std::{
     env,
     sync::{Arc, Mutex},
 };
+
+use crate::utils;
 mod address;
 mod block;
 pub(crate) mod errors;
@@ -38,6 +40,8 @@ impl Ledger {
     #[tracing::instrument]
     pub fn new(path: &str) -> Self {
         let path = Ledger::get_database_path(path);
+        let _ = utils::initialize_logger();
+
         tracing::trace!("Creating database at path {path}");
 
         let database = Connection::open(path.clone()).unwrap();
