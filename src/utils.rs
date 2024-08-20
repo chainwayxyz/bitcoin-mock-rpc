@@ -9,6 +9,7 @@ use bitcoin::{
     TxMerkleNode,
 };
 use rs_merkle::{Hasher, MerkleTree};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Bitcoin merkle root hashing algorithm.
 #[derive(Clone)]
@@ -109,6 +110,26 @@ pub fn hex_to_array(hex: &str, output: &mut [u8]) {
             char.to_digit(16).unwrap() as u8
         };
     });
+}
+
+/// Initializes `tracing` as the logger.
+///
+/// # Returns
+///
+/// Returns `Err` if `tracing` can't be subscribed. Multiple subscription error
+/// is emmitted and will return `Ok(())`.
+pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError> {
+    if let Err(e) = tracing_subscriber::registry().with(fmt::layer()).try_init() {
+        // If it failed because of a re-initialization, do not care about
+        // the error.
+        if e.to_string() != "a global default trace dispatcher has already been set" {
+            return Err(e);
+        }
+
+        tracing::trace!("Tried to initialize tracing twice, skipping without errors...");
+    };
+
+    Ok(())
 }
 
 #[cfg(test)]
