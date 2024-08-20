@@ -339,7 +339,7 @@ mod tests {
 
         // Because there is no transactions are mined, there should be only a
         // coinbase transaction.
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         let coinbase_tx = txs.first().unwrap();
 
         assert_eq!(

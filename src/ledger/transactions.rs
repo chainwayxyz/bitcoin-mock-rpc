@@ -124,7 +124,7 @@ impl Ledger {
         Ok(hash)
     }
 
-    pub fn get_transactions(&self) -> Vec<Transaction> {
+    pub fn _get_transactions(&self) -> Vec<Transaction> {
         let database = self.database.lock().unwrap();
 
         let mut stmt = database.prepare("SELECT body FROM transactions").unwrap();
@@ -354,7 +354,7 @@ mod tests {
     fn transactions_without_checks() {
         let ledger = Ledger::new("transactions_without_checks");
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
@@ -365,7 +365,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -383,7 +383,7 @@ mod tests {
         let credentials = Ledger::generate_credential_from_witness();
         let address = credentials.address;
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
         let txout = ledger.create_txout(Amount::from_sat(0x45 * 0x45), address.script_pubkey());
@@ -411,7 +411,7 @@ mod tests {
         let txid = tx.compute_txid();
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 2);
 
         let read_tx = txs.get(1).unwrap().to_owned();
