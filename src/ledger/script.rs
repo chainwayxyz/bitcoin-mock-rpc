@@ -66,6 +66,8 @@ impl Ledger {
         let op2 = instructions.next();
 
         if let (Some(Ok(op1)), Some(Ok(op2))) = (op1, op2) {
+            tracing::trace!("First 2 OP in script are: {:?} and {:?}", op1, op2);
+
             if op2 == script::Instruction::Op(OP_CSV) {
                 let op1_data: i64;
 
@@ -79,6 +81,8 @@ impl Ledger {
                     op1_data = data as i64;
                 };
 
+                tracing::debug!("OP_CSV argument: {}", op1_data);
+
                 return Some(op1_data as u32);
             }
         }
@@ -88,6 +92,7 @@ impl Ledger {
 
     /// Checks if it is a CSV script and compares sequence against the current
     /// block height/time.
+    #[tracing::instrument]
     fn check_sequence(
         &self,
         utxo: OutPoint,
@@ -99,6 +104,7 @@ impl Ledger {
             Some(_) => (),
             None => return Ok(()),
         };
+        tracing::trace!("A CSV script found, checking sequence...");
 
         let current_block_height = self.get_block_height()?;
         let current_block_time = self.get_block_time(current_block_height)?;
@@ -108,8 +114,14 @@ impl Ledger {
 
         let blocks_after = current_block_height - tx_block_height;
         let time_after = current_block_time - tx_block_time;
+        tracing::debug!(
+            "After the transaction mined, number of blocks are mined: {}, time passed: {}",
+            blocks_after,
+            time_after
+        );
 
         let sequence_lock = Ledger::sequence_to_timelock(input_sequence)?;
+        tracing::debug!("Sequence lock time: {:?}", sequence_lock);
 
         match sequence_lock {
             relative::LockTime::Blocks(height) => {
@@ -133,6 +145,8 @@ impl Ledger {
                 }
             }
         };
+
+        tracing::trace!("Lock time satisfied.");
 
         Ok(())
     }
