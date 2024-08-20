@@ -41,10 +41,14 @@ impl RpcApi for Client {
         cmd: &str,
         args: &[serde_json::Value],
     ) -> bitcoincore_rpc::Result<T> {
-        Err(Error::ReturnedError(format!(
+        let msg = format!(
             "Unimplemented mock RPC cmd: {}, with args: {:?}. Please consider implementing it.",
             cmd, args
-        )))
+        );
+
+        tracing::error!(msg);
+
+        Err(Error::ReturnedError(msg))
     }
 
     fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
