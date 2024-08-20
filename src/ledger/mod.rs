@@ -39,8 +39,10 @@ impl Ledger {
     ///
     /// Panics if SQLite connection can't be established and initial query can't
     /// be run.
+    #[tracing::instrument]
     pub fn new(path: &str) -> Self {
         let path = Ledger::get_database_path(path);
+        tracing::trace!("Creating database at path {path}");
 
         let database = Connection::open(path.clone()).unwrap();
 

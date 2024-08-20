@@ -29,6 +29,7 @@ pub struct MockRpc {
 /// # Returns
 ///
 /// URL on success, `std::io::Error` otherwise.
+#[tracing::instrument]
 pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<SocketAddr, Error> {
     let host = host.unwrap_or("127.0.0.1");
     let port = match port {

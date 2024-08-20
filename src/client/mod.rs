@@ -2,7 +2,7 @@
 //!
 //! Client crate mocks the `Client` struct in `bitcoincore-rpc`.
 
-use crate::ledger::Ledger;
+use crate::{ledger::Ledger, utils};
 use bitcoin::Txid;
 use bitcoincore_rpc::{Auth, RpcApi};
 
@@ -47,7 +47,12 @@ impl RpcApiWrapper for Client {
     /// Parameters must match `bitcoincore_rpc::Client::new()`. Only the `url`
     /// is used for database identification. Authorization struct is not used
     /// and can be a dummy value.
+    #[tracing::instrument]
     fn new(url: &str, _auth: bitcoincore_rpc::Auth) -> bitcoincore_rpc::Result<Self> {
+        if let Err(e) = utils::initialize_logger() {
+            return Err(bitcoincore_rpc::Error::ReturnedError(e.to_string()));
+        };
+
         Ok(Self {
             ledger: Ledger::new(url),
         })
