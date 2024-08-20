@@ -3,7 +3,6 @@
 //! Client crate mocks the `Client` struct in `bitcoincore-rpc`.
 
 use crate::{ledger::Ledger, utils};
-use bitcoin::Txid;
 use bitcoincore_rpc::{Auth, RpcApi};
 
 mod rpc_api;
@@ -61,55 +60,12 @@ impl RpcApiWrapper for Client {
     /// This function will establish a new database connection, while preserving
     /// it's previous state. Meaning it won't clear database. This is helpful
     /// for cloning the `Client` structure.
+    #[tracing::instrument]
     fn new_without_cleanup(url: &str, _auth: Auth) -> bitcoincore_rpc::Result<Self> {
         Ok(Self {
             ledger: Ledger::new_without_cleanup(url),
         })
     }
-}
-
-/// Dumps complete ledger to a string and returns it. This can help identify
-/// bugs as it draws the big picture of the mock blockchain.
-pub fn dump_ledger(rpc: Client, pretty: bool) -> String {
-    dump_ledger_inner(rpc.ledger, pretty)
-}
-/// Parent of `dump_ledger`. This function accepts private `Ledger` struct. This
-/// useful for only crate tests.
-pub fn dump_ledger_inner(ledger: Ledger, pretty: bool) -> String {
-    let mut dump = String::new();
-
-    const DELIMETER: &str = "\n-----\n";
-
-    let transactions = ledger.get_transactions();
-
-    if pretty {
-        dump += DELIMETER;
-        dump += format!("Transactions: {:#?}", transactions).as_str();
-        dump += DELIMETER;
-        dump += format!(
-            "Txids: {:#?}",
-            transactions
-                .iter()
-                .map(|tx| tx.compute_txid())
-                .collect::<Vec<Txid>>()
-        )
-        .as_str();
-        dump += DELIMETER;
-    } else {
-        dump += format!("Transactions: {:?}", transactions).as_str();
-        dump += DELIMETER;
-        dump += format!(
-            "Txids: {:?}",
-            transactions
-                .iter()
-                .map(|tx| tx.compute_txid())
-                .collect::<Vec<Txid>>()
-        )
-        .as_str();
-        dump += DELIMETER;
-    }
-
-    dump
 }
 
 #[cfg(test)]
