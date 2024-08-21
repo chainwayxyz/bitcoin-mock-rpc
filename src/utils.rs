@@ -123,7 +123,7 @@ pub fn hex_to_array(hex: &str, output: &mut [u8]) {
 /// Returns `Err` if `tracing` can't be initialized. Multiple subscription error
 /// is emmitted and will return `Ok(())`.
 pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError> {
-    let layer = fmt::layer();
+    let layer = fmt::layer().with_test_writer();
     let filter = EnvFilter::from_default_env();
 
     if let Err(e) = tracing_subscriber::registry()
