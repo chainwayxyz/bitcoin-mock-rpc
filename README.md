@@ -101,8 +101,8 @@ Standard Rust tools are sufficient for testing:
 cargo test
 ```
 
-Additianally, logging level can be set to view debug information. There are
-multiple options to this. In descending order for the number of logs:
+Additionally, logging level can be set to view crucial information. There are
+multiple levels of logs:
 
 ```bash
 RUST_LOG=trace cargo test # Prints every detail
