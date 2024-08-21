@@ -19,6 +19,7 @@ use rusqlite::params;
 
 impl Ledger {
     /// Adds transaction to blockchain, after verifying.
+    #[tracing::instrument]
     pub fn add_transaction(&self, transaction: Transaction) -> Result<Txid, LedgerError> {
         self.check_transaction(&transaction)?;
 
@@ -32,6 +33,10 @@ impl Ledger {
     ) -> Result<Txid, LedgerError> {
         let txid = transaction.compute_txid();
         let current_block_height = self.get_block_height()?;
+
+        tracing::trace!(
+            "Adding new transaction {transaction:?} at block height {current_block_height}"
+        );
 
         let mut body = Vec::new();
         match transaction.consensus_encode(&mut body) {
@@ -57,6 +62,8 @@ impl Ledger {
 
     /// Returns a transaction which matches the given txid.
     pub fn get_transaction(&self, txid: Txid) -> Result<Transaction, LedgerError> {
+        tracing::trace!("Fetching transaction with txid {txid:?}");
+
         let tx = self.database.lock().unwrap().query_row(
             "SELECT body FROM transactions WHERE txid = ?1",
             params![txid.to_string()],
@@ -82,7 +89,9 @@ impl Ledger {
     }
 
     pub fn get_transaction_block_height(&self, txid: &Txid) -> Result<u32, LedgerError> {
-        let sequence = self.database.lock().unwrap().query_row(
+        tracing::trace!("Getting block height for transaction with txid {txid:?}");
+
+        let block_height = self.database.lock().unwrap().query_row(
             "SELECT block_height FROM transactions WHERE txid = ?1",
             params![txid.to_string()],
             |row| {
@@ -91,8 +100,8 @@ impl Ledger {
                 Ok(body)
             },
         );
-        let sequence = match sequence {
-            Ok(sequence) => sequence,
+        let block_height = match block_height {
+            Ok(block_height) => block_height,
             Err(e) => {
                 return Err(LedgerError::Transaction(format!(
                     "Couldn't get block height for txid {}: {}",
@@ -101,10 +110,12 @@ impl Ledger {
             }
         };
 
-        Ok(sequence)
+        Ok(block_height)
     }
 
     pub fn get_transaction_block_hash(&self, txid: &Txid) -> Result<BlockHash, LedgerError> {
+        tracing::trace!("Getting block hash for transaction with txid {txid:?}");
+
         let height = self.get_transaction_block_height(txid)?;
 
         let hash = self.database.lock().unwrap().query_row(
@@ -124,7 +135,9 @@ impl Ledger {
         Ok(hash)
     }
 
-    pub fn get_transactions(&self) -> Vec<Transaction> {
+    pub fn _get_transactions(&self) -> Vec<Transaction> {
+        tracing::trace!("Fetching all the transactions");
+
         let database = self.database.lock().unwrap();
 
         let mut stmt = database.prepare("SELECT body FROM transactions").unwrap();
@@ -147,9 +160,10 @@ impl Ledger {
     /// 3. Is script execution successful?
     ///
     /// No checks for if that UTXO is spendable or not.
+    #[tracing::instrument]
     pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
-        let input_value = self.calculate_transaction_input_value(transaction.clone())?;
-        let output_value = self.calculate_transaction_output_value(transaction.clone());
+        let input_value = self.calculate_transaction_input_value(transaction)?;
+        let output_value = self.calculate_transaction_output_value(transaction);
 
         if input_value < output_value {
             return Err(LedgerError::Transaction(format!(
@@ -158,14 +172,14 @@ impl Ledger {
             )));
         }
 
-        let mut prev_outs = vec![];
         let mut txouts = vec![];
         for input in transaction.input.iter() {
-            assert_eq!(
-                input.script_sig.len(),
-                0,
-                "Bitcoin simulator only verifies inputs that support segregated witness."
-            );
+            if input.script_sig.len() != 0 {
+                let msg = "Bitcoin mock RPC only verifies inputs that support segregated witness.";
+                tracing::error!(msg);
+
+                return Err(LedgerError::Transaction(msg.to_string()));
+            }
 
             let tx = self.get_transaction(input.previous_output.txid)?;
             let txout = tx
@@ -175,20 +189,23 @@ impl Ledger {
                 .to_owned();
 
             txouts.push(txout);
-            prev_outs.push(input.previous_output);
         }
+        tracing::trace!("UTXOs that will be spent in this transaction: {txouts:?}");
 
         for input_idx in 0..transaction.input.len() {
             let mut ret: SpendingRequirementsReturn = SpendingRequirementsReturn::default();
             let mut ctx: ExecCtx = ExecCtx::Legacy;
 
             if txouts[input_idx].script_pubkey.is_p2wpkh() {
+                tracing::trace!("Input with index {input_idx} is a P2WPKH");
                 self.p2wpkh_check(transaction, txouts.as_slice(), input_idx)?;
                 continue;
             } else if txouts[input_idx].script_pubkey.is_p2wsh() {
+                tracing::trace!("Input with index {input_idx} is a P2WSH");
                 ret = self.p2wsh_check(transaction, &txouts, input_idx)?;
                 ctx = ExecCtx::SegwitV0;
             } else if txouts[input_idx].script_pubkey.is_p2tr() {
+                tracing::trace!("Input with index {input_idx} is a P2TR");
                 ret = self.p2tr_check(transaction, &txouts, input_idx)?;
                 if ret.taproot.is_none() {
                     continue;
@@ -216,11 +233,11 @@ impl Ledger {
     /// Panics if found UTXO doesn't match transaction.
     pub fn calculate_transaction_input_value(
         &self,
-        transaction: Transaction,
+        transaction: &Transaction,
     ) -> Result<Amount, LedgerError> {
         let mut amount = Amount::from_sat(0);
 
-        for input in transaction.input {
+        for input in &transaction.input {
             amount += self
                 .get_transaction(input.previous_output.txid)?
                 .output
@@ -229,12 +246,18 @@ impl Ledger {
                 .value;
         }
 
+        tracing::trace!("Transaction's input value in total is {amount}");
+
         Ok(amount)
     }
 
     /// Calculates a transaction's total output value.
-    pub fn calculate_transaction_output_value(&self, transaction: Transaction) -> Amount {
-        transaction.output.iter().map(|output| output.value).sum()
+    pub fn calculate_transaction_output_value(&self, transaction: &Transaction) -> Amount {
+        let amount = transaction.output.iter().map(|output| output.value).sum();
+
+        tracing::trace!("Transaction's output value in total is {amount}");
+
+        amount
     }
 
     /// Creates a `TxIn` with some defaults.
@@ -274,19 +297,25 @@ impl Ledger {
         address: &Address,
         wtxids: Vec<Wtxid>,
     ) -> Result<Transaction, LedgerError> {
+        tracing::trace!("Creating coinbase transaction for address {address:?}");
+
         let current_block_height = self.get_block_height()? + 1;
         let mut script_sig = ScriptBuf::new();
         script_sig.push_slice(current_block_height.to_be_bytes());
+        tracing::trace!("Input script sig {script_sig:?}");
 
         let mut witness = Witness::new();
         witness.push([0u8; 32]);
+        tracing::trace!("Input witness {witness:?}");
 
         // Insert all zeroed wTXID to the list (coinbase transaction).
         let mut wtxids = wtxids.clone();
         wtxids.insert(0, Wtxid::all_zeros());
+        tracing::trace!("Final wTXIDs: {wtxids:?}");
 
         // Calculate merkle root of input wTXIDs.
         let merkle_root = utils::calculate_merkle_root(wtxids)?;
+        tracing::trace!("Merkle root of the wTXIDs: {merkle_root:?}");
 
         // Prepare wTXID commitment.
         let concat = serialize_hex::<TxMerkleNode>(&merkle_root)
@@ -294,6 +323,7 @@ impl Ledger {
         let mut hex: [u8; 64] = [0; 64];
         hex_to_array(&concat, &mut hex);
         let wtxid_commitment = Hash256::hash(hex.as_slice());
+        tracing::trace!("wTXID commitment: {:?}", serialize_hex(&wtxid_commitment));
 
         // Assign wTXID commitment header.
         let header = deserialize_hex::<[u8; 4]>("aa21a9ed").unwrap();
@@ -311,6 +341,7 @@ impl Ledger {
         let mut script_pubkey = ScriptBuf::new();
         script_pubkey.push_opcode(OP_RETURN);
         script_pubkey.push_slice(hex);
+        tracing::trace!("Output script pubkey: {:?}", script_pubkey);
 
         Ok(Transaction {
             version: bitcoin::transaction::Version::TWO,
@@ -326,7 +357,7 @@ impl Ledger {
             }],
             output: vec![
                 TxOut {
-                    value: Amount::from_sat(crate::ledger::BLOCK_REWARD),
+                    value: Amount::from_sat(crate::utils::BLOCK_REWARD),
                     script_pubkey: address.script_pubkey(),
                 },
                 TxOut {
@@ -354,7 +385,7 @@ mod tests {
     fn transactions_without_checks() {
         let ledger = Ledger::new("transactions_without_checks");
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         let txout = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout]);
@@ -365,7 +396,7 @@ mod tests {
             ledger.add_transaction_unconditionally(tx.clone()).unwrap()
         );
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 1);
 
         let tx2 = txs.get(0).unwrap().to_owned();
@@ -383,7 +414,7 @@ mod tests {
         let credentials = Ledger::generate_credential_from_witness();
         let address = credentials.address;
 
-        assert_eq!(ledger.get_transactions().len(), 0);
+        assert_eq!(ledger._get_transactions().len(), 0);
 
         // First, add some funds to user, for free.
         let txout = ledger.create_txout(Amount::from_sat(0x45 * 0x45), address.script_pubkey());
@@ -411,7 +442,7 @@ mod tests {
         let txid = tx.compute_txid();
         assert_eq!(txid, ledger.add_transaction(tx.clone()).unwrap());
 
-        let txs = ledger.get_transactions();
+        let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 2);
 
         let read_tx = txs.get(1).unwrap().to_owned();
@@ -438,14 +469,14 @@ mod tests {
 
         // Without any inputs, this must return 0 Sats.
         assert_eq!(
-            ledger.calculate_transaction_input_value(tx).unwrap(),
+            ledger.calculate_transaction_input_value(&tx).unwrap(),
             Amount::from_sat(0)
         );
         // Valid input should be OK.
         let txin = ledger.create_txin(txid, 0);
         let tx = ledger.create_transaction(vec![txin], vec![txout]);
         assert_eq!(
-            ledger.calculate_transaction_input_value(tx).unwrap(),
+            ledger.calculate_transaction_input_value(&tx).unwrap(),
             Amount::from_sat(0x45)
         );
     }
@@ -457,14 +488,14 @@ mod tests {
         let txout1 = ledger.create_txout(Amount::from_sat(0x45), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout1.clone()]);
         assert_eq!(
-            ledger.calculate_transaction_output_value(tx),
+            ledger.calculate_transaction_output_value(&tx),
             Amount::from_sat(0x45)
         );
 
         let txout2 = ledger.create_txout(Amount::from_sat(0x1F), ScriptBuf::new());
         let tx = ledger.create_transaction(vec![], vec![txout1, txout2]);
         assert_eq!(
-            ledger.calculate_transaction_output_value(tx),
+            ledger.calculate_transaction_output_value(&tx),
             Amount::from_sat(100)
         );
     }

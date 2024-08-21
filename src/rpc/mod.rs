@@ -5,8 +5,9 @@
 
 use crate::ledger::errors::LedgerError;
 use crate::{Client, RpcApiWrapper};
-use jsonrpsee::server::Server;
-use jsonrpsee::server::ServerHandle;
+use jsonrpsee::server::middleware::rpc::RpcServiceT;
+use jsonrpsee::server::{RpcServiceBuilder, Server};
+use jsonrpsee::types::Request;
 use std::{io::Error, net::SocketAddr, net::TcpListener};
 use traits::RpcServer;
 
@@ -14,9 +15,25 @@ mod adapter;
 #[allow(clippy::too_many_arguments)]
 mod traits;
 
-pub struct MockRpc {
-    pub socket_address: SocketAddr,
-    pub handle: ServerHandle,
+/// Logger middleware.
+#[derive(Clone)]
+pub struct Logger<S>(S);
+impl<'a, S> jsonrpsee::server::middleware::rpc::RpcServiceT<'a> for Logger<S>
+where
+    S: RpcServiceT<'a> + Send + Sync,
+{
+    type Future = S::Future;
+
+    /// This will get called for every RPC request.
+    fn call(&self, req: Request<'a>) -> Self::Future {
+        tracing::info!(
+            "Received RPC call: {}, with parameters: {:?}",
+            req.method,
+            req.params
+        );
+
+        self.0.call(req)
+    }
 }
 
 /// Spawns an RPC server for the mock blockchain.
@@ -29,6 +46,7 @@ pub struct MockRpc {
 /// # Returns
 ///
 /// URL on success, `std::io::Error` otherwise.
+#[tracing::instrument]
 pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<SocketAddr, Error> {
     let host = host.unwrap_or("127.0.0.1");
     let port = match port {
@@ -41,7 +59,12 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<S
 }
 
 async fn start_server(url: &str) -> Result<SocketAddr, Error> {
-    let server = Server::builder().build(url).await?;
+    let rpc_middleware = RpcServiceBuilder::new().layer_fn(Logger);
+
+    let server = Server::builder()
+        .set_rpc_middleware(rpc_middleware)
+        .build(url)
+        .await?;
 
     let addr = server.local_addr()?;
 

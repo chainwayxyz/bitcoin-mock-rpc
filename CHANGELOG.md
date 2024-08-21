@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Logging
+  - RPC server binary can output logs
+  - Tests print logs
+
 ## [0.0.7] - 2024-08-15
 
 ### Added

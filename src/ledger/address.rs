@@ -23,16 +23,24 @@ pub struct UserCredential {
 }
 
 impl UserCredential {
-    /// Creates a new `UserCredential` with random keys.
+    /// Creates a new `UserCredential` with random keys. Bitcoin address has the
+    /// type of "p2tr".
     pub fn new() -> Self {
         let secp = Secp256k1::new();
 
         let (secret_key, public_key) = secp.generate_keypair(&mut rand::thread_rng());
+        tracing::trace!(
+            "New secret/public key pair: {:?} {:?}",
+            secret_key,
+            public_key
+        );
 
         let keypair = Keypair::from_secret_key(&secp, &secret_key);
         let (x_only_public_key, _parity) = XOnlyPublicKey::from_keypair(&keypair);
+        tracing::trace!("New x-only public key: {:?}", x_only_public_key);
 
         let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
+        tracing::trace!("New bitcoin address: {:?}", address);
 
         Self {
             secp,
@@ -55,10 +63,12 @@ impl Default for UserCredential {
 impl Ledger {
     /// Generates a random secret/public key pair and creates a new Bicoin
     /// address from them.
+    #[tracing::instrument]
     pub fn generate_credential() -> UserCredential {
         UserCredential::new()
     }
     /// Generates a Bitcoin credentials from a witness program.
+    #[tracing::instrument]
     pub fn generate_credential_from_witness() -> UserCredential {
         let mut credential = Ledger::generate_credential();
 
@@ -90,12 +100,17 @@ impl Ledger {
         let taproot_spend_info = taproot_builder
             .finalize(&credential.secp, credential.x_only_public_key)
             .unwrap();
+        tracing::trace!(
+            "Taproot spend info for the new witness: {:?}",
+            taproot_spend_info
+        );
 
         let witness_program = WitnessProgram::p2tr(
             &credential.secp,
             credential.x_only_public_key,
             taproot_spend_info.merkle_root(),
         );
+        tracing::trace!("New witness program: {:?}", witness_program);
 
         let mut control_block_bytes = Vec::new();
         taproot_spend_info
@@ -107,6 +122,7 @@ impl Ledger {
         let mut witness = Witness::new();
         witness.push(script.to_bytes());
         witness.push(control_block_bytes);
+        tracing::trace!("New witness: {:?}", witness);
 
         credential.witness = Some(witness);
         credential.witness_program = Some(witness_program);

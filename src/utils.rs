@@ -9,6 +9,11 @@ use bitcoin::{
     TxMerkleNode,
 };
 use rs_merkle::{Hasher, MerkleTree};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+/// Block reward is fixed to 50 BTC, regardless of which and how many blocks are
+/// generated.
+pub(crate) const BLOCK_REWARD: u64 = 5_000_000_000;
 
 /// Bitcoin merkle root hashing algorithm.
 #[derive(Clone)]
@@ -20,42 +25,6 @@ impl Hasher for Hash256 {
     fn hash(data: &[u8]) -> [u8; 32] {
         sha256::Hash::hash(&sha256::Hash::hash(data).to_byte_array()).to_byte_array()
     }
-}
-
-/// Converts a hex string to an [u8] array. Encoding is done by converting hex
-/// value to digit value and packing 2 digits together.
-///
-/// # Parameters
-///
-/// - `hex`: Hex encoded string with no prefixes nor suffixes
-/// - `output`: Mutable array that will hold encoded data
-///
-/// # Examples
-///
-/// ```ignore
-/// let mut hex: [u8; 1] = [0; 1];
-/// hex_to_array("FF", &mut hex);
-/// assert_eq!(hex, [255]);
-/// ```
-///
-/// # Panics
-///
-/// Will panic if input `hex` length is more than 2 times of `output` length.
-pub fn hex_to_array(hex: &str, output: &mut [u8]) {
-    // Clean output.
-    for item in &mut *output {
-        *item = 0;
-    }
-
-    let len = hex.len();
-
-    hex.chars().enumerate().for_each(|(idx, char)| {
-        output[idx / 2] += if idx % 2 == 0 && idx + 1 != len {
-            char.to_digit(16).unwrap() as u8 * 16
-        } else {
-            char.to_digit(16).unwrap() as u8
-        };
-    });
 }
 
 /// Calculates given inputs merkle root. If input number is odd, last input will
@@ -109,6 +78,69 @@ where
     };
 
     Ok(TxMerkleNode::from_raw_hash(hash))
+}
+
+/// Converts a hex string to an [u8] array. Encoding is done by converting hex
+/// value to digit value and packing 2 digits together.
+///
+/// # Parameters
+///
+/// - `hex`: Hex encoded string with no prefixes nor suffixes
+/// - `output`: Mutable array that will hold encoded data
+///
+/// # Examples
+///
+/// ```ignore
+/// let mut hex: [u8; 1] = [0; 1];
+/// hex_to_array("FF", &mut hex);
+/// assert_eq!(hex, [255]);
+/// ```
+///
+/// # Panics
+///
+/// Will panic if input `hex` length is more than 2 times of `output` length.
+pub fn hex_to_array(hex: &str, output: &mut [u8]) {
+    // Clean output.
+    for item in &mut *output {
+        *item = 0;
+    }
+
+    let len = hex.len();
+
+    hex.chars().enumerate().for_each(|(idx, char)| {
+        output[idx / 2] += if idx % 2 == 0 && idx + 1 != len {
+            char.to_digit(16).unwrap() as u8 * 16
+        } else {
+            char.to_digit(16).unwrap() as u8
+        };
+    });
+}
+
+/// Initializes `tracing` as the logger.
+///
+/// # Returns
+///
+/// Returns `Err` if `tracing` can't be initialized. Multiple subscription error
+/// is emmitted and will return `Ok(())`.
+pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError> {
+    let layer = fmt::layer().with_test_writer();
+    let filter = EnvFilter::from_default_env();
+
+    if let Err(e) = tracing_subscriber::registry()
+        .with(layer)
+        .with(filter)
+        .try_init()
+    {
+        // If it failed because of a re-initialization, do not care about
+        // the error.
+        if e.to_string() != "a global default trace dispatcher has already been set" {
+            return Err(e);
+        }
+
+        tracing::trace!("Tracing is already initialized, skipping without errors...");
+    };
+
+    Ok(())
 }
 
 #[cfg(test)]

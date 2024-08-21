@@ -6,6 +6,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_TERM_VERBOSE: true
   CARGOFLAGS: --workspace --all-targets --all-features
+  RUST_LOG: trace
 
 jobs:
   debug_mode_build:

@@ -101,6 +101,21 @@ Standard Rust tools are sufficient for testing:
 cargo test
 ```
 
+Additionally, logging level can be set to view crucial information. There are
+multiple levels of logs:
+
+```bash
+RUST_LOG=trace cargo test # Prints every detail
+RUST_LOG=debug cargo test
+RUST_LOG=info cargo test
+RUST_LOG=warn cargo test
+RUST_LOG=error cargo test # Prints only errors
+```
+
+Please check
+[log library's documentation](https://docs.rs/log/latest/log/enum.Level.html)
+for more detail.
+
 ## Documentation
 
 No external documentation is provided. Please read code comments or run:

@@ -5,11 +5,13 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
+use crate::utils;
 use rusqlite::Connection;
 use std::{
     env,
     sync::{Arc, Mutex},
 };
+
 mod address;
 mod block;
 pub(crate) mod errors;
@@ -17,12 +19,8 @@ mod script;
 mod spending_requirements;
 mod transactions;
 
-/// Block reward is fixed to 50 BTC, regardless of which and how many blocks are
-/// generated.
-pub(crate) const BLOCK_REWARD: u64 = 5_000_000_000;
-
 /// Mock Bitcoin ledger.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Ledger {
     /// Database connection.
     database: Arc<Mutex<Connection>>,
@@ -39,8 +37,12 @@ impl Ledger {
     ///
     /// Panics if SQLite connection can't be established and initial query can't
     /// be run.
+    #[tracing::instrument]
     pub fn new(path: &str) -> Self {
         let path = Ledger::get_database_path(path);
+        let _ = utils::initialize_logger();
+
+        tracing::trace!("Creating database at path {path}");
 
         let database = Connection::open(path.clone()).unwrap();
 
