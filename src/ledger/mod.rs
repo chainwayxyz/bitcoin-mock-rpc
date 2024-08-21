@@ -5,13 +5,13 @@
 //! This crate is designed to be used as immutable, because of the `RpcApi`'s
 //! immutable nature.
 
+use crate::utils;
 use rusqlite::Connection;
 use std::{
     env,
     sync::{Arc, Mutex},
 };
 
-use crate::utils;
 mod address;
 mod block;
 pub(crate) mod errors;
