@@ -9,7 +9,7 @@ use bitcoin::{
     TxMerkleNode,
 };
 use rs_merkle::{Hasher, MerkleTree};
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 /// Block reward is fixed to 50 BTC, regardless of which and how many blocks are
 /// generated.
@@ -120,17 +120,24 @@ pub fn hex_to_array(hex: &str, output: &mut [u8]) {
 ///
 /// # Returns
 ///
-/// Returns `Err` if `tracing` can't be subscribed. Multiple subscription error
+/// Returns `Err` if `tracing` can't be initialized. Multiple subscription error
 /// is emmitted and will return `Ok(())`.
 pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError> {
-    if let Err(e) = tracing_subscriber::registry().with(fmt::layer()).try_init() {
+    let layer = fmt::layer();
+    let filter = EnvFilter::from_default_env();
+
+    if let Err(e) = tracing_subscriber::registry()
+        .with(layer)
+        .with(filter)
+        .try_init()
+    {
         // If it failed because of a re-initialization, do not care about
         // the error.
         if e.to_string() != "a global default trace dispatcher has already been set" {
             return Err(e);
         }
 
-        tracing::trace!("Tried to initialize tracing twice, skipping without errors...");
+        tracing::trace!("Tracing is already initialized, skipping without errors...");
     };
 
     Ok(())
