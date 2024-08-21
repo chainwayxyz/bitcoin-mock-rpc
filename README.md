@@ -1,17 +1,19 @@
 # Bitcoin Mock Remote Procedure Call
 
-Bitcoin-mock-rpc is a mock Bitcoin ledger with RPC interface and without wallet
-support. Meaning there are only checks for consensus details of an operation.
-This library can be used to test Bitcoin applications, without needing to set
-Bitcoin but with a **sandboxed environment**, for each test.
+Bitcoin-mock-rpc is a mock Bitcoin ledger with RPC interface but without a
+wallet support. Meaning there are only checks for consensus details of an
+operation. This library can be used to test Bitcoin applications, without
+needing to set up Bitcoin and with a **sandboxed environment**, for each test.
 
-Bitcoin-mock-rpc is built on [bitcoincore-rpc's](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
+Bitcoin-mock-rpc is built on
+[bitcoincore-rpc's](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
 `RpcApi` trait. Meaning no real servers are needed for Rust applications. There
-is also a RPC server that can communicate with any application: No rust
+is also an RPC server that can communicate with any application: No rust
 dependencies!
 
-This library is aimed to help development of [Clementine](https://github.com/chainwayxyz/clementine).
-Therefore, it's usage of this library can be taken as a reference.
+This library is aimed to help the development of
+[Clementine](https://github.com/chainwayxyz/clementine). Therefore, it's usage
+of this library can be taken as a reference.
 
 ## Differences Between Real Bitcoin RPC and Feature Set
 
