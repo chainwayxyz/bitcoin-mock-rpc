@@ -1,6 +1,6 @@
 //! # Wallet RPCs
 
-use super::{decode_from_hex, encode_to_hex};
+use crate::utils::{decode_from_hex, encode_to_hex};
 use crate::Client;
 use bitcoin::{Address, Amount, Txid};
 use bitcoincore_rpc::{json, Error, RpcApi};
@@ -81,7 +81,7 @@ pub fn sendtoaddress(
         None,
     )?;
 
-    Ok(encode_to_hex::<Txid>(txid))
+    Ok(encode_to_hex::<Txid>(&txid))
 }
 
 #[cfg(test)]

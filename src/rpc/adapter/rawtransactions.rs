@@ -1,6 +1,6 @@
 //! # Rawtransactions RPCs
 
-use super::{decode_from_hex, encode_to_hex};
+use crate::utils::{decode_from_hex, encode_to_hex};
 use crate::Client;
 use bitcoin::{BlockHash, Transaction, Txid};
 use bitcoincore_rpc::{Error, RpcApi};
@@ -17,7 +17,7 @@ pub fn getrawtransaction(
         None | Some(false) => {
             let tx = client.get_raw_transaction(&txid, blockhash.as_ref())?;
 
-            encode_to_hex(tx)
+            encode_to_hex(&tx)
         }
         Some(true) => {
             let tx = client.get_raw_transaction_info(&txid, blockhash.as_ref())?;
@@ -37,7 +37,7 @@ pub fn sendrawtransaction(
     let tx = decode_from_hex::<Transaction>(hexstring)?;
 
     let txid = client.send_raw_transaction(&tx)?;
-    let txid = encode_to_hex(txid);
+    let txid = encode_to_hex(&txid);
 
     Ok(txid)
 }
@@ -45,7 +45,7 @@ pub fn sendrawtransaction(
 #[cfg(test)]
 mod tests {
     use crate::{
-        rpc::adapter::{decode_from_hex, encode_to_hex},
+        utils::{decode_from_hex, encode_to_hex},
         Client, RpcApiWrapper,
     };
     use bitcoin::{
@@ -74,7 +74,7 @@ mod tests {
         let tx = client.get_raw_transaction(&txid, None).unwrap();
 
         let encoded_tx =
-            super::getrawtransaction(&client, encode_to_hex(txid), None, None).unwrap();
+            super::getrawtransaction(&client, encode_to_hex(&txid), None, None).unwrap();
         let encoded_tx = decode_from_hex(encoded_tx).unwrap();
 
         assert_eq!(tx, encoded_tx);
@@ -114,7 +114,7 @@ mod tests {
             lock_time: LockTime::ZERO,
         };
 
-        let txid = super::sendrawtransaction(&client, encode_to_hex(tx.clone()), None).unwrap();
+        let txid = super::sendrawtransaction(&client, encode_to_hex(&tx.clone()), None).unwrap();
         let txid = decode_from_hex::<Txid>(txid).unwrap();
 
         let read_tx = client.get_raw_transaction(&txid, None).unwrap();

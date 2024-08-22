@@ -172,6 +172,7 @@ pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError>
 
 #[cfg(test)]
 mod tests {
+    use super::{decode_from_hex, encode_to_hex};
     use bitcoin::{hashes::sha256d::Hash, TxMerkleNode, Txid};
     use std::str::FromStr;
 
@@ -243,5 +244,18 @@ mod tests {
             ),
             merkle_root
         );
+    }
+
+    #[test]
+    fn encode_decode_txid() {
+        let txid = Txid::from_raw_hash(
+            Hash::from_str("e6d467860551868fe599889ea9e622ae1ff08891049e934f83a783a3ea5fbc12")
+                .unwrap(),
+        );
+
+        let encoded_txid = encode_to_hex(&txid);
+        let decoded_txid = decode_from_hex::<Txid>(encoded_txid).unwrap();
+
+        assert_eq!(txid, decoded_txid);
     }
 }
