@@ -5,7 +5,7 @@
 
 use super::Client;
 use crate::{
-    ledger::{self, address::UserCredential, errors::LedgerError, Ledger},
+    ledger::{self, address::UserCredential, errors::LedgerError},
     utils::encode_to_hex,
 };
 use bitcoin::{
@@ -25,6 +25,7 @@ use bitcoincore_rpc::{
     Error, RpcApi,
 };
 use secp256k1::rand::{self, RngCore};
+use std::str::FromStr;
 
 impl RpcApi for Client {
     /// TL;DR: If this function is called for `cmd`, it's corresponding mock is
@@ -279,9 +280,12 @@ impl RpcApi for Client {
         _label: Option<&str>,
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
-        let address = Ledger::generate_address_from_witness();
+        // Random address.
+        let address =
+            Address::from_str("bcrt1p4jduyg7j89tr8pysgqlw0cdqw9ku4d64w3nfhywkl26eq057vu3qd6z87f")
+                .unwrap();
 
-        Ok(address.as_unchecked().to_owned())
+        Ok(address.to_owned())
     }
 
     /// Generates `block_num` amount of block rewards to `address`. Also mines
