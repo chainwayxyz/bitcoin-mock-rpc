@@ -94,6 +94,22 @@ pub trait Rpc {
         estimate_mode: Option<&str>,
         avoid_reuse: Option<bool>,
     ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "fundrawtransaction")]
+    async fn fundrawtransaction(
+        &self,
+        hexstring: String,
+        options: Option<String>,
+        iswitness: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned>;
+
+    #[method(name = "signrawtransactionwithwallet")]
+    async fn signrawtransactionwithwallet(
+        &self,
+        hexstring: String,
+        prevtxs: Option<String>,
+        sighashtype: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned>;
 }
 
 #[async_trait]
@@ -206,6 +222,31 @@ impl RpcServer for Client {
             conf_target,
             estimate_mode,
             avoid_reuse,
+        ))
+    }
+
+    async fn fundrawtransaction(
+        &self,
+        hexstring: String,
+        options: Option<String>,
+        iswitness: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::fundrawtransaction(
+            self, hexstring, options, iswitness,
+        ))
+    }
+
+    async fn signrawtransactionwithwallet(
+        &self,
+        hexstring: String,
+        prevtxs: Option<String>,
+        sighashtype: Option<bool>,
+    ) -> Result<String, ErrorObjectOwned> {
+        to_jsonrpsee_error(adapter::signrawtransactionwithwallet(
+            self,
+            hexstring,
+            prevtxs,
+            sighashtype,
         ))
     }
 }

@@ -42,6 +42,24 @@ pub fn sendrawtransaction(
     Ok(txid)
 }
 
+pub fn fundrawtransaction(
+    _client: &Client,
+    _hexstring: String,
+    _options: Option<String>,
+    _iswitness: Option<bool>,
+) -> Result<String, Error> {
+    todo!()
+}
+
+pub fn signrawtransactionwithwallet(
+    _client: &Client,
+    _hexstring: String,
+    _prevtxs: Option<String>,
+    _sighashtype: Option<bool>,
+) -> Result<String, Error> {
+    todo!()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
