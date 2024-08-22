@@ -4,7 +4,10 @@
 
 use crate::ledger::errors::LedgerError;
 use bitcoin::{
-    consensus::Encodable,
+    consensus::{
+        encode::{deserialize_hex, serialize_hex},
+        Encodable,
+    },
     hashes::{sha256, Hash},
     TxMerkleNode,
 };
@@ -114,6 +117,30 @@ pub fn hex_to_array(hex: &str, output: &mut [u8]) {
             char.to_digit(16).unwrap() as u8
         };
     });
+}
+
+/// Encodes given Rust struct to hex string.
+pub fn encode_to_hex<T>(strct: &T) -> String
+where
+    T: bitcoin::consensus::Encodable,
+{
+    serialize_hex::<T>(strct)
+}
+
+/// Decodes given hex string to a Rust struct.
+pub fn decode_from_hex<T>(hex: String) -> Result<T, bitcoincore_rpc::Error>
+where
+    T: bitcoin::consensus::Decodable,
+{
+    Ok(deserialize_hex::<T>(&hex)?)
+}
+
+pub fn encode_decode_to_rpc_error(
+    error: bitcoin::consensus::encode::Error,
+) -> bitcoincore_rpc::Error {
+    bitcoincore_rpc::Error::BitcoinSerialization(bitcoin::consensus::encode::FromHexError::Decode(
+        bitcoin::consensus::DecodeError::Consensus(error),
+    ))
 }
 
 /// Initializes `tracing` as the logger.

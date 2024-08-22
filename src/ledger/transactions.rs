@@ -225,10 +225,9 @@ impl Ledger {
         let output_value = self.calculate_transaction_output_value(transaction);
 
         if input_value < output_value {
-            Err(LedgerError::Transaction(format!(
-                "Input amount is smaller than output amount: {} < {}",
-                input_value, output_value
-            )))
+            Err(LedgerError::InputFundsNotEnough(
+                output_value.to_sat() - input_value.to_sat(),
+            ))
         } else {
             Ok(())
         }

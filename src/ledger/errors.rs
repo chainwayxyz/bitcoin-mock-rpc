@@ -9,6 +9,8 @@ use thiserror::Error;
 pub enum LedgerError {
     #[error("Transaction error: {0}")]
     Transaction(String),
+    #[error("Transaction's input funds are {0} sats lower than the output funds")]
+    InputFundsNotEnough(u64),
     #[error("UTXO error: {0}")]
     Utxo(String),
     #[error("SpendingRequirements error: {0}")]
