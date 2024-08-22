@@ -786,4 +786,44 @@ mod tests {
         assert_eq!(tx, new_tx);
         assert_eq!(res.change_position, -1);
     }
+
+    #[test]
+    fn sign_raw_transaction_with_wallet() {
+        let rpc = Client::new(
+            "sign_raw_transaction_with_wallet",
+            bitcoincore_rpc::Auth::None,
+        )
+        .unwrap();
+
+        let address = Ledger::generate_credential_from_witness().address;
+        let txid = rpc
+            .send_to_address(
+                &address,
+                Amount::from_sat(0x1F),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        let txin = rpc.ledger.create_txin(txid, 0);
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
+        let tx = rpc
+            .ledger
+            .create_transaction(vec![txin.clone()], vec![txout]);
+
+        assert!(txin.witness.is_empty());
+
+        let res = rpc
+            .sign_raw_transaction_with_wallet(&tx, None, None)
+            .unwrap();
+        let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
+        let new_tx = decode_from_hex::<Transaction>(new_tx).unwrap();
+
+        assert!(!new_tx.input.first().unwrap().witness.is_empty());
+    }
 }
