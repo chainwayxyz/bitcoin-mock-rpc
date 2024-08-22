@@ -81,6 +81,36 @@ impl Ledger {
 
         credential
     }
+    /// Generates the constant Bitcoin credentials from a witness program.
+    #[tracing::instrument]
+    pub fn get_constant_credential_from_witness() -> UserCredential {
+        let secp = Secp256k1::new();
+        let secret_key = SecretKey::from_slice(&[0x45; 32]).unwrap();
+        let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+        let x_only_public_key =
+            XOnlyPublicKey::from_keypair(&Keypair::from_secret_key(&secp, &secret_key)).0;
+        let address = Address::p2tr(&secp, x_only_public_key, None, Network::Regtest);
+
+        let mut credential = UserCredential {
+            secp,
+            secret_key,
+            public_key,
+            x_only_public_key,
+            address,
+            witness: None,
+            witness_program: None,
+        };
+        tracing::trace!("Constant credentials: {credential:?}");
+
+        Ledger::create_witness(&mut credential);
+
+        credential.address = Address::from_witness_program(
+            credential.witness_program.unwrap(),
+            bitcoin::Network::Regtest,
+        );
+
+        credential
+    }
 
     /// Generates a random Bicoin address.
     pub fn _generate_address() -> Address {
@@ -137,6 +167,7 @@ mod tests {
     #[test]
     fn generate_credentials() {
         let credential = Ledger::generate_credential();
+        println!("{:?}", credential.secret_key);
 
         assert_eq!(
             credential.address.address_type().unwrap(),
