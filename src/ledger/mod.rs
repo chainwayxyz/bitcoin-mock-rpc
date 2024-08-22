@@ -12,7 +12,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-mod address;
+pub mod address;
 mod block;
 pub(crate) mod errors;
 mod script;

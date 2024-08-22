@@ -5,7 +5,7 @@
 
 use super::Client;
 use crate::{
-    ledger::{errors::LedgerError, Ledger},
+    ledger::{self, address::UserCredential, errors::LedgerError, Ledger},
     utils::encode_to_hex,
 };
 use bitcoin::{
@@ -13,14 +13,14 @@ use bitcoin::{
     consensus::{encode, Encodable},
     hashes::Hash,
     params::Params,
-    Address, Amount, BlockHash, SignedAmount, Transaction, Txid,
+    Address, Amount, BlockHash, SignedAmount, Transaction, TxIn, Txid,
 };
 use bitcoincore_rpc::{
     json::{
         self, GetRawTransactionResult, GetRawTransactionResultVin,
         GetRawTransactionResultVinScriptSig, GetRawTransactionResultVout,
         GetRawTransactionResultVoutScriptPubKey, GetTransactionResult, GetTransactionResultDetail,
-        GetTransactionResultDetailCategory, GetTxOutResult, WalletTxInfo,
+        GetTransactionResultDetailCategory, GetTxOutResult, SignRawTransactionResult, WalletTxInfo,
     },
     Error, RpcApi,
 };
@@ -420,11 +420,41 @@ impl RpcApi for Client {
 
     fn sign_raw_transaction_with_wallet<R: bitcoincore_rpc::RawTx>(
         &self,
-        _tx: R,
+        tx: R,
         _utxos: Option<&[json::SignRawTransactionInput]>,
         _sighash_type: Option<json::SigHashType>,
     ) -> bitcoincore_rpc::Result<json::SignRawTransactionResult> {
-        todo!()
+        let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
+        tracing::debug!("Decoded input transaction: {transaction:?}");
+
+        let mut credentials = UserCredential::new();
+        ledger::Ledger::create_witness(&mut credentials);
+
+        let inputs: Vec<TxIn> = transaction
+            .input
+            .iter()
+            .map(|input| {
+                let mut input = input.to_owned();
+
+                if input.witness.is_empty() {
+                    input.witness = credentials.witness.clone().unwrap();
+                }
+
+                input
+            })
+            .collect();
+
+        transaction.input = inputs;
+
+        let mut hex: Vec<u8> = Vec::new();
+        let tx = encode_to_hex(&transaction);
+        tx.consensus_encode(&mut hex).unwrap();
+
+        Ok(SignRawTransactionResult {
+            hex,
+            complete: true,
+            errors: None,
+        })
     }
 }
 
