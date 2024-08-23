@@ -13,7 +13,7 @@ use bitcoin::{
     consensus::{encode, Encodable},
     hashes::Hash,
     params::Params,
-    Address, Amount, BlockHash, OutPoint, SignedAmount, Transaction, TxIn, Txid,
+    Address, Amount, BlockHash, OutPoint, SignedAmount, Transaction, TxIn, TxOut, Txid,
 };
 use bitcoincore_rpc::{
     json::{
@@ -404,7 +404,6 @@ impl RpcApi for Client {
 
         let txin = TxIn {
             previous_output: OutPoint { txid, vout: 0 },
-            script_sig: address.script_pubkey(),
             ..Default::default()
         };
 
@@ -433,15 +432,37 @@ impl RpcApi for Client {
 
         let credentials = ledger::Ledger::get_constant_credential_from_witness();
 
+        let mut txouts: Vec<TxOut> = Vec::new();
+        for input in transaction.input.clone() {
+            let tx = match self.get_raw_transaction(&input.previous_output.txid, None) {
+                Ok(tx) => tx,
+                Err(e) => return Err(e),
+            };
+
+            let txout = match tx.output.get(input.previous_output.vout as usize) {
+                Some(txout) => txout,
+                None => {
+                    return Err(LedgerError::Transaction(format!(
+                        "No txout for {:?}",
+                        input.previous_output
+                    ))
+                    .into())
+                }
+            };
+
+            txouts.push(txout.clone());
+        }
+
         let inputs: Vec<TxIn> = transaction
             .input
             .iter()
-            .map(|input| {
+            .enumerate()
+            .map(|(idx, input)| {
                 let mut input = input.to_owned();
                 tracing::trace!("Examining input {input:?}");
 
                 if input.witness.is_empty()
-                    && input.script_sig == credentials.address.script_pubkey()
+                    && txouts[idx].script_pubkey == credentials.address.script_pubkey()
                 {
                     tracing::debug!(
                         "Signing input {input:?} with witness {:?}",
