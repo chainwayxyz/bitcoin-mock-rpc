@@ -5,7 +5,7 @@
 
 use super::Client;
 use crate::{
-    ledger::{self, address::UserCredential, errors::LedgerError},
+    ledger::{self, errors::LedgerError},
     utils::encode_to_hex,
 };
 use bitcoin::{
@@ -427,16 +427,22 @@ impl RpcApi for Client {
         let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
         tracing::debug!("Decoded input transaction: {transaction:?}");
 
-        let mut credentials = UserCredential::new();
-        ledger::Ledger::create_witness(&mut credentials);
+        let credentials = ledger::Ledger::get_constant_credential_from_witness();
 
         let inputs: Vec<TxIn> = transaction
             .input
             .iter()
             .map(|input| {
                 let mut input = input.to_owned();
+                tracing::trace!("Examining input {input:?}");
 
-                if input.witness.is_empty() {
+                if input.witness.is_empty()
+                    && input.script_sig == credentials.address.script_pubkey()
+                {
+                    tracing::debug!(
+                        "Signing input {input:?} with witness {:?}",
+                        credentials.witness.clone().unwrap()
+                    );
                     input.witness = credentials.witness.clone().unwrap();
                 }
 
@@ -445,6 +451,7 @@ impl RpcApi for Client {
             .collect();
 
         transaction.input = inputs;
+        tracing::trace!("Final inputs {:?}", transaction.input);
 
         let mut hex: Vec<u8> = Vec::new();
         let tx = encode_to_hex(&transaction);
@@ -795,7 +802,7 @@ mod tests {
         )
         .unwrap();
 
-        let address = Ledger::generate_credential_from_witness().address;
+        let address = Ledger::get_constant_credential_from_witness().address;
         let txid = rpc
             .send_to_address(
                 &address,
@@ -808,7 +815,11 @@ mod tests {
                 None,
             )
             .unwrap();
-        let txin = rpc.ledger.create_txin(txid, 0);
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            script_sig: address.script_pubkey(),
+            ..Default::default()
+        };
         let txout = rpc
             .ledger
             .create_txout(Amount::from_sat(0x45), address.script_pubkey());
