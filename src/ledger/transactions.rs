@@ -162,15 +162,7 @@ impl Ledger {
     /// No checks for if that UTXO is spendable or not.
     #[tracing::instrument]
     pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
-        let input_value = self.calculate_transaction_input_value(transaction)?;
-        let output_value = self.calculate_transaction_output_value(transaction);
-
-        if input_value < output_value {
-            return Err(LedgerError::Transaction(format!(
-                "Input amount is smaller than output amount: {} < {}",
-                input_value, output_value
-            )));
-        }
+        self.check_transaction_funds(transaction)?;
 
         let mut txouts = vec![];
         for input in transaction.input.iter() {
@@ -224,6 +216,21 @@ impl Ledger {
         }
 
         Ok(())
+    }
+
+    /// Checks if transactions input amount is equal or bigger than the output
+    /// amount.
+    pub fn check_transaction_funds(&self, transaction: &Transaction) -> Result<(), LedgerError> {
+        let input_value = self.calculate_transaction_input_value(transaction)?;
+        let output_value = self.calculate_transaction_output_value(transaction);
+
+        if input_value < output_value {
+            Err(LedgerError::InputFundsNotEnough(
+                output_value.to_sat() - input_value.to_sat(),
+            ))
+        } else {
+            Ok(())
+        }
     }
 
     /// Calculates a transaction's total output value.

@@ -32,7 +32,7 @@ impl RpcApiWrapper for bitcoincore_rpc::Client {
 }
 
 /// Mock Bitcoin RPC client.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Client {
     /// Bitcoin ledger.
     ledger: Ledger,

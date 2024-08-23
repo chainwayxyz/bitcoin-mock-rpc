@@ -4,20 +4,23 @@
 //! `Client`.
 
 use super::Client;
-use crate::ledger::Ledger;
+use crate::{
+    ledger::{self, errors::LedgerError},
+    utils::encode_to_hex,
+};
 use bitcoin::{
     address::NetworkChecked,
     consensus::{encode, Encodable},
     hashes::Hash,
     params::Params,
-    Address, Amount, BlockHash, SignedAmount, Transaction, Txid,
+    Address, Amount, BlockHash, OutPoint, SignedAmount, Transaction, TxIn, TxOut, Txid,
 };
 use bitcoincore_rpc::{
     json::{
         self, GetRawTransactionResult, GetRawTransactionResultVin,
         GetRawTransactionResultVinScriptSig, GetRawTransactionResultVout,
         GetRawTransactionResultVoutScriptPubKey, GetTransactionResult, GetTransactionResultDetail,
-        GetTransactionResultDetailCategory, GetTxOutResult, WalletTxInfo,
+        GetTransactionResultDetailCategory, GetTxOutResult, SignRawTransactionResult, WalletTxInfo,
     },
     Error, RpcApi,
 };
@@ -276,7 +279,7 @@ impl RpcApi for Client {
         _label: Option<&str>,
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
-        let address = Ledger::generate_address_from_witness();
+        let address = ledger::Ledger::get_constant_credential_from_witness().address;
 
         Ok(address.as_unchecked().to_owned())
     }
@@ -353,12 +356,144 @@ impl RpcApi for Client {
     fn get_block_count(&self) -> bitcoincore_rpc::Result<u64> {
         Ok(self.ledger.get_block_height()?.into())
     }
+
+    fn fund_raw_transaction<R: bitcoincore_rpc::RawTx>(
+        &self,
+        tx: R,
+        _options: Option<&json::FundRawTransactionOptions>,
+        _is_witness: Option<bool>,
+    ) -> bitcoincore_rpc::Result<json::FundRawTransactionResult> {
+        let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
+        tracing::debug!("Decoded input transaction: {transaction:?}");
+
+        let mut hex: Vec<u8> = Vec::new();
+        let tx = encode_to_hex(&transaction);
+        tx.consensus_encode(&mut hex).unwrap();
+
+        let diff = match self.ledger.check_transaction_funds(&transaction) {
+            // If input amount is sufficient, no need to modify anything.
+            Ok(()) => {
+                return Ok(json::FundRawTransactionResult {
+                    hex,
+                    fee: Amount::from_sat(0),
+                    change_position: -1,
+                })
+            }
+            // Input funds are lower than the output funds, use the difference.
+            Err(LedgerError::InputFundsNotEnough(diff)) => diff,
+            // Other ledger errors.
+            Err(e) => return Err(e.into()),
+        };
+
+        tracing::debug!(
+            "Input funds are {diff} sats lower than the output sats, adding new input."
+        );
+
+        // Generate a new txout.
+        let address = self.get_new_address(None, None)?.assume_checked();
+        let txid = self.send_to_address(
+            &address,
+            Amount::from_sat(diff * diff),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )?;
+
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            ..Default::default()
+        };
+
+        transaction.input.insert(0, txin);
+        tracing::debug!("New transaction: {transaction:?}");
+
+        let tx = encode_to_hex(&transaction);
+        let mut hex: Vec<u8> = Vec::new();
+        tx.consensus_encode(&mut hex).unwrap();
+
+        Ok(json::FundRawTransactionResult {
+            hex,
+            fee: Amount::from_sat(0),
+            change_position: 0,
+        })
+    }
+
+    fn sign_raw_transaction_with_wallet<R: bitcoincore_rpc::RawTx>(
+        &self,
+        tx: R,
+        _utxos: Option<&[json::SignRawTransactionInput]>,
+        _sighash_type: Option<json::SigHashType>,
+    ) -> bitcoincore_rpc::Result<json::SignRawTransactionResult> {
+        let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
+        tracing::debug!("Decoded input transaction: {transaction:?}");
+
+        let credentials = ledger::Ledger::get_constant_credential_from_witness();
+
+        let mut txouts: Vec<TxOut> = Vec::new();
+        for input in transaction.input.clone() {
+            let tx = match self.get_raw_transaction(&input.previous_output.txid, None) {
+                Ok(tx) => tx,
+                Err(e) => return Err(e),
+            };
+
+            let txout = match tx.output.get(input.previous_output.vout as usize) {
+                Some(txout) => txout,
+                None => {
+                    return Err(LedgerError::Transaction(format!(
+                        "No txout for {:?}",
+                        input.previous_output
+                    ))
+                    .into())
+                }
+            };
+
+            txouts.push(txout.clone());
+        }
+
+        let inputs: Vec<TxIn> = transaction
+            .input
+            .iter()
+            .enumerate()
+            .map(|(idx, input)| {
+                let mut input = input.to_owned();
+                tracing::trace!("Examining input {input:?}");
+
+                if input.witness.is_empty()
+                    && txouts[idx].script_pubkey == credentials.address.script_pubkey()
+                {
+                    tracing::debug!(
+                        "Signing input {input:?} with witness {:?}",
+                        credentials.witness.clone().unwrap()
+                    );
+                    input.witness = credentials.witness.clone().unwrap();
+                }
+
+                input
+            })
+            .collect();
+
+        transaction.input = inputs;
+        tracing::trace!("Final inputs {:?}", transaction.input);
+
+        let mut hex: Vec<u8> = Vec::new();
+        let tx = encode_to_hex(&transaction);
+        tx.consensus_encode(&mut hex).unwrap();
+
+        Ok(SignRawTransactionResult {
+            hex,
+            complete: true,
+            errors: None,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{ledger::Ledger, Client, RpcApiWrapper};
-    use bitcoin::{Amount, Network, OutPoint, TxIn};
+    use crate::{ledger::Ledger, utils::decode_from_hex, Client, RpcApiWrapper};
+    use bitcoin::{consensus::Decodable, Amount, Network, OutPoint, Transaction, TxIn};
     use bitcoincore_rpc::RpcApi;
 
     #[test]
@@ -644,5 +779,87 @@ mod tests {
         rpc.ledger.mine_block(&address).unwrap();
 
         assert_eq!(rpc.get_block_count().unwrap(), 1);
+    }
+
+    #[test]
+    fn fund_raw_transaction() {
+        let rpc = Client::new("fund_raw_transaction", bitcoincore_rpc::Auth::None).unwrap();
+
+        let address = Ledger::generate_credential_from_witness().address;
+        let txid = rpc
+            .send_to_address(
+                &address,
+                Amount::from_sat(0x1F),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        let txin = rpc.ledger.create_txin(txid, 0);
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
+        let og_tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
+
+        let res = rpc.fund_raw_transaction(&og_tx, None, None).unwrap();
+        let tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
+        let tx = decode_from_hex::<Transaction>(tx).unwrap();
+
+        assert_ne!(og_tx, tx);
+        assert_eq!(res.change_position, 0);
+
+        let res = rpc.fund_raw_transaction(&tx, None, None).unwrap();
+        let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
+        let new_tx = decode_from_hex::<Transaction>(new_tx).unwrap();
+
+        assert_eq!(tx, new_tx);
+        assert_eq!(res.change_position, -1);
+    }
+
+    #[test]
+    fn sign_raw_transaction_with_wallet() {
+        let rpc = Client::new(
+            "sign_raw_transaction_with_wallet",
+            bitcoincore_rpc::Auth::None,
+        )
+        .unwrap();
+
+        let address = Ledger::get_constant_credential_from_witness().address;
+        let txid = rpc
+            .send_to_address(
+                &address,
+                Amount::from_sat(0x1F),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            script_sig: address.script_pubkey(),
+            ..Default::default()
+        };
+        let txout = rpc
+            .ledger
+            .create_txout(Amount::from_sat(0x45), address.script_pubkey());
+        let tx = rpc
+            .ledger
+            .create_transaction(vec![txin.clone()], vec![txout]);
+
+        assert!(txin.witness.is_empty());
+
+        let res = rpc
+            .sign_raw_transaction_with_wallet(&tx, None, None)
+            .unwrap();
+        let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
+        let new_tx = decode_from_hex::<Transaction>(new_tx).unwrap();
+
+        assert!(!new_tx.input.first().unwrap().witness.is_empty());
     }
 }

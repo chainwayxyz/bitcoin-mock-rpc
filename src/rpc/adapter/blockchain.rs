@@ -1,6 +1,6 @@
 //! # Blockchain RPCs
 
-use super::{decode_from_hex, encode_decode_to_rpc_error, encode_to_hex};
+use crate::utils::{decode_from_hex, encode_decode_to_rpc_error, encode_to_hex};
 use crate::Client;
 use bitcoin::{consensus::Decodable, BlockHash, Txid};
 use bitcoincore_rpc::{Error, RpcApi};
@@ -8,7 +8,7 @@ use bitcoincore_rpc::{Error, RpcApi};
 pub fn getbestblockhash(client: &Client) -> Result<String, Error> {
     let res = client.get_best_block_hash()?;
 
-    Ok(encode_to_hex(res))
+    Ok(encode_to_hex(&res))
 }
 
 pub fn getblock(
@@ -23,7 +23,7 @@ pub fn getblock(
     };
 
     let res = client.get_block(&blockhash)?;
-    let encoded = encode_to_hex(res);
+    let encoded = encode_to_hex(&res);
 
     match verbosity {
         None | Some(1) => Ok(encoded),
@@ -38,7 +38,7 @@ pub fn getblockcount(client: &Client) -> Result<usize, Error> {
 pub fn getblockhash(client: &Client, height: usize) -> Result<String, Error> {
     let block_hash = client.get_block_hash(height as u64)?;
 
-    Ok(encode_to_hex(block_hash))
+    Ok(encode_to_hex(&block_hash))
 }
 
 pub fn getblockheader(
@@ -51,7 +51,7 @@ pub fn getblockheader(
 
     match verbose {
         None | Some(true) => Ok(serde_json::to_string(&header).unwrap()),
-        Some(false) => Ok(encode_to_hex(header)),
+        Some(false) => Ok(encode_to_hex(&header)),
     }
 }
 
