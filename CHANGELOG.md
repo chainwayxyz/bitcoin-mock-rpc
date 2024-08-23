@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Logging
   - RPC server binary can output logs
   - Tests print logs
+- 2 new RPC functions
+  - fund_raw_transaction and sign_raw_transaction_with_wallet
 
 ## [0.0.7] - 2024-08-15
 
