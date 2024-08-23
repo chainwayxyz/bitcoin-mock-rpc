@@ -13,7 +13,7 @@ use bitcoin::{
     consensus::{encode, Encodable},
     hashes::Hash,
     params::Params,
-    Address, Amount, BlockHash, SignedAmount, Transaction, TxIn, Txid,
+    Address, Amount, BlockHash, OutPoint, SignedAmount, Transaction, TxIn, Txid,
 };
 use bitcoincore_rpc::{
     json::{
@@ -402,7 +402,11 @@ impl RpcApi for Client {
             None,
         )?;
 
-        let txin = self.ledger.create_txin(txid, 0);
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            script_sig: address.script_pubkey(),
+            ..Default::default()
+        };
 
         transaction.input.insert(0, txin);
         tracing::debug!("New transaction: {transaction:?}");
