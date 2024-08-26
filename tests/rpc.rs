@@ -41,9 +41,9 @@ fn address_related() {
 
     let client = bitcoincore_rpc::Client::new(url.as_str(), bitcoincore_rpc::Auth::None).unwrap();
 
-    let _address = client.get_new_address(None, None).unwrap();
+    let address = client.get_new_address(None, None).unwrap();
 
-    // client
-    //     .generate_to_address(101, &address.assume_checked())
-    //     .unwrap();
+    client
+        .generate_to_address(101, &address.assume_checked())
+        .unwrap();
 }

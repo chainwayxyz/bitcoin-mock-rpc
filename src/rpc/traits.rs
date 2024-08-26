@@ -49,7 +49,7 @@ pub trait Rpc {
         nblocks: usize,
         address: String,
         maxtries: Option<usize>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<Vec<String>, ErrorObjectOwned>;
 
     #[method(name = "getrawtransaction")]
     async fn getrawtransaction(
@@ -156,7 +156,7 @@ impl RpcServer for Client {
         nblocks: usize,
         address: String,
         maxtries: Option<usize>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<Vec<String>, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::generatetoaddress(self, nblocks, address, maxtries))
     }
 
