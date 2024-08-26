@@ -5,15 +5,15 @@
 //! correctness of the call results aren't necessarily important for these test.
 //! It is the job of other tests.
 
-use bitcoin_mock_rpc::rpc::{spawn_rpc_server, start_server_thread};
+use bitcoin_mock_rpc::rpc::spawn_rpc_server;
 use bitcoincore_rpc::RpcApi;
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::{http_client::HttpClient, rpc_params};
 
 #[tokio::test]
 async fn check_server_availability() {
-    let server_addr = spawn_rpc_server(None, None).await.unwrap();
-    let url = format!("http://{}", server_addr);
+    let server = spawn_rpc_server(None, None).unwrap();
+    let url = format!("http://{}", server.0);
     println!("Server URL: {url}");
 
     let client = HttpClient::builder().build(url).unwrap();
@@ -23,21 +23,20 @@ async fn check_server_availability() {
     println!("Server response: {:?}", response);
 }
 
-#[tokio::test]
-async fn create_connection() {
-    let address = spawn_rpc_server(None, None).await.unwrap();
-    let url = address.to_string();
+#[test]
+fn create_connection() {
+    let server = spawn_rpc_server(None, None).unwrap();
+    let url = server.0.to_string();
     println!("Server started at {url}");
 
     let _should_not_panic =
         bitcoincore_rpc::Client::new(url.as_str(), bitcoincore_rpc::Auth::None).unwrap();
 }
 
-#[tokio::test]
-async fn address_related() {
-    let _ = start_server_thread("127.0.0.1:1024".to_string());
-
-    let url = "127.0.0.1:1024".to_string();
+#[test]
+fn address_related() {
+    let server = spawn_rpc_server(None, None).unwrap();
+    let url = server.0.to_string();
     println!("Server started at {url}");
 
     let client = bitcoincore_rpc::Client::new(url.as_str(), bitcoincore_rpc::Auth::None).unwrap();
