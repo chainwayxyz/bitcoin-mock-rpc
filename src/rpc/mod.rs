@@ -8,6 +8,7 @@ use crate::{Client, RpcApiWrapper};
 use jsonrpsee::server::middleware::rpc::RpcServiceT;
 use jsonrpsee::server::{RpcServiceBuilder, Server};
 use jsonrpsee::types::Request;
+use std::thread::JoinHandle;
 use std::{io::Error, net::SocketAddr, net::TcpListener};
 use traits::RpcServer;
 
@@ -74,6 +75,39 @@ async fn start_server(url: &str) -> Result<SocketAddr, Error> {
     tokio::spawn(handle.stopped());
 
     Ok(addr)
+}
+
+pub fn start_server_thread(url: String) -> JoinHandle<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let handle = std::thread::spawn(move || {
+        let mut rt = tokio::runtime::Builder::new_multi_thread();
+        rt.enable_all();
+        let rt = rt.build().unwrap();
+
+        rt.block_on(async {
+            let rpc_middleware = RpcServiceBuilder::new().layer_fn(Logger);
+
+            let server = Server::builder()
+                .set_rpc_middleware(rpc_middleware)
+                .build(url.clone())
+                .await
+                .unwrap();
+
+            let client = Client::new(&url, bitcoincore_rpc::Auth::None).unwrap();
+            let handle = server.start(client.into_rpc());
+
+            // Server is up and adam.
+            tx.send(()).expect("Could not send signal on channel.");
+
+            // Run forever.
+            handle.stopped().await
+        });
+    });
+
+    rx.recv().expect("Could not receive from channel.");
+
+    handle
 }
 
 /// Finds the first empty port for the given `host`.
