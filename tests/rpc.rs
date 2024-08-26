@@ -7,6 +7,21 @@
 
 use bitcoin_mock_rpc::rpc::spawn_rpc_server;
 use bitcoincore_rpc::RpcApi;
+use jsonrpsee::core::client::ClientT;
+use jsonrpsee::{http_client::HttpClient, rpc_params};
+
+#[tokio::test]
+async fn check_server_availability() {
+    let server_addr = spawn_rpc_server(None, None).await.unwrap();
+    let url = format!("http://{}", server_addr);
+    println!("Server URL: {url}");
+
+    let client = HttpClient::builder().build(url).unwrap();
+    let params = rpc_params![];
+
+    let response: String = client.request("getnewaddress", params).await.unwrap();
+    println!("Server response: {:?}", response);
+}
 
 #[tokio::test]
 async fn create_connection() {
