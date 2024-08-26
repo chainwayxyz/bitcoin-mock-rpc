@@ -3,7 +3,6 @@
 //! This crate provides an RPC server that will act like the real Bitcoin RPC
 //! interface.
 
-use crate::ledger::errors::LedgerError;
 use crate::{Client, RpcApiWrapper};
 use jsonrpsee::server::middleware::rpc::RpcServiceT;
 use jsonrpsee::server::{RpcServiceBuilder, Server};
@@ -42,8 +41,8 @@ where
 /// # Parameters
 ///
 /// - host: Optional host. If is `None`, `127.0.0.1` will be used
-/// - port: Optional port. If is `None`, first available port for `host` will be
-/// used
+/// - port: Optional port. If is `None`, a random port (assigned by OS) for
+/// `host` will be used
 ///
 /// # Returns
 ///
@@ -56,11 +55,10 @@ pub fn spawn_rpc_server(
     port: Option<u16>,
 ) -> Result<(SocketAddr, JoinHandle<()>), Error> {
     let host = host.unwrap_or("127.0.0.1");
-    let port = match port {
-        Some(p) => p,
-        None => find_empty_port(host)?,
+    let url = match port {
+        Some(p) => format!("{}:{}", host, p),
+        None => TcpListener::bind((host, 0))?.local_addr()?.to_string(),
     };
-    let url = format!("{}:{}", host, port);
 
     Ok(start_server_thread(url))
 }
@@ -116,33 +114,8 @@ pub fn start_server_thread(url: String) -> (SocketAddr, JoinHandle<()>) {
     (address, handle)
 }
 
-/// Finds the first empty port for the given `host`.
-fn find_empty_port(host: &str) -> Result<u16, Error> {
-    for port in 1..0xFFFFu16 {
-        if TcpListener::bind((host, port)).is_ok() {
-            return Ok(port);
-        }
-    }
-
-    Err(Error::other(LedgerError::Rpc(format!(
-        "No port is available for host {}",
-        host
-    ))))
-}
-
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn find_empty_port() {
-        let host = "127.0.0.1";
-
-        println!(
-            "Port {} is empty for {}",
-            super::find_empty_port(host).unwrap(),
-            host
-        );
-    }
-
     #[test]
     fn spawn_rpc_server() {
         let server = super::spawn_rpc_server(None, None).unwrap();
