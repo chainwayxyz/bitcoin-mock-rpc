@@ -1,10 +1,9 @@
 //! # RPC Server Starter
 
 use bitcoin_mock_rpc::rpc::spawn_rpc_server;
-use std::{env, time::Duration};
+use std::env;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     println!("Bitcoin Mock Rpc (C) Chainway, 2024");
     println!(
         "Usage: {} [HOST] [PORT]",
@@ -12,14 +11,10 @@ async fn main() {
     );
 
     let server_info = handle_args();
-    let address = spawn_rpc_server(server_info.0.as_deref(), server_info.1)
-        .await
-        .unwrap();
-    println!("Server started at {}", address);
+    let server = spawn_rpc_server(server_info.0.as_deref(), server_info.1).unwrap();
+    println!("Server started at {}", server.0);
 
-    loop {
-        std::thread::sleep(Duration::from_secs(100));
-    }
+    server.1.join().unwrap()
 }
 
 fn handle_args() -> (Option<String>, Option<u16>) {

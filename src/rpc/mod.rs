@@ -8,6 +8,7 @@ use crate::{Client, RpcApiWrapper};
 use jsonrpsee::server::middleware::rpc::RpcServiceT;
 use jsonrpsee::server::{RpcServiceBuilder, Server};
 use jsonrpsee::types::Request;
+use std::thread::JoinHandle;
 use std::{io::Error, net::SocketAddr, net::TcpListener};
 use traits::RpcServer;
 
@@ -41,13 +42,19 @@ where
 /// # Parameters
 ///
 /// - host: Optional host. If is `None`, `127.0.0.1` will be used
-/// - port: Optional port. If is `None`, first available port for `host` will be used
+/// - port: Optional port. If is `None`, first available port for `host` will be
+/// used
 ///
 /// # Returns
 ///
-/// URL on success, `std::io::Error` otherwise.
+/// - `SocketAddr`: Address of the server
+/// - `JoinHandle`: Server's handle that **must not be dropped** as long as
+/// server lives
 #[tracing::instrument]
-pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<SocketAddr, Error> {
+pub fn spawn_rpc_server(
+    host: Option<&str>,
+    port: Option<u16>,
+) -> Result<(SocketAddr, JoinHandle<()>), Error> {
     let host = host.unwrap_or("127.0.0.1");
     let port = match port {
         Some(p) => p,
@@ -55,25 +62,58 @@ pub async fn spawn_rpc_server(host: Option<&str>, port: Option<u16>) -> Result<S
     };
     let url = format!("{}:{}", host, port);
 
-    start_server(url.as_str()).await
+    Ok(start_server_thread(url))
 }
 
-async fn start_server(url: &str) -> Result<SocketAddr, Error> {
-    let rpc_middleware = RpcServiceBuilder::new().layer_fn(Logger);
+/// Starts a thread that hosts RPC server.
+///
+/// # Parameters
+///
+/// - url: Server's intended address
+///
+/// # Returns
+///
+/// - `SocketAddr`: Address of the server
+/// - `JoinHandle`: Server's handle that must live as long as server
+pub fn start_server_thread(url: String) -> (SocketAddr, JoinHandle<()>) {
+    let (tx, rx) = std::sync::mpsc::channel();
 
-    let server = Server::builder()
-        .set_rpc_middleware(rpc_middleware)
-        .build(url)
-        .await?;
+    let handle = std::thread::spawn(move || {
+        let mut rt = tokio::runtime::Builder::new_multi_thread();
+        rt.enable_all();
+        let rt = rt.build().unwrap();
+        tracing::trace!("New Tokio runtime is created for server with URL {url}");
 
-    let addr = server.local_addr()?;
+        rt.block_on(async {
+            let rpc_middleware = RpcServiceBuilder::new().layer_fn(Logger);
 
-    let client = Client::new(url, bitcoincore_rpc::Auth::None).unwrap();
-    let handle = server.start(client.into_rpc());
+            let server = Server::builder()
+                .set_rpc_middleware(rpc_middleware)
+                .build(url.clone())
+                .await
+                .unwrap();
 
-    tokio::spawn(handle.stopped());
+            let address = server.local_addr().unwrap();
 
-    Ok(addr)
+            // Start server.
+            let client = Client::new(&url, bitcoincore_rpc::Auth::None).unwrap();
+            let handle = server.start(client.into_rpc());
+
+            // Server is up and we can notify that it is.
+            tx.send(address).expect("Could not send socket address.");
+
+            // Run forever.
+            handle.stopped().await
+        });
+    });
+
+    let address = rx
+        .recv()
+        .expect("Could not receive socket address from channel.");
+
+    tracing::trace!("Server started for URL {address:?}");
+
+    (address, handle)
 }
 
 /// Finds the first empty port for the given `host`.
@@ -103,9 +143,9 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn spawn_rpc_server() {
-        let address = super::spawn_rpc_server(None, None).await.unwrap();
-        println!("Server started at {}", address);
+    #[test]
+    fn spawn_rpc_server() {
+        let server = super::spawn_rpc_server(None, None).unwrap();
+        println!("Server started at {}", server.0);
     }
 }
