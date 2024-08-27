@@ -135,7 +135,7 @@ where
     Ok(deserialize_hex::<T>(&hex)?)
 }
 
-pub fn encode_decode_to_rpc_error(
+pub fn _encode_decode_to_rpc_error(
     error: bitcoin::consensus::encode::Error,
 ) -> bitcoincore_rpc::Error {
     bitcoincore_rpc::Error::BitcoinSerialization(bitcoin::consensus::encode::FromHexError::Decode(
