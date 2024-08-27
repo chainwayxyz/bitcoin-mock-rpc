@@ -173,7 +173,7 @@ pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError>
 #[cfg(test)]
 mod tests {
     use super::{decode_from_hex, encode_to_hex};
-    use bitcoin::{hashes::sha256d::Hash, TxMerkleNode, Txid};
+    use bitcoin::{absolute::Height, hashes::sha256d::Hash, transaction::Version, Address, Amount, OutPoint, Transaction, TxIn, TxMerkleNode, TxOut, Txid};
     use std::str::FromStr;
 
     #[test]
@@ -257,5 +257,34 @@ mod tests {
         let decoded_txid = decode_from_hex::<Txid>(encoded_txid).unwrap();
 
         assert_eq!(txid, decoded_txid);
+    }
+
+    #[test]
+    fn encode_decode_transaction() {
+        let txid = Txid::from_raw_hash(
+            Hash::from_str("e6d467860551868fe599889ea9e622ae1ff08891049e934f83a783a3ea5fbc12")
+                .unwrap(),
+        );
+        let address = Address::from_str("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh").unwrap().assume_checked();
+        let txin = TxIn {
+            previous_output: OutPoint { txid, vout: 0 },
+            script_sig: address.script_pubkey(),
+            ..Default::default()
+        };
+        let txout = TxOut {
+            value: Amount::from_sat(0x45),
+            script_pubkey: address.script_pubkey(),
+        };
+        let tx = Transaction {
+            input: vec![txin],
+            output: vec![txout],
+            version: Version::TWO,
+            lock_time: bitcoin::absolute::LockTime::Blocks(Height::ZERO),
+        };
+
+        let encoded_tx = encode_to_hex(&tx);
+        let decoded_tx = decode_from_hex::<Transaction>(encoded_tx).unwrap();
+
+        assert_eq!(tx, decoded_tx);
     }
 }
