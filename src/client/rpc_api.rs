@@ -189,16 +189,16 @@ impl RpcApi for Client {
             .iter()
             .map(|output| {
                 amount += output.value;
+                let address = match Address::from_script(
+                    &output.script_pubkey,
+                    Params::new(bitcoin::Network::Regtest),
+                ) {
+                    Ok(a) => Some(a.as_unchecked().clone()),
+                    Err(_) => None,
+                };
+
                 GetTransactionResultDetail {
-                    address: Some(
-                        Address::from_script(
-                            &output.script_pubkey,
-                            Params::new(bitcoin::Network::Regtest),
-                        )
-                        .unwrap()
-                        .as_unchecked()
-                        .clone(),
-                    ),
+                    address,
                     category: GetTransactionResultDetailCategory::Send,
                     amount: SignedAmount::from_sat(output.value.to_sat() as i64),
                     label: None,

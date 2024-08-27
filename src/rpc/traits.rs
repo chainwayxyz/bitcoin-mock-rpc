@@ -41,7 +41,7 @@ pub trait Rpc {
         txid: String,
         n: u32,
         include_mempool: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<bitcoincore_rpc::json::GetTxOutResult, ErrorObjectOwned>;
 
     #[method(name = "generatetoaddress")]
     async fn generatetoaddress(
@@ -147,7 +147,7 @@ impl RpcServer for Client {
         txid: String,
         n: u32,
         include_mempool: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<bitcoincore_rpc::json::GetTxOutResult, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::gettxout(self, txid, n, include_mempool))
     }
 

@@ -3,7 +3,7 @@
 use crate::utils::{decode_from_hex, encode_to_hex};
 use crate::Client;
 use bitcoin::{BlockHash, Txid};
-use bitcoincore_rpc::{Error, RpcApi};
+use bitcoincore_rpc::{json, Error, RpcApi};
 use std::str::FromStr;
 
 pub fn getbestblockhash(client: &Client) -> Result<String, Error> {
@@ -62,7 +62,7 @@ pub fn gettxout(
     txid: String,
     n: u32,
     include_mempool: Option<bool>,
-) -> Result<String, Error> {
+) -> Result<json::GetTxOutResult, Error> {
     let txid = match Txid::from_str(&txid) {
         Ok(txid) => txid,
         Err(e) => return Err(Error::ReturnedError(e.to_string())),
@@ -71,8 +71,8 @@ pub fn gettxout(
     let txout = client.get_tx_out(&txid, n, include_mempool)?;
 
     match txout {
-        Some(to) => Ok(serde_json::to_string(&to)?),
-        None => Ok("{}".to_string()),
+        Some(to) => Ok(to),
+        None => Err(Error::UnexpectedStructure),
     }
 }
 

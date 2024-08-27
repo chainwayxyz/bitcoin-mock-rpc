@@ -67,9 +67,9 @@ fn block_related() {
     let header = rpc.get_block_header(&tip_hash).unwrap();
     assert_eq!(block.header, header);
 
-    // let txout = rpc
-    //     .get_tx_out(&block.txdata.first().unwrap().compute_txid(), 0, None)
-    //     .unwrap()
-    //     .unwrap();
-    // assert_eq!(txout.confirmations, 101)
+    let txout = rpc
+        .get_tx_out(&block.txdata.first().unwrap().compute_txid(), 0, None)
+        .unwrap()
+        .unwrap();
+    assert_eq!(txout.confirmations, 1);
 }
