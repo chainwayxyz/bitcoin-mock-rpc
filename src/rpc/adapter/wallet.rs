@@ -1,7 +1,9 @@
 //! # Wallet RPCs
 
-use crate::utils::{decode_from_hex, encode_to_hex};
-use crate::Client;
+use crate::{
+    utils::{decode_from_hex, encode_to_hex},
+    Client,
+};
 use bitcoin::{Address, Amount, Txid};
 use bitcoincore_rpc::{json, Error, RpcApi};
 use std::str::FromStr;
@@ -39,7 +41,7 @@ pub fn gettransaction(
 pub fn sendtoaddress(
     client: &Client,
     address: String,
-    amount: String,
+    amount: f64,
     comment: Option<&str>,
     comment_to: Option<&str>,
     subtractfeefromamount: Option<bool>,
@@ -50,23 +52,15 @@ pub fn sendtoaddress(
 ) -> Result<String, Error> {
     let address = match Address::from_str(&address) {
         Ok(a) => a,
-        Err(_e) => {
-            return Err(bitcoincore_rpc::Error::BitcoinSerialization(
-                bitcoin::consensus::encode::FromHexError::Decode(
-                    bitcoin::consensus::DecodeError::TooManyBytes, // TODO: Return the actual error.
-                ),
-            ));
+        Err(e) => {
+            return Err(bitcoincore_rpc::Error::ReturnedError(e.to_string()));
         }
     }
     .assume_checked();
-    let amount = match Amount::from_str(&amount) {
+    let amount = match Amount::from_float_in(amount, bitcoin::Denomination::Bitcoin) {
         Ok(a) => a,
-        Err(_e) => {
-            return Err(bitcoincore_rpc::Error::BitcoinSerialization(
-                bitcoin::consensus::encode::FromHexError::Decode(
-                    bitcoin::consensus::DecodeError::TooManyBytes, // TODO: Return the actual error.
-                ),
-            ));
+        Err(e) => {
+            return Err(bitcoincore_rpc::Error::InvalidAmount(e));
         }
     };
 

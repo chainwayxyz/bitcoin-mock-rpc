@@ -85,7 +85,7 @@ pub trait Rpc {
     async fn sendtoaddress(
         &self,
         address: String,
-        amount: String,
+        amount: f64,
         comment: Option<&str>,
         comment_to: Option<&str>,
         subtractfeefromamount: Option<bool>,
@@ -202,7 +202,7 @@ impl RpcServer for Client {
     async fn sendtoaddress(
         &self,
         address: String,
-        amount: String,
+        amount: f64,
         comment: Option<&str>,
         comment_to: Option<&str>,
         subtractfeefromamount: Option<bool>,
