@@ -72,7 +72,6 @@ mod tests {
     use bitcoincore_rpc::RpcApi;
 
     #[test]
-    #[ignore = "reason"]
     fn getrawtransaction() {
         let client = Client::new("getrawtransaction", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -92,8 +91,7 @@ mod tests {
 
         let tx = client.get_raw_transaction(&txid, None).unwrap();
 
-        let encoded_tx =
-            super::getrawtransaction(&client, encode_to_hex(&txid), None, None).unwrap();
+        let encoded_tx = super::getrawtransaction(&client, txid.to_string(), None, None).unwrap();
         let encoded_tx = decode_from_hex(encoded_tx).unwrap();
 
         assert_eq!(tx, encoded_tx);
