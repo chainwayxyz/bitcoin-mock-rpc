@@ -1,11 +1,11 @@
 //! # RPC Server Starter
-//! 
+//!
 //! This binary can start an RPC server for listening RPC calls. Can be spawned
 //! multiple times. Each server will have an independent blockchain.
 
-use std::process::exit;
 use bitcoin_mock_rpc::rpc::spawn_rpc_server;
 use clap::Parser;
+use std::process::exit;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -27,21 +27,22 @@ struct Args {
 /// Initializes tracing.
 fn initialize_logger(level: u8) {
     let level = match level {
-        0 => return,
+        0 => return, // No tracing output
         1 => LevelFilter::ERROR,
         2 => LevelFilter::WARN,
         3 => LevelFilter::INFO,
         4 => LevelFilter::DEBUG,
         5 => LevelFilter::TRACE,
         _ => {
-            eprintln!("Verbosity level can be between 0 and 5 (given {level})!");
+            eprintln!("Verbosity level can only be between 0 and 5 (given {level})!");
             exit(1);
         }
     };
 
     let layer = fmt::layer().with_test_writer();
     let filter = EnvFilter::builder()
-    .with_default_directive(level.into()).from_env_lossy();
+        .with_default_directive(level.into())
+        .from_env_lossy();
 
     tracing_subscriber::registry()
         .with(layer)
