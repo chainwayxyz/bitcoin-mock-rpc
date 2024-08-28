@@ -1,9 +1,6 @@
 //! # Wallet RPCs
 
-use crate::{
-    utils::{decode_from_hex, encode_to_hex},
-    Client,
-};
+use crate::Client;
 use bitcoin::{Address, Amount, Txid};
 use bitcoincore_rpc::{json, Error, RpcApi};
 use std::str::FromStr;
@@ -29,7 +26,7 @@ pub fn gettransaction(
     include_watchonly: Option<bool>,
     _verbose: Option<bool>,
 ) -> Result<String, Error> {
-    let txid = decode_from_hex::<Txid>(txid)?;
+    let txid = Txid::from_str(&txid).unwrap();
 
     let tx = client.get_transaction(&txid, include_watchonly)?;
 
@@ -75,7 +72,7 @@ pub fn sendtoaddress(
         None,
     )?;
 
-    Ok(encode_to_hex::<Txid>(&txid))
+    Ok(txid.to_string())
 }
 
 #[cfg(test)]

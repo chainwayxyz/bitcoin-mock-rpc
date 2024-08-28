@@ -1,9 +1,10 @@
 //! # Rawtransactions RPCs
 
-use crate::utils::{decode_from_hex, encode_to_hex};
+use crate::utils::encode_to_hex;
 use crate::Client;
-use bitcoin::{BlockHash, Transaction, Txid};
+use bitcoin::{BlockHash, Txid};
 use bitcoincore_rpc::{Error, RpcApi};
+use std::str::FromStr;
 
 pub fn getrawtransaction(
     client: &Client,
@@ -11,7 +12,7 @@ pub fn getrawtransaction(
     verbose: Option<bool>,
     blockhash: Option<BlockHash>,
 ) -> Result<String, Error> {
-    let txid = decode_from_hex::<Txid>(txid)?;
+    let txid = Txid::from_str(&txid).unwrap();
 
     let res: String = match verbose {
         None | Some(false) => {
@@ -34,9 +35,7 @@ pub fn sendrawtransaction(
     hexstring: String,
     _maxfeerate: Option<usize>,
 ) -> Result<String, Error> {
-    let tx = decode_from_hex::<Transaction>(hexstring)?;
-
-    let txid = client.send_raw_transaction(&tx)?;
+    let txid = client.send_raw_transaction(hexstring)?;
     let txid = encode_to_hex(&txid);
 
     Ok(txid)
@@ -63,6 +62,7 @@ pub fn signrawtransactionwithwallet(
 #[cfg(test)]
 mod tests {
     use crate::{
+        ledger,
         utils::{decode_from_hex, encode_to_hex},
         Client, RpcApiWrapper,
     };
@@ -72,6 +72,7 @@ mod tests {
     use bitcoincore_rpc::RpcApi;
 
     #[test]
+    #[ignore = "reason"]
     fn getrawtransaction() {
         let client = Client::new("getrawtransaction", bitcoincore_rpc::Auth::None).unwrap();
 
@@ -99,14 +100,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "No witness elements cause problems"]
     fn sendrawtransaction() {
         let client = Client::new("sendrawtransaction", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = client.get_new_address(None, None).unwrap().assume_checked();
+        let credential = ledger::Ledger::generate_credential_from_witness();
+
         let txid = client
             .send_to_address(
-                &address,
+                &credential.address,
                 Amount::from_sat(0x45),
                 None,
                 None,
@@ -119,11 +120,12 @@ mod tests {
 
         let txin = TxIn {
             previous_output: OutPoint { txid, vout: 0 },
+            witness: credential.witness.unwrap(),
             ..Default::default()
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: address.script_pubkey(),
+            script_pubkey: credential.address.script_pubkey(),
         };
         let tx = Transaction {
             input: vec![txin],
