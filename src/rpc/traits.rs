@@ -101,7 +101,7 @@ pub trait Rpc {
         hexstring: String,
         options: Option<String>,
         iswitness: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<bitcoincore_rpc::json::FundRawTransactionResult, ErrorObjectOwned>;
 
     #[method(name = "signrawtransactionwithwallet")]
     async fn signrawtransactionwithwallet(
@@ -230,7 +230,7 @@ impl RpcServer for Client {
         hexstring: String,
         options: Option<String>,
         iswitness: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<bitcoincore_rpc::json::FundRawTransactionResult, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::fundrawtransaction(
             self, hexstring, options, iswitness,
         ))

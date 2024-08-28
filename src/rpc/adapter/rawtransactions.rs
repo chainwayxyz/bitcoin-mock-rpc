@@ -2,7 +2,7 @@
 
 use crate::utils::encode_to_hex;
 use crate::Client;
-use bitcoin::{BlockHash, Txid};
+use bitcoin::{consensus::encode::deserialize_hex, BlockHash, Transaction, Txid};
 use bitcoincore_rpc::{Error, RpcApi};
 use std::str::FromStr;
 
@@ -42,12 +42,14 @@ pub fn sendrawtransaction(
 }
 
 pub fn fundrawtransaction(
-    _client: &Client,
-    _hexstring: String,
+    client: &Client,
+    hexstring: String,
     _options: Option<String>,
-    _iswitness: Option<bool>,
-) -> Result<String, Error> {
-    todo!()
+    iswitness: Option<bool>,
+) -> Result<bitcoincore_rpc::json::FundRawTransactionResult, Error> {
+    let tx = deserialize_hex::<Transaction>(&hexstring).unwrap();
+
+    client.fund_raw_transaction(&tx, None, iswitness)
 }
 
 pub fn signrawtransactionwithwallet(

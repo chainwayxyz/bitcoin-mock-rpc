@@ -6,6 +6,8 @@
 //! It is the job of other tests.
 
 use bitcoin::absolute::Height;
+use bitcoin::consensus::encode::deserialize_hex;
+use bitcoin::consensus::Decodable;
 use bitcoin::transaction::Version;
 use bitcoin::{Amount, OutPoint, Transaction, TxIn, TxOut};
 use bitcoin_mock_rpc::rpc::spawn_rpc_server;
@@ -123,4 +125,36 @@ fn transaction_related_rpc_calls() {
 
     let new_txid = rpc.send_raw_transaction(&tx).unwrap();
     assert_ne!(txid, new_txid);
+}
+
+#[test]
+fn fund_sign_raw_transaction() {
+    let server = spawn_rpc_server(None, None).unwrap();
+    let url = server.0.to_string();
+    println!("Server started at {url}");
+
+    let rpc = bitcoincore_rpc::Client::new(url.as_str(), bitcoincore_rpc::Auth::None).unwrap();
+
+    let address = rpc.get_new_address(None, None).unwrap().assume_checked();
+
+    let txout = TxOut {
+        value: Amount::from_sat(0x45),
+        script_pubkey: address.script_pubkey(),
+    };
+    let tx = Transaction {
+        input: vec![],
+        output: vec![txout],
+        version: Version::TWO,
+        lock_time: bitcoin::absolute::LockTime::Blocks(Height::ZERO),
+    };
+
+    if rpc.send_raw_transaction(&tx).is_ok() {
+        assert!(false);
+    }
+
+    let new_tx = rpc.fund_raw_transaction(&tx, None, None).unwrap();
+    assert_ne!(new_tx.change_position, -1);
+    let new_tx = String::consensus_decode(&mut new_tx.hex.as_slice()).unwrap();
+    let new_tx = deserialize_hex::<Transaction>(&new_tx).unwrap();
+    assert_ne!(tx, new_tx);
 }
