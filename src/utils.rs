@@ -173,7 +173,10 @@ pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError>
 #[cfg(test)]
 mod tests {
     use super::{decode_from_hex, encode_to_hex};
-    use bitcoin::{absolute::Height, hashes::sha256d::Hash, transaction::Version, Address, Amount, OutPoint, Transaction, TxIn, TxMerkleNode, TxOut, Txid};
+    use bitcoin::{
+        absolute::Height, hashes::sha256d::Hash, transaction::Version, Address, Amount, OutPoint,
+        Transaction, TxIn, TxMerkleNode, TxOut, Txid,
+    };
     use std::str::FromStr;
 
     #[test]
@@ -265,7 +268,9 @@ mod tests {
             Hash::from_str("e6d467860551868fe599889ea9e622ae1ff08891049e934f83a783a3ea5fbc12")
                 .unwrap(),
         );
-        let address = Address::from_str("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh").unwrap().assume_checked();
+        let address = Address::from_str("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh")
+            .unwrap()
+            .assume_checked();
         let txin = TxIn {
             previous_output: OutPoint { txid, vout: 0 },
             script_sig: address.script_pubkey(),
