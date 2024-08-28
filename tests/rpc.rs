@@ -148,6 +148,7 @@ fn fund_sign_raw_transaction() {
         lock_time: bitcoin::absolute::LockTime::Blocks(Height::ZERO),
     };
 
+    // Insufficient funds.
     if rpc.send_raw_transaction(&tx).is_ok() {
         assert!(false);
     }
@@ -157,4 +158,19 @@ fn fund_sign_raw_transaction() {
     let new_tx = String::consensus_decode(&mut new_tx.hex.as_slice()).unwrap();
     let new_tx = deserialize_hex::<Transaction>(&new_tx).unwrap();
     assert_ne!(tx, new_tx);
+
+    // Non signed input.
+    if rpc.send_raw_transaction(&tx).is_ok() {
+        assert!(false);
+    }
+
+    let res = rpc
+        .sign_raw_transaction_with_wallet(&new_tx, None, None)
+        .unwrap();
+    let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
+    let new_tx = deserialize_hex::<Transaction>(&new_tx).unwrap();
+
+    assert!(!new_tx.input.first().unwrap().witness.is_empty());
+
+    rpc.send_raw_transaction(&new_tx).unwrap();
 }

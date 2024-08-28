@@ -108,8 +108,8 @@ pub trait Rpc {
         &self,
         hexstring: String,
         prevtxs: Option<String>,
-        sighashtype: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+        sighashtype: Option<String>,
+    ) -> Result<bitcoincore_rpc::json::SignRawTransactionResult, ErrorObjectOwned>;
 }
 
 #[async_trait]
@@ -240,8 +240,8 @@ impl RpcServer for Client {
         &self,
         hexstring: String,
         prevtxs: Option<String>,
-        sighashtype: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+        sighashtype: Option<String>,
+    ) -> Result<bitcoincore_rpc::json::SignRawTransactionResult, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::signrawtransactionwithwallet(
             self,
             hexstring,

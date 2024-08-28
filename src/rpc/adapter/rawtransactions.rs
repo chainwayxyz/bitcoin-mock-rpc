@@ -53,12 +53,14 @@ pub fn fundrawtransaction(
 }
 
 pub fn signrawtransactionwithwallet(
-    _client: &Client,
-    _hexstring: String,
+    client: &Client,
+    hexstring: String,
     _prevtxs: Option<String>,
-    _sighashtype: Option<bool>,
-) -> Result<String, Error> {
-    todo!()
+    _sighashtype: Option<String>,
+) -> Result<bitcoincore_rpc::json::SignRawTransactionResult, Error> {
+    let tx = deserialize_hex::<Transaction>(&hexstring).unwrap();
+
+    client.sign_raw_transaction_with_wallet(&tx, None, None)
 }
 
 #[cfg(test)]
