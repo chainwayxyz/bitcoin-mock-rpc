@@ -1,6 +1,6 @@
 [package]
 name = "bitcoin-mock-rpc"
-version = "0.0.7"
+version = "0.0.8"
 edition = "2021"
 
 [dependencies]
@@ -18,3 +18,7 @@ tokio = { version = "1.39.3", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tower = "0.4.13"
+clap = { version = "4.5.16", features = ["derive"] }
+
+[[bin]]
+name = "bitcoin_mock_rpc"
