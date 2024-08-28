@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.8] - 2024-08-28
 
 ### Added
 
@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests print logs
 - 2 new RPC functions
   - fund_raw_transaction and sign_raw_transaction_with_wallet
+- Coinbase transaction
+- RPC log middleware
+- Encode/decode utilities
+
+### Changed
+
+- Fixed wrong encode/decode operations in RPC functions
+- Fixed RPC server not responding when spawned in same process
+- RPC server ports are assigned by OS
 
 ## [0.0.7] - 2024-08-15
 
@@ -113,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generate_to_address`
   - `get_balance`
 
-[Unreleased]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.7...HEAD
+[0.0.8]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.4...v0.0.5
