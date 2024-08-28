@@ -1,9 +1,10 @@
 //! # Blockchain RPCs
 
-use crate::utils::{decode_from_hex, encode_decode_to_rpc_error, encode_to_hex};
+use crate::utils::{decode_from_hex, encode_to_hex};
 use crate::Client;
-use bitcoin::{consensus::Decodable, BlockHash, Txid};
-use bitcoincore_rpc::{Error, RpcApi};
+use bitcoin::{BlockHash, Txid};
+use bitcoincore_rpc::{json, Error, RpcApi};
+use std::str::FromStr;
 
 pub fn getbestblockhash(client: &Client) -> Result<String, Error> {
     let res = client.get_best_block_hash()?;
@@ -11,22 +12,23 @@ pub fn getbestblockhash(client: &Client) -> Result<String, Error> {
     Ok(encode_to_hex(&res))
 }
 
+#[tracing::instrument]
 pub fn getblock(
     client: &Client,
     blockhash: String,
     verbosity: Option<usize>,
 ) -> Result<String, Error> {
-    let mut blockhash = blockhash.as_bytes();
-    let blockhash = match BlockHash::consensus_decode(&mut blockhash) {
-        Ok(bh) => bh,
-        Err(e) => return Err(encode_decode_to_rpc_error(e)),
-    };
+    let blockhash = decode_from_hex::<BlockHash>(blockhash)?;
+    tracing::trace!("Decoded block hash: {blockhash:?}");
 
-    let res = client.get_block(&blockhash)?;
-    let encoded = encode_to_hex(&res);
+    let block = client.get_block(&blockhash)?;
+    let encoded = encode_to_hex(&block);
+    tracing::trace!("Block: {block:?}");
+    tracing::trace!("Encoded value: {encoded}");
 
     match verbosity {
-        None | Some(1) => Ok(encoded),
+        Some(0) => Ok(encoded),
+        None | Some(1) => Ok(serde_json::to_string(&block)?),
         _ => Err(Error::UnexpectedStructure),
     }
 }
@@ -60,14 +62,17 @@ pub fn gettxout(
     txid: String,
     n: u32,
     include_mempool: Option<bool>,
-) -> Result<String, Error> {
-    let txid = decode_from_hex::<Txid>(txid)?;
+) -> Result<json::GetTxOutResult, Error> {
+    let txid = match Txid::from_str(&txid) {
+        Ok(txid) => txid,
+        Err(e) => return Err(Error::ReturnedError(e.to_string())),
+    };
 
     let txout = client.get_tx_out(&txid, n, include_mempool)?;
 
     match txout {
-        Some(to) => Ok(serde_json::to_string_pretty(&to)?),
-        None => Ok("{}".to_string()),
+        Some(to) => Ok(to),
+        None => Err(Error::UnexpectedStructure),
     }
 }
 

@@ -1,6 +1,6 @@
 //! # Generating RPCs
 
-use crate::Client;
+use crate::{utils::encode_to_hex, Client};
 use bitcoin::Address;
 use bitcoincore_rpc::{Error, RpcApi};
 use std::str::FromStr;
@@ -10,7 +10,7 @@ pub fn generatetoaddress(
     nblocks: usize,
     address: String,
     _maxtries: Option<usize>,
-) -> Result<String, Error> {
+) -> Result<Vec<String>, Error> {
     let address = match Address::from_str(&address) {
         Ok(a) => a,
         Err(_e) => {
@@ -23,9 +23,12 @@ pub fn generatetoaddress(
     }
     .assume_checked();
 
-    let hashes = client.generate_to_address(nblocks as u64, &address)?;
+    tracing::trace!("Address converted: {address}");
 
-    Ok(serde_json::to_string_pretty(&hashes)?)
+    let hashes = client.generate_to_address(nblocks as u64, &address)?;
+    let hashes: Vec<String> = hashes.iter().map(encode_to_hex).collect();
+
+    Ok(hashes)
 }
 
 #[cfg(test)]

@@ -171,7 +171,7 @@ impl Ledger {
             Ok(qr) => qr,
             Err(e) => {
                 return Err(LedgerError::Block(format!(
-                    "Couldn't find any block with block height {}: {}",
+                    "Couldn't find any block with block hash {}: {}",
                     hash, e
                 )))
             }

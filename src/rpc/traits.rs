@@ -41,7 +41,7 @@ pub trait Rpc {
         txid: String,
         n: u32,
         include_mempool: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<bitcoincore_rpc::json::GetTxOutResult, ErrorObjectOwned>;
 
     #[method(name = "generatetoaddress")]
     async fn generatetoaddress(
@@ -49,7 +49,7 @@ pub trait Rpc {
         nblocks: usize,
         address: String,
         maxtries: Option<usize>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<Vec<String>, ErrorObjectOwned>;
 
     #[method(name = "getrawtransaction")]
     async fn getrawtransaction(
@@ -85,7 +85,7 @@ pub trait Rpc {
     async fn sendtoaddress(
         &self,
         address: String,
-        amount: String,
+        amount: f64,
         comment: Option<&str>,
         comment_to: Option<&str>,
         subtractfeefromamount: Option<bool>,
@@ -101,15 +101,15 @@ pub trait Rpc {
         hexstring: String,
         options: Option<String>,
         iswitness: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<bitcoincore_rpc::json::FundRawTransactionResult, ErrorObjectOwned>;
 
     #[method(name = "signrawtransactionwithwallet")]
     async fn signrawtransactionwithwallet(
         &self,
         hexstring: String,
         prevtxs: Option<String>,
-        sighashtype: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+        sighashtype: Option<String>,
+    ) -> Result<bitcoincore_rpc::json::SignRawTransactionResult, ErrorObjectOwned>;
 }
 
 #[async_trait]
@@ -147,7 +147,7 @@ impl RpcServer for Client {
         txid: String,
         n: u32,
         include_mempool: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<bitcoincore_rpc::json::GetTxOutResult, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::gettxout(self, txid, n, include_mempool))
     }
 
@@ -156,7 +156,7 @@ impl RpcServer for Client {
         nblocks: usize,
         address: String,
         maxtries: Option<usize>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<Vec<String>, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::generatetoaddress(self, nblocks, address, maxtries))
     }
 
@@ -202,7 +202,7 @@ impl RpcServer for Client {
     async fn sendtoaddress(
         &self,
         address: String,
-        amount: String,
+        amount: f64,
         comment: Option<&str>,
         comment_to: Option<&str>,
         subtractfeefromamount: Option<bool>,
@@ -230,7 +230,7 @@ impl RpcServer for Client {
         hexstring: String,
         options: Option<String>,
         iswitness: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<bitcoincore_rpc::json::FundRawTransactionResult, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::fundrawtransaction(
             self, hexstring, options, iswitness,
         ))
@@ -240,8 +240,8 @@ impl RpcServer for Client {
         &self,
         hexstring: String,
         prevtxs: Option<String>,
-        sighashtype: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+        sighashtype: Option<String>,
+    ) -> Result<bitcoincore_rpc::json::SignRawTransactionResult, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::signrawtransactionwithwallet(
             self,
             hexstring,

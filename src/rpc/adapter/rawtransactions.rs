@@ -1,9 +1,10 @@
 //! # Rawtransactions RPCs
 
-use crate::utils::{decode_from_hex, encode_to_hex};
+use crate::utils::encode_to_hex;
 use crate::Client;
-use bitcoin::{BlockHash, Transaction, Txid};
+use bitcoin::{consensus::encode::deserialize_hex, BlockHash, Transaction, Txid};
 use bitcoincore_rpc::{Error, RpcApi};
+use std::str::FromStr;
 
 pub fn getrawtransaction(
     client: &Client,
@@ -11,7 +12,7 @@ pub fn getrawtransaction(
     verbose: Option<bool>,
     blockhash: Option<BlockHash>,
 ) -> Result<String, Error> {
-    let txid = decode_from_hex::<Txid>(txid)?;
+    let txid = Txid::from_str(&txid).unwrap();
 
     let res: String = match verbose {
         None | Some(false) => {
@@ -34,35 +35,38 @@ pub fn sendrawtransaction(
     hexstring: String,
     _maxfeerate: Option<usize>,
 ) -> Result<String, Error> {
-    let tx = decode_from_hex::<Transaction>(hexstring)?;
-
-    let txid = client.send_raw_transaction(&tx)?;
+    let txid = client.send_raw_transaction(hexstring)?;
     let txid = encode_to_hex(&txid);
 
     Ok(txid)
 }
 
 pub fn fundrawtransaction(
-    _client: &Client,
-    _hexstring: String,
+    client: &Client,
+    hexstring: String,
     _options: Option<String>,
-    _iswitness: Option<bool>,
-) -> Result<String, Error> {
-    todo!()
+    iswitness: Option<bool>,
+) -> Result<bitcoincore_rpc::json::FundRawTransactionResult, Error> {
+    let tx = deserialize_hex::<Transaction>(&hexstring).unwrap();
+
+    client.fund_raw_transaction(&tx, None, iswitness)
 }
 
 pub fn signrawtransactionwithwallet(
-    _client: &Client,
-    _hexstring: String,
+    client: &Client,
+    hexstring: String,
     _prevtxs: Option<String>,
-    _sighashtype: Option<bool>,
-) -> Result<String, Error> {
-    todo!()
+    _sighashtype: Option<String>,
+) -> Result<bitcoincore_rpc::json::SignRawTransactionResult, Error> {
+    let tx = deserialize_hex::<Transaction>(&hexstring).unwrap();
+
+    client.sign_raw_transaction_with_wallet(&tx, None, None)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
+        ledger,
         utils::{decode_from_hex, encode_to_hex},
         Client, RpcApiWrapper,
     };
@@ -91,22 +95,21 @@ mod tests {
 
         let tx = client.get_raw_transaction(&txid, None).unwrap();
 
-        let encoded_tx =
-            super::getrawtransaction(&client, encode_to_hex(&txid), None, None).unwrap();
+        let encoded_tx = super::getrawtransaction(&client, txid.to_string(), None, None).unwrap();
         let encoded_tx = decode_from_hex(encoded_tx).unwrap();
 
         assert_eq!(tx, encoded_tx);
     }
 
     #[test]
-    #[ignore = "No witness elements cause problems"]
     fn sendrawtransaction() {
         let client = Client::new("sendrawtransaction", bitcoincore_rpc::Auth::None).unwrap();
 
-        let address = client.get_new_address(None, None).unwrap().assume_checked();
+        let credential = ledger::Ledger::generate_credential_from_witness();
+
         let txid = client
             .send_to_address(
-                &address,
+                &credential.address,
                 Amount::from_sat(0x45),
                 None,
                 None,
@@ -119,11 +122,12 @@ mod tests {
 
         let txin = TxIn {
             previous_output: OutPoint { txid, vout: 0 },
+            witness: credential.witness.unwrap(),
             ..Default::default()
         };
         let txout = TxOut {
             value: Amount::from_sat(0x1F),
-            script_pubkey: address.script_pubkey(),
+            script_pubkey: credential.address.script_pubkey(),
         };
         let tx = Transaction {
             input: vec![txin],

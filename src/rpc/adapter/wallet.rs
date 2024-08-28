@@ -1,6 +1,5 @@
 //! # Wallet RPCs
 
-use crate::utils::{decode_from_hex, encode_to_hex};
 use crate::Client;
 use bitcoin::{Address, Amount, Txid};
 use bitcoincore_rpc::{json, Error, RpcApi};
@@ -27,7 +26,7 @@ pub fn gettransaction(
     include_watchonly: Option<bool>,
     _verbose: Option<bool>,
 ) -> Result<String, Error> {
-    let txid = decode_from_hex::<Txid>(txid)?;
+    let txid = Txid::from_str(&txid).unwrap();
 
     let tx = client.get_transaction(&txid, include_watchonly)?;
 
@@ -39,7 +38,7 @@ pub fn gettransaction(
 pub fn sendtoaddress(
     client: &Client,
     address: String,
-    amount: String,
+    amount: f64,
     comment: Option<&str>,
     comment_to: Option<&str>,
     subtractfeefromamount: Option<bool>,
@@ -50,23 +49,15 @@ pub fn sendtoaddress(
 ) -> Result<String, Error> {
     let address = match Address::from_str(&address) {
         Ok(a) => a,
-        Err(_e) => {
-            return Err(bitcoincore_rpc::Error::BitcoinSerialization(
-                bitcoin::consensus::encode::FromHexError::Decode(
-                    bitcoin::consensus::DecodeError::TooManyBytes, // TODO: Return the actual error.
-                ),
-            ));
+        Err(e) => {
+            return Err(bitcoincore_rpc::Error::ReturnedError(e.to_string()));
         }
     }
     .assume_checked();
-    let amount = match Amount::from_str(&amount) {
+    let amount = match Amount::from_float_in(amount, bitcoin::Denomination::Bitcoin) {
         Ok(a) => a,
-        Err(_e) => {
-            return Err(bitcoincore_rpc::Error::BitcoinSerialization(
-                bitcoin::consensus::encode::FromHexError::Decode(
-                    bitcoin::consensus::DecodeError::TooManyBytes, // TODO: Return the actual error.
-                ),
-            ));
+        Err(e) => {
+            return Err(bitcoincore_rpc::Error::InvalidAmount(e));
         }
     };
 
@@ -81,7 +72,7 @@ pub fn sendtoaddress(
         None,
     )?;
 
-    Ok(encode_to_hex::<Txid>(&txid))
+    Ok(txid.to_string())
 }
 
 #[cfg(test)]
