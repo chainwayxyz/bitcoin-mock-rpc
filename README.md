@@ -38,11 +38,10 @@ To run from CLI:
 
 ```bash
 $ cargo run
-Bitcoin Mock Rpc (C) Chainway, 2024
-Usage: target/debug/bitcoin-mock-rpc [HOST] [PORT]
 Server started at 127.0.0.1:1024
 #                 ^^^^^^^^^^^^^^
 #         Use this address in applications
+$ cargo run -- --help # Prints usage information
 ```
 
 To run in a Rust application:
