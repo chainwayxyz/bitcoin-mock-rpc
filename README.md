@@ -57,10 +57,10 @@ fn test() {
     // is OK and will spawn another blockchain. If parameters are the same
     // however, they will operate on the same blockchain. Note: (None, None)
     // will result to pick random values.
-    let address = bitcoin_mock_rpc::spawn_rpc_server(None, None).await.unwrap();
+    let address = bitcoin_mock_rpc::spawn_rpc_server(None, None).unwrap();
 
     let rpc =
-        bitcoincore_rpc::Client::new(address, bitcoincore_rpc::Auth::None).unwrap();
+        bitcoincore_rpc::Client::new(&address.0.to_string(), bitcoincore_rpc::Auth::None).unwrap();
 
     // Use `bitcoincore_rpc` as is from now on. No code change is needed.
 }
