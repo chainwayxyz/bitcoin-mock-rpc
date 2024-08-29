@@ -16,7 +16,8 @@ This library is aimed to help the development of
 of this library can be taken as a reference.
 
 **Disclaimer:** This library **must not** be used for consensus purposes. And
-not gives a guarantee to act %100 as the Bitcoin itself.
+not gives any guarantee to act as the Bitcoin itself at any scale. Use it at
+your own risk.
 
 ## Differences Between Real Bitcoin RPC and Feature Set
 
