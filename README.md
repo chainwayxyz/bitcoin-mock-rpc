@@ -15,6 +15,9 @@ This library is aimed to help the development of
 [Clementine](https://github.com/chainwayxyz/clementine). Therefore, it's usage
 of this library can be taken as a reference.
 
+**Disclaimer:** This library **must not** be used for consensus purposes. And
+not gives a guarantee to act %100 as the Bitcoin itself.
+
 ## Differences Between Real Bitcoin RPC and Feature Set
 
 This library is currently **under heavy development**. And it is not expected to
