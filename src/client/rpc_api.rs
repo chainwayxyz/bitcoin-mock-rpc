@@ -10,7 +10,7 @@ use crate::{
 };
 use bitcoin::{
     address::NetworkChecked,
-    consensus::{encode, Encodable},
+    consensus::{encode, serialize, Encodable},
     hashes::Hash,
     params::Params,
     Address, Amount, BlockHash, OutPoint, SignedAmount, Transaction, TxIn, TxOut, Txid,
@@ -410,9 +410,7 @@ impl RpcApi for Client {
         transaction.input.insert(0, txin);
         tracing::debug!("New transaction: {transaction:?}");
 
-        let tx = encode_to_hex(&transaction);
-        let mut hex: Vec<u8> = Vec::new();
-        tx.consensus_encode(&mut hex).unwrap();
+        let hex = serialize(&transaction);
 
         Ok(json::FundRawTransactionResult {
             hex,
@@ -478,9 +476,7 @@ impl RpcApi for Client {
         transaction.input = inputs;
         tracing::trace!("Final inputs {:?}", transaction.input);
 
-        let mut hex: Vec<u8> = Vec::new();
-        let tx = encode_to_hex(&transaction);
-        tx.consensus_encode(&mut hex).unwrap();
+        let hex = serialize(&transaction);
 
         Ok(SignRawTransactionResult {
             hex,
@@ -493,7 +489,10 @@ impl RpcApi for Client {
 #[cfg(test)]
 mod tests {
     use crate::{ledger::Ledger, utils::decode_from_hex, Client, RpcApiWrapper};
-    use bitcoin::{consensus::Decodable, Amount, Network, OutPoint, Transaction, TxIn};
+    use bitcoin::{
+        consensus::{deserialize, Decodable},
+        Amount, Network, OutPoint, Transaction, TxIn,
+    };
     use bitcoincore_rpc::RpcApi;
 
     #[test]
@@ -805,8 +804,7 @@ mod tests {
         let og_tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
 
         let res = rpc.fund_raw_transaction(&og_tx, None, None).unwrap();
-        let tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-        let tx = decode_from_hex::<Transaction>(tx).unwrap();
+        let tx = deserialize::<Transaction>(&res.hex).unwrap();
 
         assert_ne!(og_tx, tx);
         assert_eq!(res.change_position, 0);
@@ -857,8 +855,7 @@ mod tests {
         let res = rpc
             .sign_raw_transaction_with_wallet(&tx, None, None)
             .unwrap();
-        let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-        let new_tx = decode_from_hex::<Transaction>(new_tx).unwrap();
+        let new_tx = deserialize::<Transaction>(&res.hex).unwrap();
 
         assert!(!new_tx.input.first().unwrap().witness.is_empty());
     }

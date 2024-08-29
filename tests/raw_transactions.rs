@@ -1,8 +1,6 @@
 //! Integration tests for `raw_transaction` calls.
 
-use bitcoin::{
-    consensus::Decodable, hashes::Hash, Amount, OutPoint, Transaction, TxIn, TxOut, Txid,
-};
+use bitcoin::{hashes::Hash, Amount, OutPoint, Transaction, TxIn, TxOut, Txid};
 use bitcoin_mock_rpc::{Client, RpcApiWrapper};
 use bitcoincore_rpc::{Auth, RpcApi};
 use common::send_raw_transaction_async;
@@ -280,8 +278,7 @@ fn fund_sign_raw_transaction_with_wallet() {
     };
 
     let res = rpc.fund_raw_transaction(&tx, None, None).unwrap();
-    let tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-    let tx = bitcoin::consensus::encode::deserialize_hex::<Transaction>(&tx).unwrap();
+    let tx = bitcoin::consensus::encode::deserialize::<Transaction>(&res.hex).unwrap();
 
     // Not signed inputs should be a problem.
     if rpc.send_raw_transaction(&tx).is_ok() {
@@ -291,8 +288,7 @@ fn fund_sign_raw_transaction_with_wallet() {
     let res = rpc
         .sign_raw_transaction_with_wallet(&tx, None, None)
         .unwrap();
-    let tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-    let tx = bitcoin::consensus::encode::deserialize_hex::<Transaction>(&tx).unwrap();
+    let tx = bitcoin::consensus::encode::deserialize::<Transaction>(&res.hex).unwrap();
 
     rpc.send_raw_transaction(&tx).unwrap();
 }

@@ -6,8 +6,7 @@
 //! It is the job of other tests.
 
 use bitcoin::absolute::Height;
-use bitcoin::consensus::encode::deserialize_hex;
-use bitcoin::consensus::Decodable;
+use bitcoin::consensus::deserialize;
 use bitcoin::transaction::Version;
 use bitcoin::{Amount, OutPoint, Transaction, TxIn, TxOut};
 use bitcoin_mock_rpc::rpc::spawn_rpc_server;
@@ -155,8 +154,7 @@ fn fund_sign_raw_transaction() {
 
     let new_tx = rpc.fund_raw_transaction(&tx, None, None).unwrap();
     assert_ne!(new_tx.change_position, -1);
-    let new_tx = String::consensus_decode(&mut new_tx.hex.as_slice()).unwrap();
-    let new_tx = deserialize_hex::<Transaction>(&new_tx).unwrap();
+    let new_tx = deserialize::<Transaction>(&new_tx.hex).unwrap();
     assert_ne!(tx, new_tx);
 
     // Non signed input.
@@ -167,8 +165,7 @@ fn fund_sign_raw_transaction() {
     let res = rpc
         .sign_raw_transaction_with_wallet(&new_tx, None, None)
         .unwrap();
-    let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-    let new_tx = deserialize_hex::<Transaction>(&new_tx).unwrap();
+    let new_tx = deserialize::<Transaction>(&res.hex).unwrap();
 
     assert!(!new_tx.input.first().unwrap().witness.is_empty());
 
