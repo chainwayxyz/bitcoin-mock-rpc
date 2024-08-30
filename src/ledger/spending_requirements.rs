@@ -12,7 +12,7 @@ use bitcoin::{
     taproot::{ControlBlock, LeafVersion},
     TapLeafHash, XOnlyPublicKey,
 };
-use bitcoin::{Script, WitnessProgram};
+use bitcoin::{Script, TapSighashType, WitnessProgram};
 use secp256k1::Message;
 
 #[derive(Default)]
@@ -159,7 +159,13 @@ impl Ledger {
             let h = sighashcache
                 .taproot_key_spend_signature_hash(
                     input_idx,
-                    &Prevouts::All(txouts),
+                    &match signature.sighash_type {
+                        TapSighashType::SinglePlusAnyoneCanPay => {
+                            Prevouts::One(input_idx, txouts[input_idx].clone())
+                        }
+                        // TODO: Implement others.
+                        _ => Prevouts::All(txouts),
+                    },
                     signature.sighash_type,
                 )
                 .unwrap();
