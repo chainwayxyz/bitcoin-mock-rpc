@@ -23,6 +23,7 @@ pub struct SpendingRequirementsReturn {
 }
 
 impl Ledger {
+    #[tracing::instrument(skip_all)]
     pub fn p2wpkh_check(
         &self,
         tx: &Transaction,
@@ -79,6 +80,7 @@ impl Ledger {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn p2wsh_check(
         &self,
         tx: &Transaction,
@@ -123,6 +125,7 @@ impl Ledger {
         })
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn p2tr_check(
         &self,
         tx: &Transaction,
@@ -153,24 +156,32 @@ impl Ledger {
         if witness.len() == 1 {
             let signature = witness.pop().unwrap();
             let signature = bitcoin::taproot::Signature::from_slice(&signature).unwrap();
+            tracing::trace!("Signature {:?}", signature);
 
             let x_only_public_key = XOnlyPublicKey::from_slice(&sig_pub_key_bytes[2..]).unwrap();
-            let mut sighashcache = SighashCache::new(tx.clone());
-            let h = sighashcache
+            tracing::trace!("X-only public key is {}", x_only_public_key);
+
+            let mut sighash_cache = SighashCache::new(tx);
+            let taproot_key_spend_signature_hash = sighash_cache
                 .taproot_key_spend_signature_hash(
                     input_idx,
                     &match signature.sighash_type {
+                        TapSighashType::Default | TapSighashType::All => Prevouts::All(txouts),
                         TapSighashType::SinglePlusAnyoneCanPay => {
                             Prevouts::One(input_idx, txouts[input_idx].clone())
                         }
-                        // TODO: Implement others.
-                        _ => Prevouts::All(txouts),
+                        _ => {
+                            return Err(LedgerError::SpendingRequirements(format!(
+                                "Unimplemented sighash type {}",
+                                signature.sighash_type
+                            )))
+                        }
                     },
                     signature.sighash_type,
                 )
                 .unwrap();
 
-            let msg = Message::from(h);
+            let msg = Message::from(taproot_key_spend_signature_hash);
 
             return match x_only_public_key.verify(&secp, &msg, &signature.signature) {
                 Ok(()) => Ok(SpendingRequirementsReturn {
