@@ -165,7 +165,9 @@ impl Ledger {
                 .taproot_key_spend_signature_hash(
                     input_idx,
                     &match signature.sighash_type {
-                        TapSighashType::Default | TapSighashType::All => Prevouts::All(txouts),
+                        TapSighashType::Default | TapSighashType::All | TapSighashType::None => {
+                            Prevouts::All(txouts)
+                        }
                         TapSighashType::SinglePlusAnyoneCanPay => {
                             Prevouts::One(input_idx, txouts[input_idx].clone())
                         }
@@ -193,11 +195,6 @@ impl Ledger {
                     x_only_public_key, signature.signature, e
                 ))),
             };
-        }
-
-        let mut annex: Option<Vec<u8>> = None;
-        if witness.len() >= 2 && witness[witness.len() - 1][0] == 0x50 {
-            annex = Some(witness.pop().unwrap());
         } else if witness.len() < 2 {
             return Err(
                 LedgerError::SpendingRequirements(
@@ -205,6 +202,13 @@ impl Ledger {
                 )
             );
         }
+
+        let annex: Option<Vec<u8>> = if witness.len() >= 2 && witness[witness.len() - 1][0] == 0x50
+        {
+            Some(witness.pop().unwrap())
+        } else {
+            None
+        };
 
         let control_block = ControlBlock::decode(&witness.pop().unwrap()).unwrap();
         let script_buf = witness.pop().unwrap();
