@@ -374,7 +374,7 @@ impl RpcApi for Client {
     fn fund_raw_transaction<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
-        _options: Option<&json::FundRawTransactionOptions>,
+        options: Option<&json::FundRawTransactionOptions>,
         _is_witness: Option<bool>,
     ) -> bitcoincore_rpc::Result<json::FundRawTransactionResult> {
         let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
@@ -421,7 +421,14 @@ impl RpcApi for Client {
             ..Default::default()
         };
 
-        transaction.input.insert(0, txin);
+        let insert_idx = match options {
+            Some(option) => option
+                .change_position
+                .unwrap_or((transaction.input.len()) as u32),
+            None => (transaction.input.len()) as u32,
+        };
+
+        transaction.input.insert(insert_idx as usize, txin);
         tracing::debug!("New transaction: {transaction:?}");
 
         let hex = serialize(&transaction);
@@ -429,7 +436,7 @@ impl RpcApi for Client {
         Ok(json::FundRawTransactionResult {
             hex,
             fee: Amount::from_sat(0),
-            change_position: 0,
+            change_position: insert_idx as i32,
         })
     }
 
@@ -822,7 +829,7 @@ mod tests {
         let tx = deserialize::<Transaction>(&res.hex).unwrap();
 
         assert_ne!(og_tx, tx);
-        assert_eq!(res.change_position, 0);
+        assert_ne!(res.change_position, -1);
 
         let res = rpc.fund_raw_transaction(&tx, None, None).unwrap();
         let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
