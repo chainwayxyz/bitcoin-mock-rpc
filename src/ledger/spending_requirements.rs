@@ -150,7 +150,6 @@ impl Ledger {
         }
 
         let mut witness = tx.input[input_idx].witness.to_vec();
-        let mut annex: Option<Vec<u8>> = None;
 
         // Key path spend.
         if witness.len() == 1 {
@@ -196,21 +195,30 @@ impl Ledger {
             };
         }
 
+        let mut annex: Option<Vec<u8>> = None;
         if witness.len() >= 2 && witness[witness.len() - 1][0] == 0x50 {
             annex = Some(witness.pop().unwrap());
         } else if witness.len() < 2 {
-            return Err(LedgerError::SpendingRequirements("The number of witness elements should be at least two (the script and the control block).".to_owned()));
+            return Err(
+                LedgerError::SpendingRequirements(
+                    "The number of witness elements should be at least two (the script and the control block).".to_owned()
+                )
+            );
         }
 
         let control_block = ControlBlock::decode(&witness.pop().unwrap()).unwrap();
         let script_buf = witness.pop().unwrap();
         let script = Script::from_bytes(&script_buf);
 
-        let out_pk = XOnlyPublicKey::from_slice(&sig_pub_key_bytes[2..]).unwrap();
-        let out_pk = TweakedPublicKey::dangerous_assume_tweaked(out_pk);
+        let x_only_public_key = XOnlyPublicKey::from_slice(&sig_pub_key_bytes[2..]).unwrap();
+        let tweaked_x_only_public_key =
+            TweakedPublicKey::dangerous_assume_tweaked(x_only_public_key);
 
-        let res = control_block.verify_taproot_commitment(&secp, out_pk.to_inner(), script);
-        if !res {
+        if !control_block.verify_taproot_commitment(
+            &secp,
+            tweaked_x_only_public_key.to_inner(),
+            script,
+        ) {
             return Err(LedgerError::SpendingRequirements(
                 "The taproot commitment does not match the Taproot public key.".to_owned(),
             ));
