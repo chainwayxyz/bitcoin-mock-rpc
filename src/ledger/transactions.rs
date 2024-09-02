@@ -19,7 +19,7 @@ use rusqlite::params;
 
 impl Ledger {
     /// Adds transaction to blockchain, after verifying.
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     pub fn add_transaction(&self, transaction: Transaction) -> Result<Txid, LedgerError> {
         self.check_transaction(&transaction)?;
 
@@ -160,7 +160,7 @@ impl Ledger {
     /// 3. Is script execution successful?
     ///
     /// No checks for if that UTXO is spendable or not.
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
         self.check_transaction_funds(transaction)?;
 
