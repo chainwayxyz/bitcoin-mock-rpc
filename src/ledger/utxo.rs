@@ -10,7 +10,7 @@ impl Ledger {
             "INSERT INTO utxos (txid, vout) VALUES (?1, ?2)",
             params![utxo.txid.to_string(), utxo.vout],
         ) {
-            return Err(LedgerError::Transaction(format!(
+            return Err(LedgerError::Utxo(format!(
                 "Couldn't add utxo {:?} to ledger: {}",
                 utxo, e
             )));
@@ -37,7 +37,7 @@ impl Ledger {
             "DELETE FROM utxos WHERE txid = ?1 AND vout = ?2",
             params![utxo.txid.to_string(), utxo.vout],
         ) {
-            return Err(LedgerError::Transaction(format!(
+            return Err(LedgerError::Utxo(format!(
                 "Couldn't remove utxo {:?} from ledger: {}",
                 utxo, e
             )));
