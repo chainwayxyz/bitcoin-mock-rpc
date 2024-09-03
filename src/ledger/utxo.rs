@@ -24,10 +24,7 @@ impl Ledger {
         match self.database.lock().unwrap().query_row(
             "SELECT * FROM utxos WHERE txid = ?1 AND vout = ?2",
             params![utxo.txid.to_string(), utxo.vout],
-            |row| {
-                tracing::info!("row {row:?}");
-                Ok(())
-            },
+            |_| Ok(()),
         ) {
             Ok(_) => false,
             Err(_) => true,
