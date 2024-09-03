@@ -39,6 +39,7 @@ impl RpcApi for Client {
     /// This is the reason, this function will only throw errors in case of a
     /// function calls this. Tester should implement corresponding function in
     /// this impl block.
+    #[tracing::instrument(skip_all)]
     fn call<T: for<'a> serde::de::Deserialize<'a>>(
         &self,
         cmd: &str,
@@ -54,6 +55,7 @@ impl RpcApi for Client {
         Err(Error::ReturnedError(msg))
     }
 
+    #[tracing::instrument(skip_all)]
     fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
@@ -64,6 +66,7 @@ impl RpcApi for Client {
 
         Ok(tx.compute_txid())
     }
+    #[tracing::instrument(skip_all)]
     fn get_raw_transaction(
         &self,
         txid: &bitcoin::Txid,
@@ -78,6 +81,7 @@ impl RpcApi for Client {
     /// transaction's state in blockchain. It is recommmended to use
     /// `get_raw_transaction` for information about transaction's inputs and
     /// outputs.
+    #[tracing::instrument(skip_all)]
     fn get_raw_transaction_info(
         &self,
         txid: &bitcoin::Txid,
@@ -176,6 +180,7 @@ impl RpcApi for Client {
         })
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_transaction(
         &self,
         txid: &bitcoin::Txid,
@@ -245,6 +250,7 @@ impl RpcApi for Client {
     /// Reason this call behaves like this is there are no wallet
     /// implementation. This is intended way to generate inputs for other
     /// transactions.
+    #[tracing::instrument(skip_all)]
     fn send_to_address(
         &self,
         address: &Address<NetworkChecked>,
@@ -274,6 +280,7 @@ impl RpcApi for Client {
     /// Creates a random secret/public key pair and generates a Bitcoin address
     /// from witness program. Please note that this address is not hold in
     /// ledger in any way.
+    #[tracing::instrument(skip_all)]
     fn get_new_address(
         &self,
         _label: Option<&str>,
@@ -286,6 +293,7 @@ impl RpcApi for Client {
 
     /// Generates `block_num` amount of block rewards to `address`. Also mines
     /// current mempool transactions to a block.
+    #[tracing::instrument(skip_all)]
     fn generate_to_address(
         &self,
         block_num: u64,
@@ -305,6 +313,7 @@ impl RpcApi for Client {
     ///
     /// This will include mempool txouts regardless of the `include_mempool`
     /// flag. `coinbase` will be set to false regardless if it is or not.
+    #[tracing::instrument(skip_all)]
     fn get_tx_out(
         &self,
         txid: &bitcoin::Txid,
@@ -334,6 +343,7 @@ impl RpcApi for Client {
         }))
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_best_block_hash(&self) -> bitcoincore_rpc::Result<bitcoin::BlockHash> {
         let current_height = self.ledger.get_block_height()?;
         let current_block = self.ledger.get_block_with_height(current_height)?;
@@ -342,10 +352,12 @@ impl RpcApi for Client {
         Ok(block_hash)
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_block(&self, hash: &bitcoin::BlockHash) -> bitcoincore_rpc::Result<bitcoin::Block> {
         Ok(self.ledger.get_block_with_hash(*hash)?)
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_block_header(
         &self,
         hash: &bitcoin::BlockHash,
@@ -353,14 +365,16 @@ impl RpcApi for Client {
         Ok(self.ledger.get_block_with_hash(*hash)?.header)
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_block_count(&self) -> bitcoincore_rpc::Result<u64> {
         Ok(self.ledger.get_block_height()?.into())
     }
 
+    #[tracing::instrument(skip_all)]
     fn fund_raw_transaction<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
-        _options: Option<&json::FundRawTransactionOptions>,
+        options: Option<&json::FundRawTransactionOptions>,
         _is_witness: Option<bool>,
     ) -> bitcoincore_rpc::Result<json::FundRawTransactionResult> {
         let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
@@ -407,7 +421,14 @@ impl RpcApi for Client {
             ..Default::default()
         };
 
-        transaction.input.insert(0, txin);
+        let insert_idx = match options {
+            Some(option) => option
+                .change_position
+                .unwrap_or((transaction.input.len()) as u32),
+            None => (transaction.input.len()) as u32,
+        };
+
+        transaction.input.insert(insert_idx as usize, txin);
         tracing::debug!("New transaction: {transaction:?}");
 
         let hex = serialize(&transaction);
@@ -415,10 +436,11 @@ impl RpcApi for Client {
         Ok(json::FundRawTransactionResult {
             hex,
             fee: Amount::from_sat(0),
-            change_position: 0,
+            change_position: insert_idx as i32,
         })
     }
 
+    #[tracing::instrument(skip_all)]
     fn sign_raw_transaction_with_wallet<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
@@ -807,7 +829,7 @@ mod tests {
         let tx = deserialize::<Transaction>(&res.hex).unwrap();
 
         assert_ne!(og_tx, tx);
-        assert_eq!(res.change_position, 0);
+        assert_ne!(res.change_position, -1);
 
         let res = rpc.fund_raw_transaction(&tx, None, None).unwrap();
         let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();

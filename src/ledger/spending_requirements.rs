@@ -12,7 +12,7 @@ use bitcoin::{
     taproot::{ControlBlock, LeafVersion},
     TapLeafHash, XOnlyPublicKey,
 };
-use bitcoin::{Script, WitnessProgram};
+use bitcoin::{Script, TapSighashType, WitnessProgram};
 use secp256k1::Message;
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ pub struct SpendingRequirementsReturn {
 }
 
 impl Ledger {
+    #[tracing::instrument(skip_all)]
     pub fn p2wpkh_check(
         &self,
         tx: &Transaction,
@@ -79,6 +80,7 @@ impl Ledger {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn p2wsh_check(
         &self,
         tx: &Transaction,
@@ -123,6 +125,7 @@ impl Ledger {
         })
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn p2tr_check(
         &self,
         tx: &Transaction,
@@ -147,24 +150,39 @@ impl Ledger {
         }
 
         let mut witness = tx.input[input_idx].witness.to_vec();
-        let mut annex: Option<Vec<u8>> = None;
 
         // Key path spend.
         if witness.len() == 1 {
             let signature = witness.pop().unwrap();
             let signature = bitcoin::taproot::Signature::from_slice(&signature).unwrap();
+            tracing::trace!("Signature {:?}", signature);
 
             let x_only_public_key = XOnlyPublicKey::from_slice(&sig_pub_key_bytes[2..]).unwrap();
-            let mut sighashcache = SighashCache::new(tx.clone());
-            let h = sighashcache
+            tracing::trace!("X-only public key is {}", x_only_public_key);
+
+            let mut sighash_cache = SighashCache::new(tx);
+            let taproot_key_spend_signature_hash = sighash_cache
                 .taproot_key_spend_signature_hash(
                     input_idx,
-                    &Prevouts::All(txouts),
+                    &match signature.sighash_type {
+                        TapSighashType::Default | TapSighashType::All | TapSighashType::None => {
+                            Prevouts::All(txouts)
+                        }
+                        TapSighashType::SinglePlusAnyoneCanPay => {
+                            Prevouts::One(input_idx, txouts[input_idx].clone())
+                        }
+                        _ => {
+                            return Err(LedgerError::SpendingRequirements(format!(
+                                "Unimplemented sighash type {}",
+                                signature.sighash_type
+                            )))
+                        }
+                    },
                     signature.sighash_type,
                 )
                 .unwrap();
 
-            let msg = Message::from(h);
+            let msg = Message::from(taproot_key_spend_signature_hash);
 
             return match x_only_public_key.verify(&secp, &msg, &signature.signature) {
                 Ok(()) => Ok(SpendingRequirementsReturn {
@@ -177,23 +195,34 @@ impl Ledger {
                     x_only_public_key, signature.signature, e
                 ))),
             };
+        } else if witness.len() < 2 {
+            return Err(
+                LedgerError::SpendingRequirements(
+                    "The number of witness elements should be at least two (the script and the control block).".to_owned()
+                )
+            );
         }
 
-        if witness.len() >= 2 && witness[witness.len() - 1][0] == 0x50 {
-            annex = Some(witness.pop().unwrap());
-        } else if witness.len() < 2 {
-            return Err(LedgerError::SpendingRequirements("The number of witness elements should be at least two (the script and the control block).".to_owned()));
-        }
+        let annex: Option<Vec<u8>> = if witness.len() >= 2 && witness[witness.len() - 1][0] == 0x50
+        {
+            Some(witness.pop().unwrap())
+        } else {
+            None
+        };
 
         let control_block = ControlBlock::decode(&witness.pop().unwrap()).unwrap();
         let script_buf = witness.pop().unwrap();
         let script = Script::from_bytes(&script_buf);
 
-        let out_pk = XOnlyPublicKey::from_slice(&sig_pub_key_bytes[2..]).unwrap();
-        let out_pk = TweakedPublicKey::dangerous_assume_tweaked(out_pk);
+        let x_only_public_key = XOnlyPublicKey::from_slice(&sig_pub_key_bytes[2..]).unwrap();
+        let tweaked_x_only_public_key =
+            TweakedPublicKey::dangerous_assume_tweaked(x_only_public_key);
 
-        let res = control_block.verify_taproot_commitment(&secp, out_pk.to_inner(), script);
-        if !res {
+        if !control_block.verify_taproot_commitment(
+            &secp,
+            tweaked_x_only_public_key.to_inner(),
+            script,
+        ) {
             return Err(LedgerError::SpendingRequirements(
                 "The taproot commitment does not match the Taproot public key.".to_owned(),
             ));
