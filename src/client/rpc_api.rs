@@ -72,6 +72,13 @@ impl RpcApi for Client {
         txid: &bitcoin::Txid,
         _block_hash: Option<&bitcoin::BlockHash>,
     ) -> bitcoincore_rpc::Result<bitcoin::Transaction> {
+        if let Some(_) = _block_hash {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_block_hash)
+            )));
+        }
+
         Ok(self.ledger.get_transaction(*txid)?)
     }
     /// Verbose flag enabled `get_raw_transaction`.
@@ -87,6 +94,13 @@ impl RpcApi for Client {
         txid: &bitcoin::Txid,
         _block_hash: Option<&bitcoin::BlockHash>,
     ) -> bitcoincore_rpc::Result<json::GetRawTransactionResult> {
+        if let Some(_) = _block_hash {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_block_hash)
+            )));
+        }
+
         let tx = self.get_raw_transaction(txid, _block_hash)?;
 
         let mut hex: Vec<u8> = Vec::new();
@@ -186,6 +200,13 @@ impl RpcApi for Client {
         txid: &bitcoin::Txid,
         _include_watchonly: Option<bool>,
     ) -> bitcoincore_rpc::Result<json::GetTransactionResult> {
+        if let Some(_) = _include_watchonly {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_include_watchonly)
+            )));
+        }
+
         let raw_tx = self.get_raw_transaction(txid, None).unwrap();
         let mut amount = Amount::from_sat(0);
 
@@ -262,6 +283,43 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
+        if let Some(_) = _comment {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_comment)
+            )));
+        }
+        if let Some(_) = _comment_to {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_comment_to)
+            )));
+        }
+        if let Some(_) = _subtract_fee {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_subtract_fee)
+            )));
+        }
+        if let Some(_) = _replaceable {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_replaceable)
+            )));
+        }
+        if let Some(_) = _confirmation_target {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_confirmation_target)
+            )));
+        }
+        if let Some(_) = _estimate_mode {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_estimate_mode)
+            )));
+        }
+
         // First, create a random input. Why? Because calling this function for
         // same amount twice will trigger a database error about same TXID blah,
         // blah, blah.
@@ -286,6 +344,19 @@ impl RpcApi for Client {
         _label: Option<&str>,
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
+        if let Some(_) = _label {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_label)
+            )));
+        }
+        if let Some(_) = _address_type {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_address_type)
+            )));
+        }
+
         let address = ledger::Ledger::get_constant_credential_from_witness().address;
 
         Ok(address.as_unchecked().to_owned())
@@ -320,6 +391,13 @@ impl RpcApi for Client {
         vout: u32,
         _include_mempool: Option<bool>,
     ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
+        if let Some(false) = _include_mempool {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_include_mempool)
+            )));
+        }
+
         let bestblock = self.get_best_block_hash()?;
 
         let tx = self.get_raw_transaction(txid, None)?;
@@ -377,6 +455,13 @@ impl RpcApi for Client {
         options: Option<&json::FundRawTransactionOptions>,
         _is_witness: Option<bool>,
     ) -> bitcoincore_rpc::Result<json::FundRawTransactionResult> {
+        if let Some(_) = _is_witness {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_is_witness)
+            )));
+        }
+
         let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
         tracing::debug!("Decoded input transaction: {transaction:?}");
 
@@ -447,6 +532,19 @@ impl RpcApi for Client {
         _utxos: Option<&[json::SignRawTransactionInput]>,
         _sighash_type: Option<json::SigHashType>,
     ) -> bitcoincore_rpc::Result<json::SignRawTransactionResult> {
+        if let Some(_) = _utxos {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_utxos)
+            )));
+        }
+        if let Some(_) = _sighash_type {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_sighash_type)
+            )));
+        }
+
         let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
         tracing::debug!("Decoded input transaction: {transaction:?}");
 
