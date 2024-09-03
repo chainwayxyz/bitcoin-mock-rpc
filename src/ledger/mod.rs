@@ -18,6 +18,7 @@ pub(crate) mod errors;
 mod script;
 mod spending_requirements;
 mod transactions;
+mod utxo;
 
 /// Mock Bitcoin ledger.
 #[derive(Clone, Debug)]
@@ -87,6 +88,7 @@ impl Ledger {
             DROP TABLE IF EXISTS blocks;
             DROP TABLE IF EXISTS mempool;
             DROP TABLE IF EXISTS transactions;
+            DROP TABLE IF EXISTS utxos;
             ",
         )
     }
@@ -124,6 +126,12 @@ impl Ledger {
                 body          BLOB     NOT NULL
 
                 CONSTRAINT txid PRIMARY KEY
+            );
+
+            CREATE TABLE utxos
+            (
+                txid          TEXT     NOT NULL,
+                vout          INTEGER  NOT NULL
             );
             ",
         )
