@@ -398,6 +398,11 @@ impl RpcApi for Client {
             )));
         }
 
+        let utxo = OutPoint { txid: *txid, vout };
+        if self.ledger.is_utxo_spent(utxo) {
+            return Err(LedgerError::Utxo(format!("UTXO {utxo:?} is spent")).into());
+        }
+
         let bestblock = self.get_best_block_hash()?;
 
         let tx = self.get_raw_transaction(txid, None)?;
