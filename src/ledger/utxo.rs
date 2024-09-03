@@ -21,14 +21,15 @@ impl Ledger {
     }
 
     pub fn is_utxo_spent(&self, utxo: OutPoint) -> bool {
-        match self.database.lock().unwrap().query_row(
-            "SELECT * FROM utxos WHERE txid = ?1 AND vout = ?2",
-            params![utxo.txid.to_string(), utxo.vout],
-            |_| Ok(()),
-        ) {
-            Ok(_) => false,
-            Err(_) => true,
-        }
+        self.database
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT * FROM utxos WHERE txid = ?1 AND vout = ?2",
+                params![utxo.txid.to_string(), utxo.vout],
+                |_| Ok(()),
+            )
+            .is_err()
     }
 
     pub fn remove_utxo(&self, utxo: OutPoint) -> Result<(), LedgerError> {
