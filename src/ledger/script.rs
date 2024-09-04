@@ -92,7 +92,7 @@ impl Ledger {
 
     /// Checks if it is a CSV script and compares sequence against the current
     /// block height/time.
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn check_sequence(
         &self,
         utxo: OutPoint,
