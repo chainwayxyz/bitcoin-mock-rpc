@@ -43,7 +43,7 @@ impl Ledger {
         let path = Ledger::get_database_path(path);
         let _ = utils::initialize_logger();
 
-        tracing::trace!("Creating database at path {path}");
+        tracing::trace!("Creating new database at path {path}");
 
         let database = Connection::open(path.clone()).unwrap();
 
@@ -72,6 +72,8 @@ impl Ledger {
         let path = Ledger::get_database_path(path);
 
         let database = Connection::open(path.clone()).unwrap();
+
+        tracing::trace!("Connecting to the existing database {path} without resetting");
 
         Self {
             database: Arc::new(Mutex::new(database)),
