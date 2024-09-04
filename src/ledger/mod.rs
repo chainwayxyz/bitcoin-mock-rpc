@@ -9,6 +9,7 @@ use crate::utils;
 use rusqlite::Connection;
 use std::{
     env,
+    process::Command,
     sync::{Arc, Mutex},
 };
 
@@ -43,12 +44,26 @@ impl Ledger {
         let path = Ledger::get_database_path(path);
         let _ = utils::initialize_logger();
 
-        tracing::trace!("Creating new database at path {path}");
+        // Check if database has another connections.
+        let is_open = {
+            let ret = Command::new("lsof")
+                .args([&path])
+                .output()
+                .expect("failed to execute process");
+
+            ret.stdout.len() != 0
+        };
 
         let database = Connection::open(path.clone()).unwrap();
 
-        Ledger::drop_tables(&database).unwrap();
-        Ledger::create_tables(&database).unwrap();
+        // If database has another connections, skip clearing.
+        if !is_open {
+            tracing::trace!("Creating new database at path {path}");
+            Ledger::drop_tables(&database).unwrap();
+            Ledger::create_tables(&database).unwrap();
+        }
+
+        tracing::trace!("Database connection to {path} is established");
 
         Self {
             database: Arc::new(Mutex::new(database)),
