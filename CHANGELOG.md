@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] - 2024-09-04
+
+### Changed
+
+- If there is a connection to ledger while calling `Client::new()`, database won't get cleaned
+- Block lock checks fixed
+
 ## [0.0.9] - 2024-09-03
 
 ### Added
@@ -134,6 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generate_to_address`
   - `get_balance`
 
+[0.0.10]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.8...v0.0.9
 [0.0.8]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.6...v0.0.7
