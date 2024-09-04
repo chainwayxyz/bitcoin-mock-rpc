@@ -51,7 +51,7 @@ impl Ledger {
                 .output()
                 .expect("failed to execute process");
 
-            ret.stdout.len() != 0
+            !ret.stdout.is_empty()
         };
 
         let database = Connection::open(path.clone()).unwrap();
