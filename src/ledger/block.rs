@@ -21,7 +21,7 @@ impl Ledger {
     /// # Panics
     ///
     /// Will panic if there was a problem writing data to ledger.
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     pub fn mine_block(&self, address: &Address) -> Result<BlockHash, LedgerError> {
         let mut transactions = self.get_mempool_transactions();
         let coinbase_transaction = self.create_coinbase_transaction(

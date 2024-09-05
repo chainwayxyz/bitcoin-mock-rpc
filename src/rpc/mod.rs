@@ -60,6 +60,8 @@ pub fn spawn_rpc_server(
         None => TcpListener::bind((host, 0))?.local_addr()?.to_string(),
     };
 
+    tracing::trace!("Starting a new RPC server at {url}");
+
     Ok(start_server_thread(url))
 }
 
