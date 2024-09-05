@@ -15,18 +15,6 @@ of this library can be taken as a reference.
 not gives any guarantee to act as the Bitcoin itself at any scale. Use it at
 your own risk.
 
-## Differences Between Real Bitcoin RPC and Feature Set
-
-This library is currently **under heavy development**. And it is not expected to
-provide a full Bitcoin experience. Code needs to be checked for what really is
-available as futures. Also, [changelog](CHANGELOG.md) is a great summary for
-what's available.
-
-Some of the RPC functions behave similarly with real RPC while some of them are
-not (mostly wallet operations). To check if an RPC function behaves different
-than the real one, please check function comments in
-[`src/client/rpc_api.rs`](src/client/rpc_api.rs).
-
 ## Usage
 
 `RpcApiWrapper` trait can be used to select between real and mock RPC:
@@ -58,6 +46,18 @@ fn test() {
     // Do stuff...
 }
 ```
+
+## Differences Between Real Bitcoin RPC and Feature Set
+
+This library is currently **under heavy development**. And it is not expected to
+provide a full Bitcoin experience. Code needs to be checked for what really is
+available as futures. Also, [changelog](CHANGELOG.md) is a great summary for
+what's available.
+
+Some of the RPC functions behave similarly with real RPC while some of them are
+not (mostly wallet operations). To check if an RPC function behaves different
+than the real one, please check function comments in
+[`src/client/rpc_api.rs`](src/client/rpc_api.rs).
 
 ## Testing
 
