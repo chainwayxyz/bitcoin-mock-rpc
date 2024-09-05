@@ -92,10 +92,7 @@ impl Ledger {
             Ok(row.get::<_, i64>(0).unwrap())
         });
 
-        let count = match count {
-            Ok(count) => count,
-            Err(_) => 0,
-        };
+        let count = count.unwrap_or(0);
         tracing::trace!("Current connection count: {count}");
 
         count
