@@ -2,6 +2,10 @@
 //!
 //! This crate provides an RPC server that will act like the real Bitcoin RPC
 //! interface.
+//!
+//! WARNING: This crate is not actively maintained. And won't work correctly.
+//! There is so much work needs to be done in this crate. Use it in your own
+//! risk. `--features rpc_server` can be used to enable this crate.
 
 use crate::{Client, RpcApiWrapper};
 use jsonrpsee::server::middleware::rpc::RpcServiceT;

@@ -29,7 +29,7 @@ fn my_func() {
     let strct = MyStruct {
         data: 0x45,
         // This will connect to Bitcoin RPC.
-        rpc: bitcoincore_rpc::Client::new(/** parameters here **/),
+        rpc: bitcoincore_rpc::Client::new("127.0.0.1", bitcoincore_rpc::Auth::None).unwrap(),
     };
 
     // Do stuff...
@@ -40,7 +40,7 @@ fn test() {
     let strct = MyStruct {
         data: 0x1F,
         // This will connect to mock RPC.
-        rpc: bitcoin_mock_rpc::Client::new(/** parameters here **/),
+        rpc: bitcoin_mock_rpc::Client::new("db_name", bitcoincore_rpc::Auth::None).unwrap(),
     };
 
     // Do stuff...
