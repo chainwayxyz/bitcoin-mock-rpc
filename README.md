@@ -1,15 +1,11 @@
 # Bitcoin Mock Remote Procedure Call
 
-Bitcoin-mock-rpc is a mock Bitcoin ledger with RPC interface but without a
-wallet support. Meaning there are only checks for consensus details of an
-operation. This library can be used to test Bitcoin applications, without
-needing to set up Bitcoin and with a **sandboxed environment**, for each test.
-
-Bitcoin-mock-rpc is built on
-[bitcoincore-rpc's](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
-`RpcApi` trait. Meaning no real servers are needed for Rust applications. There
-is also an RPC server that can communicate with any application: No rust
-dependencies!
+`bitcoin-mock-rpc` is a mock Bitcoin ledger without a wallet support built on
+`RpcApi` trait in
+[bitcoincore-rpc](https://github.com/rust-bitcoin/rust-bitcoincore-rpc) library.
+Meaning there are only checks for consensus details of an operation. This
+library can be used to test Bitcoin applications, without needing to set up
+Bitcoin and with a **sandboxed environment**, for each test.
 
 This library is aimed to help the development of
 [Clementine](https://github.com/chainwayxyz/clementine). Therefore, it's usage
@@ -32,41 +28,6 @@ than the real one, please check function comments in
 [`src/client/rpc_api.rs`](src/client/rpc_api.rs).
 
 ## Usage
-
-### RPC Server
-
-RPC server can be spawned as long as there are available ports for them. Each
-server will have an independent blockchain.
-
-To run from CLI:
-
-```bash
-$ cargo run
-Server started at 127.0.0.1:1024
-#                 ^^^^^^^^^^^^^^
-#         Use this address in applications
-$ cargo run -- --help # Prints usage information
-```
-
-To run in a Rust application:
-
-```rust
-#[test]
-fn test() {
-    // Calling `spawn_rpc_server` in a different test while this test is running
-    // is OK and will spawn another blockchain. If parameters are the same
-    // however, they will operate on the same blockchain. Note: (None, None)
-    // will result to pick random values.
-    let address = bitcoin_mock_rpc::spawn_rpc_server(None, None).await.unwrap();
-
-    let rpc =
-        bitcoincore_rpc::Client::new(&address.to_string(), bitcoincore_rpc::Auth::None).unwrap();
-
-    // Use `bitcoincore_rpc` as is from now on. No code change is needed.
-}
-```
-
-### `RpcApiWrapper` Trait For Rust Applications
 
 `RpcApiWrapper` trait can be used to select between real and mock RPC:
 
