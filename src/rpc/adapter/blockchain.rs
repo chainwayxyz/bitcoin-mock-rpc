@@ -1,6 +1,6 @@
 //! # Blockchain RPCs
 
-use crate::utils::{decode_from_hex, encode_to_hex};
+use crate::utils::{_decode_from_hex, encode_to_hex};
 use crate::Client;
 use bitcoin::{BlockHash, Txid};
 use bitcoincore_rpc::{json, Error, RpcApi};
@@ -18,7 +18,7 @@ pub fn getblock(
     blockhash: String,
     verbosity: Option<usize>,
 ) -> Result<String, Error> {
-    let blockhash = decode_from_hex::<BlockHash>(blockhash)?;
+    let blockhash = _decode_from_hex::<BlockHash>(blockhash)?;
     tracing::trace!("Decoded block hash: {blockhash:?}");
 
     let block = client.get_block(&blockhash)?;
@@ -48,7 +48,7 @@ pub fn getblockheader(
     blockhash: String,
     verbose: Option<bool>,
 ) -> Result<String, Error> {
-    let blockhash = decode_from_hex::<BlockHash>(blockhash)?;
+    let blockhash = _decode_from_hex::<BlockHash>(blockhash)?;
     let header = client.get_block_header(&blockhash)?;
 
     match verbose {

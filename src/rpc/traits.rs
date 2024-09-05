@@ -3,9 +3,10 @@
 //! This crate implements [`jsonrpsee`] traits, using [`adapter`] functions.
 //! This is the entry point for the RPC calls.
 
-use super::adapter;
+use super::adapter::{self, GetrawtransactionReturn};
 use crate::Client;
-use bitcoin::BlockHash;
+use bitcoin::{BlockHash, Txid};
+use bitcoincore_rpc::json::GetTransactionResult;
 use jsonrpsee::core::async_trait;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::ErrorObjectOwned;
@@ -57,7 +58,7 @@ pub trait Rpc {
         txid: String,
         verbose: Option<bool>,
         blockhash: Option<BlockHash>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<GetrawtransactionReturn, ErrorObjectOwned>;
 
     #[method(name = "sendrawtransaction")]
     async fn sendrawtransaction(
@@ -79,7 +80,7 @@ pub trait Rpc {
         txid: String,
         include_watchonly: Option<bool>,
         verbose: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<GetTransactionResult, ErrorObjectOwned>;
 
     #[method(name = "sendtoaddress")]
     async fn sendtoaddress(
@@ -93,7 +94,7 @@ pub trait Rpc {
         conf_target: Option<u32>,
         estimate_mode: Option<&str>,
         avoid_reuse: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned>;
+    ) -> Result<Txid, ErrorObjectOwned>;
 
     #[method(name = "fundrawtransaction")]
     async fn fundrawtransaction(
@@ -165,7 +166,7 @@ impl RpcServer for Client {
         txid: String,
         verbose: Option<bool>,
         blockhash: Option<BlockHash>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<GetrawtransactionReturn, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::getrawtransaction(self, txid, verbose, blockhash))
     }
 
@@ -190,7 +191,7 @@ impl RpcServer for Client {
         txid: String,
         include_watchonly: Option<bool>,
         verbose: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<GetTransactionResult, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::gettransaction(
             self,
             txid,
@@ -210,7 +211,7 @@ impl RpcServer for Client {
         conf_target: Option<u32>,
         estimate_mode: Option<&str>,
         avoid_reuse: Option<bool>,
-    ) -> Result<String, ErrorObjectOwned> {
+    ) -> Result<Txid, ErrorObjectOwned> {
         to_jsonrpsee_error(adapter::sendtoaddress(
             self,
             address,
