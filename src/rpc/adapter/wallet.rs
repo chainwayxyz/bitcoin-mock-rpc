@@ -2,7 +2,10 @@
 
 use crate::Client;
 use bitcoin::{Address, Amount, Txid};
-use bitcoincore_rpc::{json, Error, RpcApi};
+use bitcoincore_rpc::{
+    json::{self, GetTransactionResult},
+    Error, RpcApi,
+};
 use std::str::FromStr;
 
 pub fn getnewaddress(
@@ -25,12 +28,12 @@ pub fn gettransaction(
     txid: String,
     include_watchonly: Option<bool>,
     _verbose: Option<bool>,
-) -> Result<String, Error> {
+) -> Result<GetTransactionResult, Error> {
     let txid = Txid::from_str(&txid).unwrap();
 
     let tx = client.get_transaction(&txid, include_watchonly)?;
 
-    Ok(serde_json::to_string_pretty(&tx)?)
+    Ok(tx)
 }
 
 // This has nothing to do with us. Ignore it.
@@ -46,7 +49,7 @@ pub fn sendtoaddress(
     conf_target: Option<u32>,
     _estimate_mode: Option<&str>,
     _avoid_reuse: Option<bool>,
-) -> Result<String, Error> {
+) -> Result<Txid, Error> {
     let address = match Address::from_str(&address) {
         Ok(a) => a,
         Err(e) => {
@@ -72,7 +75,7 @@ pub fn sendtoaddress(
         None,
     )?;
 
-    Ok(txid.to_string())
+    Ok(txid)
 }
 
 #[cfg(test)]
