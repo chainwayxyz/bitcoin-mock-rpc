@@ -128,7 +128,7 @@ where
 }
 
 /// Decodes given hex string to a Rust struct.
-pub fn decode_from_hex<T>(hex: String) -> Result<T, bitcoincore_rpc::Error>
+pub fn _decode_from_hex<T>(hex: String) -> Result<T, bitcoincore_rpc::Error>
 where
     T: bitcoin::consensus::Decodable,
 {
@@ -164,7 +164,7 @@ pub fn initialize_logger() -> Result<(), tracing_subscriber::util::TryInitError>
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_from_hex, encode_to_hex};
+    use super::{_decode_from_hex, encode_to_hex};
     use bitcoin::{
         absolute::Height, hashes::sha256d::Hash, transaction::Version, Address, Amount, OutPoint,
         Transaction, TxIn, TxMerkleNode, TxOut, Txid,
@@ -249,7 +249,7 @@ mod tests {
         );
 
         let encoded_txid = encode_to_hex(&txid);
-        let decoded_txid = decode_from_hex::<Txid>(encoded_txid).unwrap();
+        let decoded_txid = _decode_from_hex::<Txid>(encoded_txid).unwrap();
 
         assert_eq!(txid, decoded_txid);
     }
@@ -280,7 +280,7 @@ mod tests {
         };
 
         let encoded_tx = encode_to_hex(&tx);
-        let decoded_tx = decode_from_hex::<Transaction>(encoded_tx).unwrap();
+        let decoded_tx = _decode_from_hex::<Transaction>(encoded_tx).unwrap();
 
         assert_eq!(tx, decoded_tx);
     }

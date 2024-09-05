@@ -9,8 +9,10 @@
 
 pub mod client;
 mod ledger;
-pub mod rpc;
 mod utils;
 
 // Re-imports.
 pub use client::*;
+
+#[cfg(feature = "rpc_server")]
+pub mod rpc;

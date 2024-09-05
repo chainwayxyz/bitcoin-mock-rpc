@@ -20,5 +20,6 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tower = "0.4.13"
 clap = { version = "4.5.16", features = ["derive"] }
 
-[[bin]]
-name = "bitcoin_mock_rpc"
+[features]
+# Enables RPC server interface. Note: Not stable nor complete. Use it in your own caution.
+rpc_server = []

@@ -613,7 +613,7 @@ impl RpcApi for Client {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ledger::Ledger, utils::decode_from_hex, Client, RpcApiWrapper};
+    use crate::{ledger::Ledger, utils::_decode_from_hex, Client, RpcApiWrapper};
     use bitcoin::{
         consensus::{deserialize, Decodable},
         Amount, Network, OutPoint, Transaction, TxIn,
@@ -936,7 +936,7 @@ mod tests {
 
         let res = rpc.fund_raw_transaction(&tx, None, None).unwrap();
         let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-        let new_tx = decode_from_hex::<Transaction>(new_tx).unwrap();
+        let new_tx = _decode_from_hex::<Transaction>(new_tx).unwrap();
 
         assert_eq!(tx, new_tx);
         assert_eq!(res.change_position, -1);
