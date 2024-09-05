@@ -6,10 +6,9 @@
 //! immutable nature.
 
 use crate::utils;
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use std::{
     env,
-    process::Command,
     sync::{Arc, Mutex},
 };
 
@@ -44,24 +43,16 @@ impl Ledger {
         let path = Ledger::get_database_path(path);
         let _ = utils::initialize_logger();
 
-        // Check if database has another connections.
-        let is_open = {
-            let ret = Command::new("lsof")
-                .args([&path])
-                .output()
-                .expect("failed to execute process");
-
-            !ret.stdout.is_empty()
-        };
-
         let database = Connection::open(path.clone()).unwrap();
 
         // If database has another connections, skip clearing.
-        if !is_open {
+        if Ledger::get_database_connection_count(&database) == 0 {
             tracing::trace!("Creating new database at path {path}");
+
             Ledger::drop_tables(&database).unwrap();
             Ledger::create_tables(&database).unwrap();
         }
+        Ledger::increment_connection_count(&database);
 
         tracing::trace!("Database connection to {path} is established");
 
@@ -95,6 +86,43 @@ impl Ledger {
         }
     }
 
+    /// Returns current connection count to the database. If not zero
+    fn get_database_connection_count(database: &Connection) -> i64 {
+        let count = database.query_row("SELECT count FROM connection_info", params![], |row| {
+            Ok(row.get::<_, i64>(0).unwrap())
+        });
+
+        let count = match count {
+            Ok(count) => count,
+            Err(_) => 0,
+        };
+        tracing::trace!("Current connection count: {count}");
+
+        count
+    }
+
+    /// Increments connection count.
+    fn increment_connection_count(database: &Connection) {
+        let count = Self::get_database_connection_count(database) + 1;
+        tracing::trace!("Incrementing connection count to {count}...");
+
+        database
+            .execute("UPDATE connection_info SET count = ?1", params![count])
+            .unwrap();
+    }
+
+    /// Decrements connection count.
+    fn decrement_connection_count(&self) {
+        let count = Self::get_database_connection_count(&self.database.lock().unwrap()) - 1;
+        tracing::trace!("Decrementing connection count to {count}...");
+
+        self.database
+            .lock()
+            .unwrap()
+            .execute("UPDATE connection_info SET count = ?1", params![count])
+            .unwrap();
+    }
+
     fn get_database_path(path: &str) -> String {
         env::temp_dir().to_str().unwrap().to_owned() + "/bitcoin_mock_rpc_" + path
     }
@@ -102,6 +130,7 @@ impl Ledger {
     fn drop_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
+            DROP TABLE IF EXISTS connection_info;
             DROP TABLE IF EXISTS blocks;
             DROP TABLE IF EXISTS mempool;
             DROP TABLE IF EXISTS transactions;
@@ -117,6 +146,14 @@ impl Ledger {
     fn create_tables(database: &Connection) -> Result<(), rusqlite::Error> {
         database.execute_batch(
             "
+            CREATE TABLE connection_info
+            (
+                count  INTEGER  NOT NULL
+
+                CONSTRAINT count PRIMARY KEY
+            );
+            INSERT INTO connection_info (count) VALUES (0);
+
             CREATE TABLE blocks
             (
                 height    INTEGER  NOT NULL,
@@ -155,6 +192,12 @@ impl Ledger {
     }
 }
 
+impl Drop for Ledger {
+    fn drop(&mut self) {
+        self.decrement_connection_count();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,5 +205,12 @@ mod tests {
     #[test]
     fn new() {
         let _should_not_panic = Ledger::new("ledger_new");
+    }
+
+    #[test]
+    fn concurrent_connections() {
+        let _ledger = Ledger::new("concurrent_connections");
+
+        let _ledger2 = Ledger::new("concurrent_connections");
     }
 }
