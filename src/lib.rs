@@ -5,6 +5,9 @@
 //! way to check your Bitcoin operations without you needing to setup a Bitcoin
 //! environment.
 //!
+//! This library mocks [bitcoincore-rpc](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
+//! library. This mock takes advantage of `RpcApi` trait.
+//!
 //! This library is built upon
 //! [bitcoincore-rpc's](https://github.com/rust-bitcoin/rust-bitcoincore-rpc)
 //! `RpcApi` trait interface.
@@ -113,9 +116,12 @@
 
 pub mod client;
 mod ledger;
-pub mod rpc;
 mod utils;
 
 // Re-imports.
 pub use client::*;
+
+#[cfg(feature = "rpc_server")]
+pub mod rpc;
+#[cfg(feature = "rpc_server")]
 pub use rpc::*;

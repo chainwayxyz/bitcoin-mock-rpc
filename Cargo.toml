@@ -1,6 +1,6 @@
 [package]
 name = "bitcoin-mock-rpc"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2021"
 
 [dependencies]
@@ -13,12 +13,16 @@ thiserror = "1.0.63"
 bitcoin-scriptexec = { git = "https://github.com/Bitcoin-Wildlife-Sanctuary/rust-bitcoin-scriptexec" }
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 rs_merkle = "1.4"
-jsonrpsee = { version = "0.24.3", features = ["server", "client", "macros"], default-features = false }
-tokio = { version = "1.39.3", features = ["full"]}
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-tower = "0.4.13"
 clap = { version = "4.5.16", features = ["derive"] }
+jsonrpsee = { version = "0.24.3", features = ["server", "client", "macros"], default-features = false, optional = true }
+tokio = { version = "1.39.3", features = ["full"], optional = true }
+tower = { version = "0.4.13", optional = true }
 
-[[bin]]
-name = "bitcoin_mock_rpc"
+[dev-dependencies]
+tokio = { version = "1.39.3", features = ["full"] }
+
+[features]
+# Enables RPC server interface. Note: Not stable nor complete. Use it in your own caution.
+rpc_server = ["dep:jsonrpsee", "dep:tokio", "dep:tower"]

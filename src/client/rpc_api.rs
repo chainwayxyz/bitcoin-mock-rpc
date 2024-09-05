@@ -10,7 +10,7 @@ use crate::{
 };
 use bitcoin::{
     address::NetworkChecked,
-    consensus::{encode, Encodable},
+    consensus::{encode, serialize, Encodable},
     hashes::Hash,
     params::Params,
     Address, Amount, BlockHash, OutPoint, SignedAmount, Transaction, TxIn, TxOut, Txid,
@@ -39,6 +39,7 @@ impl RpcApi for Client {
     /// This is the reason, this function will only throw errors in case of a
     /// function calls this. Tester should implement corresponding function in
     /// this impl block.
+    #[tracing::instrument(skip_all)]
     fn call<T: for<'a> serde::de::Deserialize<'a>>(
         &self,
         cmd: &str,
@@ -54,6 +55,7 @@ impl RpcApi for Client {
         Err(Error::ReturnedError(msg))
     }
 
+    #[tracing::instrument(skip_all)]
     fn send_raw_transaction<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
@@ -64,11 +66,19 @@ impl RpcApi for Client {
 
         Ok(tx.compute_txid())
     }
+    #[tracing::instrument(skip_all)]
     fn get_raw_transaction(
         &self,
         txid: &bitcoin::Txid,
         _block_hash: Option<&bitcoin::BlockHash>,
     ) -> bitcoincore_rpc::Result<bitcoin::Transaction> {
+        if _block_hash.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_block_hash)
+            )));
+        }
+
         Ok(self.ledger.get_transaction(*txid)?)
     }
     /// Verbose flag enabled `get_raw_transaction`.
@@ -78,11 +88,19 @@ impl RpcApi for Client {
     /// transaction's state in blockchain. It is recommmended to use
     /// `get_raw_transaction` for information about transaction's inputs and
     /// outputs.
+    #[tracing::instrument(skip_all)]
     fn get_raw_transaction_info(
         &self,
         txid: &bitcoin::Txid,
         _block_hash: Option<&bitcoin::BlockHash>,
     ) -> bitcoincore_rpc::Result<json::GetRawTransactionResult> {
+        if _block_hash.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_block_hash)
+            )));
+        }
+
         let tx = self.get_raw_transaction(txid, _block_hash)?;
 
         let mut hex: Vec<u8> = Vec::new();
@@ -176,11 +194,19 @@ impl RpcApi for Client {
         })
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_transaction(
         &self,
         txid: &bitcoin::Txid,
         _include_watchonly: Option<bool>,
     ) -> bitcoincore_rpc::Result<json::GetTransactionResult> {
+        if _include_watchonly.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_include_watchonly)
+            )));
+        }
+
         let raw_tx = self.get_raw_transaction(txid, None).unwrap();
         let mut amount = Amount::from_sat(0);
 
@@ -245,6 +271,7 @@ impl RpcApi for Client {
     /// Reason this call behaves like this is there are no wallet
     /// implementation. This is intended way to generate inputs for other
     /// transactions.
+    #[tracing::instrument(skip_all)]
     fn send_to_address(
         &self,
         address: &Address<NetworkChecked>,
@@ -256,6 +283,43 @@ impl RpcApi for Client {
         _confirmation_target: Option<u32>,
         _estimate_mode: Option<json::EstimateMode>,
     ) -> bitcoincore_rpc::Result<bitcoin::Txid> {
+        if _comment.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_comment)
+            )));
+        }
+        if _comment_to.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_comment_to)
+            )));
+        }
+        if _subtract_fee.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_subtract_fee)
+            )));
+        }
+        if _replaceable.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_replaceable)
+            )));
+        }
+        if _confirmation_target.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_confirmation_target)
+            )));
+        }
+        if _estimate_mode.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_estimate_mode)
+            )));
+        }
+
         // First, create a random input. Why? Because calling this function for
         // same amount twice will trigger a database error about same TXID blah,
         // blah, blah.
@@ -274,11 +338,25 @@ impl RpcApi for Client {
     /// Creates a random secret/public key pair and generates a Bitcoin address
     /// from witness program. Please note that this address is not hold in
     /// ledger in any way.
+    #[tracing::instrument(skip_all)]
     fn get_new_address(
         &self,
         _label: Option<&str>,
         _address_type: Option<json::AddressType>,
     ) -> bitcoincore_rpc::Result<Address<bitcoin::address::NetworkUnchecked>> {
+        if _label.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_label)
+            )));
+        }
+        if _address_type.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_address_type)
+            )));
+        }
+
         let address = ledger::Ledger::get_constant_credential_from_witness().address;
 
         Ok(address.as_unchecked().to_owned())
@@ -286,6 +364,7 @@ impl RpcApi for Client {
 
     /// Generates `block_num` amount of block rewards to `address`. Also mines
     /// current mempool transactions to a block.
+    #[tracing::instrument(skip_all)]
     fn generate_to_address(
         &self,
         block_num: u64,
@@ -305,12 +384,25 @@ impl RpcApi for Client {
     ///
     /// This will include mempool txouts regardless of the `include_mempool`
     /// flag. `coinbase` will be set to false regardless if it is or not.
+    #[tracing::instrument(skip_all)]
     fn get_tx_out(
         &self,
         txid: &bitcoin::Txid,
         vout: u32,
         _include_mempool: Option<bool>,
     ) -> bitcoincore_rpc::Result<Option<json::GetTxOutResult>> {
+        if let Some(false) = _include_mempool {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_include_mempool)
+            )));
+        }
+
+        let utxo = OutPoint { txid: *txid, vout };
+        if self.ledger.is_utxo_spent(utxo) {
+            return Err(LedgerError::Utxo(format!("UTXO {utxo:?} is spent")).into());
+        }
+
         let bestblock = self.get_best_block_hash()?;
 
         let tx = self.get_raw_transaction(txid, None)?;
@@ -334,6 +426,7 @@ impl RpcApi for Client {
         }))
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_best_block_hash(&self) -> bitcoincore_rpc::Result<bitcoin::BlockHash> {
         let current_height = self.ledger.get_block_height()?;
         let current_block = self.ledger.get_block_with_height(current_height)?;
@@ -342,10 +435,12 @@ impl RpcApi for Client {
         Ok(block_hash)
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_block(&self, hash: &bitcoin::BlockHash) -> bitcoincore_rpc::Result<bitcoin::Block> {
         Ok(self.ledger.get_block_with_hash(*hash)?)
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_block_header(
         &self,
         hash: &bitcoin::BlockHash,
@@ -353,16 +448,25 @@ impl RpcApi for Client {
         Ok(self.ledger.get_block_with_hash(*hash)?.header)
     }
 
+    #[tracing::instrument(skip_all)]
     fn get_block_count(&self) -> bitcoincore_rpc::Result<u64> {
         Ok(self.ledger.get_block_height()?.into())
     }
 
+    #[tracing::instrument(skip_all)]
     fn fund_raw_transaction<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
-        _options: Option<&json::FundRawTransactionOptions>,
+        options: Option<&json::FundRawTransactionOptions>,
         _is_witness: Option<bool>,
     ) -> bitcoincore_rpc::Result<json::FundRawTransactionResult> {
+        if _is_witness.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_is_witness)
+            )));
+        }
+
         let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
         tracing::debug!("Decoded input transaction: {transaction:?}");
 
@@ -407,26 +511,45 @@ impl RpcApi for Client {
             ..Default::default()
         };
 
-        transaction.input.insert(0, txin);
+        let insert_idx = match options {
+            Some(option) => option
+                .change_position
+                .unwrap_or((transaction.input.len()) as u32),
+            None => (transaction.input.len()) as u32,
+        };
+
+        transaction.input.insert(insert_idx as usize, txin);
         tracing::debug!("New transaction: {transaction:?}");
 
-        let tx = encode_to_hex(&transaction);
-        let mut hex: Vec<u8> = Vec::new();
-        tx.consensus_encode(&mut hex).unwrap();
+        let hex = serialize(&transaction);
 
         Ok(json::FundRawTransactionResult {
             hex,
             fee: Amount::from_sat(0),
-            change_position: 0,
+            change_position: insert_idx as i32,
         })
     }
 
+    #[tracing::instrument(skip_all)]
     fn sign_raw_transaction_with_wallet<R: bitcoincore_rpc::RawTx>(
         &self,
         tx: R,
         _utxos: Option<&[json::SignRawTransactionInput]>,
         _sighash_type: Option<json::SigHashType>,
     ) -> bitcoincore_rpc::Result<json::SignRawTransactionResult> {
+        if _utxos.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_utxos)
+            )));
+        }
+        if _sighash_type.is_some() {
+            return Err(Error::ReturnedError(format!(
+                "This argument is unimplemented: {}",
+                stringify!(_sighash_type)
+            )));
+        }
+
         let mut transaction: Transaction = encode::deserialize_hex(&tx.raw_hex())?;
         tracing::debug!("Decoded input transaction: {transaction:?}");
 
@@ -478,9 +601,7 @@ impl RpcApi for Client {
         transaction.input = inputs;
         tracing::trace!("Final inputs {:?}", transaction.input);
 
-        let mut hex: Vec<u8> = Vec::new();
-        let tx = encode_to_hex(&transaction);
-        tx.consensus_encode(&mut hex).unwrap();
+        let hex = serialize(&transaction);
 
         Ok(SignRawTransactionResult {
             hex,
@@ -492,8 +613,11 @@ impl RpcApi for Client {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ledger::Ledger, utils::decode_from_hex, Client, RpcApiWrapper};
-    use bitcoin::{consensus::Decodable, Amount, Network, OutPoint, Transaction, TxIn};
+    use crate::{ledger::Ledger, utils::_decode_from_hex, Client, RpcApiWrapper};
+    use bitcoin::{
+        consensus::{deserialize, Decodable},
+        Amount, Network, OutPoint, Transaction, TxIn,
+    };
     use bitcoincore_rpc::RpcApi;
 
     #[test]
@@ -805,15 +929,14 @@ mod tests {
         let og_tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
 
         let res = rpc.fund_raw_transaction(&og_tx, None, None).unwrap();
-        let tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-        let tx = decode_from_hex::<Transaction>(tx).unwrap();
+        let tx = deserialize::<Transaction>(&res.hex).unwrap();
 
         assert_ne!(og_tx, tx);
-        assert_eq!(res.change_position, 0);
+        assert_ne!(res.change_position, -1);
 
         let res = rpc.fund_raw_transaction(&tx, None, None).unwrap();
         let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-        let new_tx = decode_from_hex::<Transaction>(new_tx).unwrap();
+        let new_tx = _decode_from_hex::<Transaction>(new_tx).unwrap();
 
         assert_eq!(tx, new_tx);
         assert_eq!(res.change_position, -1);
@@ -857,8 +980,7 @@ mod tests {
         let res = rpc
             .sign_raw_transaction_with_wallet(&tx, None, None)
             .unwrap();
-        let new_tx = String::consensus_decode(&mut res.hex.as_slice()).unwrap();
-        let new_tx = decode_from_hex::<Transaction>(new_tx).unwrap();
+        let new_tx = deserialize::<Transaction>(&res.hex).unwrap();
 
         assert!(!new_tx.input.first().unwrap().witness.is_empty());
     }

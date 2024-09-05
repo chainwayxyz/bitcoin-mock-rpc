@@ -19,7 +19,7 @@ use rusqlite::params;
 
 impl Ledger {
     /// Adds transaction to blockchain, after verifying.
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     pub fn add_transaction(&self, transaction: Transaction) -> Result<Txid, LedgerError> {
         self.check_transaction(&transaction)?;
 
@@ -56,6 +56,8 @@ impl Ledger {
         };
 
         self.add_mempool_transaction(txid)?;
+
+        self.handle_transaction_utxos(&transaction)?;
 
         Ok(txid)
     }
@@ -160,7 +162,7 @@ impl Ledger {
     /// 3. Is script execution successful?
     ///
     /// No checks for if that UTXO is spendable or not.
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     pub fn check_transaction(&self, transaction: &Transaction) -> Result<(), LedgerError> {
         self.check_transaction_funds(transaction)?;
 
@@ -265,6 +267,20 @@ impl Ledger {
         tracing::trace!("Transaction's output value in total is {amount}");
 
         amount
+    }
+
+    /// Removes inputs from UTXOs and adds outputs to UTXOs.
+    pub fn handle_transaction_utxos(&self, transaction: &Transaction) -> Result<(), LedgerError> {
+        for input in &transaction.input {
+            self.remove_utxo(input.previous_output)?;
+        }
+
+        let txid = transaction.compute_txid();
+        for vout in 0..(transaction.output.len() as u32) {
+            self.add_utxo(OutPoint { txid, vout })?;
+        }
+
+        Ok(())
     }
 
     /// Creates a `TxIn` with some defaults.

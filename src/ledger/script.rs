@@ -92,7 +92,7 @@ impl Ledger {
 
     /// Checks if it is a CSV script and compares sequence against the current
     /// block height/time.
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn check_sequence(
         &self,
         utxo: OutPoint,
@@ -125,7 +125,7 @@ impl Ledger {
 
         match sequence_lock {
             relative::LockTime::Blocks(height) => {
-                if height.value() > blocks_after as u16 {
+                if height.value() - 1 > blocks_after as u16 {
                     return Err(LedgerError::Script(format!(
                         "Input {:?} is locked until block {} (current block height {})",
                         utxo,
@@ -135,7 +135,7 @@ impl Ledger {
                 }
             }
             relative::LockTime::Time(time) => {
-                if time.value() > time_after as u16 {
+                if time.value() - (10 * 60) > time_after as u16 {
                     return Err(LedgerError::Script(format!(
                         "Input {:?} is locked until time {} (current block time {})",
                         utxo,
