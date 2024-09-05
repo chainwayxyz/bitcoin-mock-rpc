@@ -128,7 +128,7 @@ mod tests {
     use crate::{
         ledger,
         rpc::adapter::GetrawtransactionReturn,
-        utils::{decode_from_hex, encode_to_hex},
+        utils::{_decode_from_hex, encode_to_hex},
         Client, RpcApiWrapper,
     };
     use bitcoin::{
@@ -160,7 +160,7 @@ mod tests {
         let encoded_tx = super::getrawtransaction(&client, txid.to_string(), None, None).unwrap();
 
         if let GetrawtransactionReturn::NoneVerbose(encoded_tx) = encoded_tx {
-            assert_eq!(tx, decode_from_hex(encoded_tx).unwrap());
+            assert_eq!(tx, _decode_from_hex(encoded_tx).unwrap());
         } else {
             panic!("");
         }
@@ -235,7 +235,7 @@ mod tests {
         };
 
         let txid = super::sendrawtransaction(&client, encode_to_hex(&tx.clone()), None).unwrap();
-        let txid = decode_from_hex::<Txid>(txid).unwrap();
+        let txid = _decode_from_hex::<Txid>(txid).unwrap();
 
         let read_tx = client.get_raw_transaction(&txid, None).unwrap();
 
