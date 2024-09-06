@@ -422,7 +422,7 @@ mod tests {
         let txs = ledger._get_transactions();
         assert_eq!(txs.len(), 1);
 
-        let tx2 = txs.get(0).unwrap().to_owned();
+        let tx2 = txs.first().unwrap().to_owned();
         assert_eq!(tx, tx2);
 
         let tx2 = ledger.get_transaction(txid).unwrap();
@@ -449,10 +449,8 @@ mod tests {
         );
 
         // Input amount is zero. Same transaction should not be accepted, if
-        // checks are performed..
-        if let Ok(_) = ledger.add_transaction(tx.clone()) {
-            assert!(false);
-        };
+        // checks are performed.
+        assert!(ledger.add_transaction(tx.clone()).is_err());
 
         // Create a valid transaction. This should pass checks.
         let txin = TxIn {

@@ -273,17 +273,13 @@ fn fund_sign_raw_transaction_with_wallet() {
     let tx = common::create_transaction(vec![], vec![txout]);
 
     // Lower input funds should be a problem.
-    if rpc.send_raw_transaction(&tx).is_ok() {
-        assert!(false);
-    };
+    assert!(rpc.send_raw_transaction(&tx).is_err());
 
     let res = rpc.fund_raw_transaction(&tx, None, None).unwrap();
     let tx = bitcoin::consensus::encode::deserialize::<Transaction>(&res.hex).unwrap();
 
     // Not signed inputs should be a problem.
-    if rpc.send_raw_transaction(&tx).is_ok() {
-        assert!(false);
-    };
+    assert!(rpc.send_raw_transaction(&tx).is_err());
 
     let res = rpc
         .sign_raw_transaction_with_wallet(&tx, None, None)

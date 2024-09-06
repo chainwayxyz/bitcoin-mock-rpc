@@ -340,9 +340,7 @@ mod tests {
         assert_eq!(current_height, 1);
 
         assert_eq!(ledger.get_mempool_transactions().len(), 0);
-        if let Some(_) = ledger.get_mempool_transaction(tx.compute_txid()) {
-            assert!(false);
-        }
+        assert!(ledger.get_mempool_transaction(tx.compute_txid()).is_none());
     }
 
     #[test]

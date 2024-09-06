@@ -66,7 +66,7 @@ fn use_utxo_from_send_to_address() {
     // assert_eq!(rpc.get_balance(None, None).unwrap(), deposit_value * 0x1F);
 
     let tx = rpc.get_raw_transaction(&txid, None).unwrap();
-    assert_eq!(tx.output.get(0).unwrap().value, deposit_value * 0x1F);
+    assert_eq!(tx.output.first().unwrap().value, deposit_value * 0x1F);
 
     // Valid tx.
     let txin = TxIn {
@@ -84,7 +84,5 @@ fn use_utxo_from_send_to_address() {
         deposit_address.script_pubkey(),
     );
     let tx = common::create_transaction(vec![txin], vec![txout]);
-    if let Ok(_) = rpc.send_raw_transaction(&tx) {
-        assert!(false);
-    };
+    assert!(rpc.send_raw_transaction(&tx).is_err());
 }
