@@ -817,9 +817,7 @@ mod tests {
             .ledger
             .create_txout(Amount::from_sat(1), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![], vec![txout]);
-        if let Ok(()) = rpc.ledger.check_transaction(&tx) {
-            assert!(false);
-        };
+        assert!(rpc.ledger.check_transaction(&tx).is_err());
 
         // Generating blocks should add funds to wallet.
         rpc.generate_to_address(101, &address).unwrap();
@@ -830,7 +828,7 @@ mod tests {
                 txid: rpc
                     .ledger
                     ._get_transactions()
-                    .get(0)
+                    .first()
                     .unwrap()
                     .compute_txid(),
                 vout: 0,
@@ -842,9 +840,7 @@ mod tests {
             .ledger
             .create_txout(Amount::from_sat(1), address.script_pubkey());
         let tx = rpc.ledger.create_transaction(vec![txin], vec![txout]);
-        if let Err(e) = rpc.ledger.check_transaction(&tx) {
-            assert!(false, "{:?}", e);
-        };
+        rpc.ledger.check_transaction(&tx).unwrap();
     }
 
     #[test]

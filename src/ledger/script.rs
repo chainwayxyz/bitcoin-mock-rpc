@@ -181,7 +181,7 @@ mod tests {
         assert_eq!(ledger.get_block_height().unwrap(), 3);
 
         let script = Builder::new()
-            .push_int(0x1 as i64)
+            .push_int(0x1_i64)
             .push_opcode(OP_CSV)
             .push_opcode(OP_DROP)
             .push_x_only_key(&xonly_pk)
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(ledger.get_block_height().unwrap(), 6);
 
         let script = Builder::new()
-            .push_int(0x1 as i64)
+            .push_int(0x1_i64)
             .push_opcode(OP_CSV)
             .push_opcode(OP_DROP)
             .push_x_only_key(&xonly_pk)
@@ -208,22 +208,20 @@ mod tests {
         }
         assert_eq!(ledger.get_block_height().unwrap(), 9);
         let script = Builder::new()
-            .push_int(0x45 as i64)
+            .push_int(0x45_i64)
             .push_opcode(OP_CSV)
             .push_opcode(OP_DROP)
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_sequence(utxo, script, 0x46) {
-            assert!(false);
-        }
+        assert!(ledger.check_sequence(utxo, script, 0x46).is_err());
 
         for _ in 0..0x100 {
             ledger.mine_block(&credential.address).unwrap();
         }
         assert_eq!(ledger.get_block_height().unwrap(), 9 + 0x100);
         let script = Builder::new()
-            .push_int(0x100 as i64)
+            .push_int(0x100_i64)
             .push_opcode(OP_CSV)
             .push_opcode(OP_DROP)
             .push_x_only_key(&xonly_pk)
@@ -271,13 +269,13 @@ mod tests {
             .push_x_only_key(&xonly_pk)
             .push_opcode(OP_CHECKSIG)
             .into_script();
-        if let Ok(_) = ledger.check_sequence(
-            utxo,
-            script,
-            Sequence::from_512_second_intervals(0x44).to_consensus_u32(),
-        ) {
-            assert!(false);
-        };
+        assert!(ledger
+            .check_sequence(
+                utxo,
+                script,
+                Sequence::from_512_second_intervals(0x44).to_consensus_u32(),
+            )
+            .is_err());
 
         ledger.mine_block(&credential.address).unwrap();
 
