@@ -57,6 +57,7 @@ impl RpcApiWrapper for Client {
     /// it's previous state. Meaning it won't clear database. This is helpful
     /// for cloning the `Client` structure.
     #[tracing::instrument]
+    #[allow(deprecated)]
     fn new_without_cleanup(url: &str, _auth: Auth) -> bitcoincore_rpc::Result<Self> {
         Ok(Self {
             ledger: Ledger::new_without_cleanup(url),

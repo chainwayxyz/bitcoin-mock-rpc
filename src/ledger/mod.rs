@@ -83,7 +83,10 @@ impl Ledger {
     /// # Panics
     ///
     /// Panics if SQLite connection can't be established.
-    #[deprecated(since="0.0.11", note="`new()` also checks for open ledgers, not needed")]
+    #[deprecated(
+        since = "0.0.11",
+        note = "`new()` also checks for open ledgers, not needed"
+    )]
     pub fn new_without_cleanup(path: &str) -> Self {
         let path = Ledger::get_database_path(path);
 
