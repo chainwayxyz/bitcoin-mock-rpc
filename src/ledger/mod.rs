@@ -206,8 +206,38 @@ mod tests {
 
     #[test]
     fn concurrent_connections() {
-        let _ledger = Ledger::new("concurrent_connections");
+        let ledger = Ledger::new("concurrent_connections");
 
-        let _ledger2 = Ledger::new("concurrent_connections");
+        let ledger2 = Ledger::new("concurrent_connections");
+
+        let count = Ledger::get_database_connection_count(&ledger.database.lock().unwrap());
+        let count2 = Ledger::get_database_connection_count(&ledger2.database.lock().unwrap());
+
+        assert_eq!(count, count2);
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn concurrent_connection_panics() {
+        let ledger = Ledger::new("concurrent_connection_panics");
+
+        std::panic::set_hook(Box::new(|_info| {
+            // do nothing
+        }));
+
+        std::thread::spawn(|| {
+            let _ledger2 = Ledger::new("concurrent_connection_panics");
+
+            let _result = std::panic::catch_unwind(|| {
+                panic!("test panic");
+            });
+        })
+        .join()
+        .unwrap();
+
+        let _ledger3 = Ledger::new("concurrent_connection_panics");
+
+        let count = Ledger::get_database_connection_count(&ledger.database.lock().unwrap());
+        assert_eq!(count, 2);
     }
 }
