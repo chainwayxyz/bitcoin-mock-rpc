@@ -5,12 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.11] - 2024-09-06
 
 ### Changed
 
 - RPC server interface is disabled by default
   - It can be enabled by a feature flag
+- `Client::new()` call now checks for open ledgers
+  - If there isn't any other ledgers are open, cleans database
+  - Works only on systems with `lsof` command
+  - Without `lsof`, ledger cleans ledger if `Client::new()` is called again
 
 ## [0.0.10] - 2024-09-04
 
