@@ -4,6 +4,7 @@
 
 use crate::ledger::Ledger;
 use bitcoincore_rpc::{Auth, RpcApi};
+use std::fmt::Debug;
 
 mod rpc_api;
 
@@ -11,7 +12,7 @@ mod rpc_api;
 /// `new()`. This is needed if target application wants to choose actual rpc and
 /// this via trait definitions. This is helpful for choosing different rpc
 /// interface between test and release builds.
-pub trait RpcApiWrapper: RpcApi + std::marker::Sync + std::marker::Send + 'static {
+pub trait RpcApiWrapper: RpcApi + std::marker::Sync + std::marker::Send + 'static + Debug {
     /// Create a new RPC connection.
     fn new(url: &str, auth: Auth) -> bitcoincore_rpc::Result<Self>;
     /// Create a new RPC connection, without any cleanup. Useful for `clone`
