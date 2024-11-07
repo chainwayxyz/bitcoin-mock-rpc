@@ -6,7 +6,7 @@ use crate::utils;
 use bitcoin::block::{Header, Version};
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::hashes::Hash;
-use bitcoin::{Address, Block, BlockHash, CompactTarget, Transaction, Txid};
+use bitcoin::{Address, Block, BlockHash, CompactTarget, Transaction, TxMerkleNode, Txid};
 use rusqlite::params;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -145,10 +145,7 @@ impl Ledger {
             }
         };
         // Genesis block will also return a database error. Ignore that.
-        let body = match body {
-            Ok(b) => b,
-            Err(_) => Vec::new(),
-        };
+        let body = body.unwrap_or_default();
 
         match Block::consensus_decode(&mut body.as_slice()) {
             Ok(block) => Ok(block),
@@ -162,6 +159,21 @@ impl Ledger {
     pub fn get_block_with_hash(&self, hash: BlockHash) -> Result<Block, LedgerError> {
         let mut encoded_hash: Vec<u8> = Vec::new();
         hash.consensus_encode(&mut encoded_hash).unwrap();
+
+        // Handle genesis block.
+        if hash == BlockHash::all_zeros() {
+            return Ok(Block {
+                header: Header {
+                    version: Version::TWO,
+                    prev_blockhash: BlockHash::all_zeros(),
+                    merkle_root: TxMerkleNode::all_zeros(),
+                    time: 0,
+                    bits: CompactTarget::default(),
+                    nonce: 0,
+                },
+                txdata: vec![],
+            });
+        }
 
         let qr = match self.database.lock().unwrap().query_row(
             "SELECT body FROM blocks WHERE hash = ?1",
