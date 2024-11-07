@@ -17,7 +17,7 @@ use bitcoin::{
 };
 use bitcoincore_rpc::{
     json::{
-        self, GetRawTransactionResult, GetRawTransactionResultVin,
+        self, GetChainTipsResultStatus, GetRawTransactionResult, GetRawTransactionResultVin,
         GetRawTransactionResultVinScriptSig, GetRawTransactionResultVout,
         GetRawTransactionResultVoutScriptPubKey, GetTransactionResult, GetTransactionResultDetail,
         GetTransactionResultDetailCategory, GetTxOutResult, SignRawTransactionResult, WalletTxInfo,
@@ -608,6 +608,25 @@ impl RpcApi for Client {
             complete: true,
             errors: None,
         })
+    }
+
+    #[tracing::instrument(skip_all)]
+    fn get_chain_tips(&self) -> bitcoincore_rpc::Result<json::GetChainTipsResult> {
+        let height = self.ledger.get_block_height().unwrap();
+        let hash = if height == 0 {
+            BlockHash::all_zeros()
+        } else {
+            self.ledger.get_block_with_height(height)?.block_hash()
+        };
+
+        let tip = json::GetChainTipsResultTip {
+            height: height as u64,
+            hash,
+            branch_length: height as usize,
+            status: GetChainTipsResultStatus::Active,
+        };
+
+        Ok(vec![tip])
     }
 }
 

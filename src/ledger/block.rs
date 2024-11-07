@@ -6,7 +6,7 @@ use crate::utils;
 use bitcoin::block::{Header, Version};
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::hashes::Hash;
-use bitcoin::{Address, Block, BlockHash, CompactTarget, Transaction, Txid};
+use bitcoin::{Address, Block, BlockHash, CompactTarget, Transaction, TxMerkleNode, Txid};
 use rusqlite::params;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -163,10 +163,28 @@ impl Ledger {
         let mut encoded_hash: Vec<u8> = Vec::new();
         hash.consensus_encode(&mut encoded_hash).unwrap();
 
+        // Handle genesis block.
+        if hash == BlockHash::all_zeros() {
+            return Ok(Block {
+                header: Header {
+                    version: Version::TWO,
+                    prev_blockhash: BlockHash::all_zeros(),
+                    merkle_root: TxMerkleNode::all_zeros(),
+                    time: 0,
+                    bits: CompactTarget::default(),
+                    nonce: 0,
+                },
+                txdata: vec![],
+            });
+        }
+
         let qr = match self.database.lock().unwrap().query_row(
             "SELECT body FROM blocks WHERE hash = ?1",
             params![encoded_hash],
-            |row| Ok(row.get::<_, Vec<u8>>(0).unwrap()),
+            |row| {
+                tracing::error!("row {:?}", row);
+                Ok(row.get::<_, Vec<u8>>(0).unwrap())
+            },
         ) {
             Ok(qr) => qr,
             Err(e) => {
