@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.12] - 2024-11-07
+
+### Added
+
+- 2 new RPC functions
+  - get_chain_tips and get_block_hash
+
 ## [0.0.11] - 2024-09-06
 
 ### Changed
@@ -152,6 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generate_to_address`
   - `get_balance`
 
+[0.0.12]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.10...v0.0.11
 [0.0.10]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/chainwayxyz/bitcoin-mock-rpc/compare/v0.0.8...v0.0.9
