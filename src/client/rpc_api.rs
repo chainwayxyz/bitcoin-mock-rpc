@@ -631,7 +631,10 @@ impl RpcApi for Client {
 
     #[tracing::instrument(skip_all)]
     fn get_block_hash(&self, height: u64) -> bitcoincore_rpc::Result<bitcoin::BlockHash> {
-        Ok(self.ledger.get_block_with_height(height as u32)?.block_hash())
+        Ok(self
+            .ledger
+            .get_block_with_height(height as u32)?
+            .block_hash())
     }
 }
 

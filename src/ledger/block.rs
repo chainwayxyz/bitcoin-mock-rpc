@@ -145,10 +145,7 @@ impl Ledger {
             }
         };
         // Genesis block will also return a database error. Ignore that.
-        let body = match body {
-            Ok(b) => b,
-            Err(_) => Vec::new(),
-        };
+        let body = body.unwrap_or_default();
 
         match Block::consensus_decode(&mut body.as_slice()) {
             Ok(block) => Ok(block),
@@ -181,9 +178,7 @@ impl Ledger {
         let qr = match self.database.lock().unwrap().query_row(
             "SELECT body FROM blocks WHERE hash = ?1",
             params![encoded_hash],
-            |row| {
-                Ok(row.get::<_, Vec<u8>>(0).unwrap())
-            },
+            |row| Ok(row.get::<_, Vec<u8>>(0).unwrap()),
         ) {
             Ok(qr) => qr,
             Err(e) => {
