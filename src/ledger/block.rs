@@ -182,7 +182,6 @@ impl Ledger {
             "SELECT body FROM blocks WHERE hash = ?1",
             params![encoded_hash],
             |row| {
-                tracing::error!("row {:?}", row);
                 Ok(row.get::<_, Vec<u8>>(0).unwrap())
             },
         ) {
